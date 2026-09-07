@@ -15,13 +15,13 @@
         <div class="rounded-xl bg-white/10 py-4"><p{% if landing_campaign.status == 'Active' %} id="admission-minutes"{% endif %} class="text-3xl font-black">{% if landing_campaign.status == 'Active' %}00{% else %}--{% endif %}</p><p class="text-xs uppercase text-slate-300">Min</p></div>
         <div class="rounded-xl bg-white/10 py-4"><p{% if landing_campaign.status == 'Active' %} id="admission-seconds"{% endif %} class="text-3xl font-black">{% if landing_campaign.status == 'Active' %}00{% else %}--{% endif %}</p><p class="text-xs uppercase text-slate-300">Sec</p></div>
     </div>
-    <div class="mt-8 flex gap-3">
+    <div class="mt-8 flex flex-col gap-3 sm:flex-row">
         {% if landing_campaign.status == 'Active' %}
-        <a href="{% url 'apply_admission' %}" id="start-application-btn" class="flex-1 inline-flex items-center justify-center whitespace-nowrap rounded-full bg-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-600/30 transition-all hover:bg-emerald-500">Apply Now</a>
+        <a href="{% url 'apply_admission' %}" id="start-application-btn" class="w-full sm:flex-1 inline-flex items-center justify-center whitespace-normal text-center leading-tight rounded-full bg-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-600/30 transition-all hover:bg-emerald-500">Apply Now</a>
         {% else %}
         <div class="flex-1 inline-flex items-center justify-center whitespace-nowrap rounded-full border border-slate-500/40 bg-slate-500/10 px-4 py-3 text-sm font-bold text-slate-300">Admission Closed</div>
         {% endif %}
-        <button type="button" id="check-status-trigger" class="flex-1 inline-flex items-center justify-center whitespace-nowrap rounded-full border border-slate-600 bg-transparent px-4 py-3 text-sm font-bold text-slate-200 transition-all hover:bg-slate-700">Continue / Check Status</button>
+        <button type="button" id="check-status-trigger" class="w-full sm:flex-1 inline-flex items-center justify-center whitespace-normal text-center leading-tight rounded-full border border-slate-600 bg-transparent px-4 py-3 text-sm font-bold text-slate-200 transition-all hover:bg-slate-700">Continue / Check Status</button>
     </div>
 </div>
 <script>
