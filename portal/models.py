@@ -809,6 +809,21 @@ class MessageRecipient(models.Model):
         return f"{self.message.subject} -> {self.recipient_user.username}"
 
 
+class Notification(models.Model):
+    recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='notifications')
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    link = models.CharField(max_length=500, blank=True)
+
+    class Meta:
+        ordering = ['-created_at', '-pk']
+
+    def __str__(self):
+        return f'Notification for {self.recipient.username} - {self.title}'
+
+
 class StaffSalaryProfile(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='salary_profiles')
     academic_session = models.ForeignKey(AcademicSession, on_delete=models.PROTECT, related_name='salary_profiles')

@@ -20,6 +20,7 @@ urlpatterns = [
     path('messaging/compose/', views.general_messaging_view, name='general_messaging'),
     path('messaging/results/', views.result_messaging_view, name='result_messaging'),
     path('inbox/', views.inbox_view, name='inbox'),
+    path('notifications/<int:pk>/', views.notification_view, name='notification'),
     path('hr/salary-profiles/', views.salary_profiles_view, name='salary_profiles'),
     path('hr/run-payroll/', views.run_payroll_view, name='run_payroll'),
     path('hr/payroll-history/', views.payroll_history_view, name='payroll_history'),

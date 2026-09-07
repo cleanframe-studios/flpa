@@ -60,6 +60,7 @@ from .models import (
     Applicant,
     Message,
     MessageRecipient,
+    Notification,
     StaffSalaryProfile,
     PayrollRun,
     Payslip,
@@ -903,11 +904,31 @@ def _primary_login_classrooms():
 
 
 def _send_message(sender, subject, body, priority, recipient_users):
+    recipient_users = list(recipient_users)
     message = Message.objects.create(sender=sender, subject=subject, body=body, priority=priority)
     MessageRecipient.objects.bulk_create([
         MessageRecipient(message=message, recipient_user=user) for user in recipient_users
     ], ignore_conflicts=True)
+    Notification.objects.bulk_create([
+        Notification(recipient=user, title=subject, message=body, link=reverse('inbox'))
+        for user in recipient_users
+    ])
     return message
+
+
+def _notify_users(recipient_users, title, message, link=''):
+    Notification.objects.bulk_create([
+        Notification(recipient=user, title=title, message=message, link=link)
+        for user in recipient_users
+    ])
+
+
+@login_required(login_url='login')
+def notification_view(request, pk):
+    notification = get_object_or_404(Notification, pk=pk, recipient=request.user)
+    notification.is_read = True
+    notification.save(update_fields=['is_read'])
+    return redirect(notification.link or 'dashboard')
 
 
 @login_required(login_url='login')
@@ -1367,6 +1388,9 @@ def parent_dashboard_view(request):
         return redirect('dashboard')
     active_term = AcademicTerm.objects.filter(is_active=True).first()
     children = list(parent.children.select_related('current_class'))
+    attendance_data = Attendance.objects.filter(
+        student__in=children,
+    ).select_related('student', 'classroom', 'session').order_by('-date', 'student__last_name')[:100]
     for child in children:
         child.recent_attendance = child.attendance.filter(date__gte=timezone.localdate() - datetime.timedelta(days=6)).order_by('-date')[:5]
         child.fee_account = StudentFeeAccount.objects.filter(student=child, term=active_term, session=active_term.session).first() if active_term else None
@@ -1375,6 +1399,7 @@ def parent_dashboard_view(request):
     return render(request, 'portal/parent_dashboard.html', {
         'parent': parent,
         'children': children,
+        'attendance_data': attendance_data,
         'active_term': active_term,
         'payment_channels': [
             ('School Fees', 'Zenith Bank', '1223688239', 'Future Leaders Private Academy'),
@@ -2576,12 +2601,19 @@ def bursary_dashboard(request):
         ).first()
         with transaction.atomic():
             for student in students:
-                StudentFeeAccount.objects.get_or_create(
+                account, created = StudentFeeAccount.objects.get_or_create(
                     student=student,
                     term=selected_term,
                     session=selected_session,
                     defaults={'total_billed': fee_structure.amount_required if fee_structure else Decimal('0')},
                 )
+                if created and account.balance > 0 and student.parent and student.parent.user:
+                    _notify_users(
+                        [student.parent.user],
+                        'School fees due',
+                        f'School fees for {student.first_name} {student.last_name} are now due. Please review the outstanding balance.',
+                        reverse('parent_bursary'),
+                    )
     accounts = StudentFeeAccount.objects.select_related('student', 'student__current_class', 'term', 'session').prefetch_related('payments')
     if selected_term:
         accounts = accounts.filter(term=selected_term, session=selected_session)
@@ -2806,6 +2838,13 @@ def publish_results_view(request):
     status.is_published = True
     status.scheduled_publish_date = None
     status.save(update_fields=['is_published', 'scheduled_publish_date'])
+    if not previous_status:
+        _notify_users(
+            _parent_recipient_users(classroom),
+            f'Results published for {classroom.name}',
+            f'The {term.term_name} results for {classroom.name} are now available in the parent portal.',
+            reverse('parent_report_cards'),
+        )
     log_security_action(request, 'RESULT_PUBLISHED', f'{classroom.name} - {term.term_name} {term.session.name}', {
         'before': {'is_published': previous_status}, 'after': {'is_published': True},
     })
