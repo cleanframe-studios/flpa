@@ -695,7 +695,7 @@ class Applicant(models.Model):
     SCHOOL_TYPE_CHOICES = [('None', 'First School (No Previous School)'), ('Public', 'Public'), ('Private', 'Private')]
 
     campaign = models.ForeignKey(AdmissionCampaign, on_delete=models.CASCADE, related_name='applicants')
-    temp_reg_number = models.CharField(max_length=30, unique=True, blank=True)
+    temp_reg_number = models.CharField(max_length=50, unique=True, blank=True)
 
     # Step 1: Basic Applicant Data
     first_name = models.CharField(max_length=50)
@@ -712,7 +712,7 @@ class Applicant(models.Model):
     # Step 2: Challenges & Academic Background
     has_disability = models.BooleanField(default=False)
     disability_details = models.CharField(max_length=255, blank=True)
-    school_type = models.CharField(max_length=20, choices=SCHOOL_TYPE_CHOICES, blank=True)
+    school_type = models.CharField(max_length=50, choices=SCHOOL_TYPE_CHOICES, blank=True)
     previous_school = models.CharField(max_length=150, blank=True)
     present_class = models.CharField(max_length=50, blank=True)
     programme_of_study = models.CharField(max_length=50, choices=Student.PROGRAM_CHOICES, blank=True)
