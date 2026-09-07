@@ -323,10 +323,25 @@ def contact_page(request):
     return render(request, 'portal/contact_page.html')
 
 
+def _login_destination(user):
+    if hasattr(user, 'account_profile'):
+        if user.account_profile.role == 'student' and hasattr(user, 'student_record'):
+            return 'student_dashboard'
+        if user.account_profile.role == 'teacher' and hasattr(user, 'teacher_record'):
+            return 'teacher_dashboard'
+        if user.account_profile.role == 'parent' and hasattr(user, 'parent_record'):
+            return 'parent_dashboard'
+    return 'dashboard'
+
+
 def login_view(request):
+    if request.user.is_authenticated:
+        return redirect(_login_destination(request.user))
+
     if request.method == 'POST':
         user_name = request.POST.get('username')
         pass_word = request.POST.get('password')
+        remember_me = request.POST.get('remember_me') == 'on'
         
         user = authenticate(request, username=user_name, password=pass_word)
         
@@ -336,14 +351,8 @@ def login_view(request):
                 messages.warning(request, 'Login access is restricted to Primary 4 and above.')
                 return redirect('login')
             login(request, user)
-            if hasattr(user, 'account_profile'):
-                if user.account_profile.role == 'student' and hasattr(user, 'student_record'):
-                    return redirect('student_dashboard')
-                if user.account_profile.role == 'teacher' and hasattr(user, 'teacher_record'):
-                    return redirect('teacher_dashboard')
-                if user.account_profile.role == 'parent' and hasattr(user, 'parent_record'):
-                    return redirect('parent_dashboard')
-            return redirect('dashboard')
+            request.session.set_expiry(1209600 if remember_me else 0)
+            return redirect(_login_destination(user))
         else:
             messages.error(request, 'Invalid username or password.')
 
