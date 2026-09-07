@@ -36,6 +36,11 @@ body {
     display: none;
 }
 
+@keyframes standaloneNavGradient {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+
 @media (display-mode: standalone), (display-mode: fullscreen) {
     html,
     body {
@@ -50,6 +55,9 @@ body {
     .bottom-app-nav {
         display: flex !important;
         padding-bottom: max(.5rem, env(safe-area-inset-bottom));
+        background: linear-gradient(115deg, rgb(239 246 255 / 0.96), rgb(254 242 242 / 0.96), rgb(219 234 254 / 0.96)) !important;
+        background-size: 220% 220% !important;
+        animation: standaloneNavGradient 8s ease-in-out infinite;
     }
 
     #app-global-branding,
@@ -124,8 +132,10 @@ body {
 @media (prefers-reduced-motion: reduce) {
     #standalone-preloader,
     #app-more-drawer,
-    #app-more-drawer > div {
+    #app-more-drawer > div,
+    .bottom-app-nav {
         transition: none;
+        animation: none;
     }
 }
 
