@@ -319,6 +319,12 @@
     <div class="mt-5 max-h-[60vh] overflow-hidden rounded-2xl bg-slate-950">
       <img id="passport-crop-image" class="block max-h-[60vh] w-full" alt="Passport crop preview">
     </div>
+    <div class="mt-3 flex flex-wrap justify-center gap-2">
+      <button type="button" id="passport-zoom-out" class="rounded-lg bg-white/10 px-3 py-2 text-xs font-bold text-white hover:bg-white/20" aria-label="Zoom out">−</button>
+      <button type="button" id="passport-zoom-in" class="rounded-lg bg-white/10 px-3 py-2 text-xs font-bold text-white hover:bg-white/20" aria-label="Zoom in">+</button>
+      <button type="button" id="passport-rotate" class="rounded-lg bg-white/10 px-3 py-2 text-xs font-bold text-white hover:bg-white/20">Rotate</button>
+      <button type="button" id="passport-reset" class="rounded-lg bg-white/10 px-3 py-2 text-xs font-bold text-white hover:bg-white/20">Reset</button>
+    </div>
     <div class="mt-5 flex justify-end gap-3">
       <button type="button" id="passport-crop-cancel" class="rounded-xl bg-white/10 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/20">Cancel</button>
       <button type="button" id="passport-crop-save" class="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-emerald-500">Use cropped photo</button>
@@ -477,6 +483,10 @@
   const passportCropSave = document.getElementById('passport-crop-save');
   const passportCropCancel = document.getElementById('passport-crop-cancel');
   const passportCropClose = document.getElementById('passport-crop-close');
+  const passportZoomOut = document.getElementById('passport-zoom-out');
+  const passportZoomIn = document.getElementById('passport-zoom-in');
+  const passportRotate = document.getElementById('passport-rotate');
+  const passportReset = document.getElementById('passport-reset');
   let passportCropper = null;
 
   function closePassportCrop(clearInput) {
@@ -530,6 +540,10 @@
   });
   passportCropCancel.addEventListener('click', function () { closePassportCrop(true); });
   passportCropClose.addEventListener('click', function () { closePassportCrop(true); });
+  passportZoomOut.addEventListener('click', function () { if (passportCropper) passportCropper.zoom(-0.1); });
+  passportZoomIn.addEventListener('click', function () { if (passportCropper) passportCropper.zoom(0.1); });
+  passportRotate.addEventListener('click', function () { if (passportCropper) passportCropper.rotate(90); });
+  passportReset.addEventListener('click', function () { if (passportCropper) passportCropper.reset(); });
 
   // ---- localStorage autosave & draft recovery ----
   const DRAFT_KEY = 'flaAdmissionDraft';

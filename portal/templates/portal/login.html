@@ -7,13 +7,13 @@
     @keyframes appSplashLogo { 0% { opacity: 0; transform: scale(.72); } 65% { opacity: 1; transform: scale(1.06); } 100% { opacity: 1; transform: scale(1); } }
     @keyframes appSplashLift { from { transform: translateY(0); } to { transform: translateY(-1.5rem); } }
     @keyframes appSplashText { from { opacity: 0; transform: translateY(1rem); } to { opacity: 1; transform: translateY(0); } }
-    @keyframes appSplashLoader { from { opacity: 0; transform: scaleX(.4); } to { opacity: 1; transform: scaleX(1); } }
+    @keyframes appSplashLoader { from { opacity: 0; transform: scaleX(0); } to { opacity: 1; transform: scaleX(1); } }
     @keyframes appSplashExit { to { opacity: 0; visibility: hidden; } }
-    #app-splash { animation: appSplashExit .55s ease 2.9s forwards; }
+    #app-splash { animation: appSplashExit .55s ease 4.6s forwards; }
     #app-splash-logo { animation: appSplashLogo .8s cubic-bezier(.16, 1, .3, 1) both, appSplashLift .55s ease 1.15s forwards; }
     #app-splash-name { animation: appSplashText .55s ease 1.25s both; }
     #app-splash-tagline { animation: appSplashText .55s ease 1.65s both; }
-    #app-splash-loader { animation: appSplashLoader .65s ease 2.05s both; }
+    #app-splash-loader { animation: appSplashLoader 1.8s cubic-bezier(.16, 1, .3, 1) 2.35s both; }
     @media (prefers-reduced-motion: reduce) { #app-splash, #app-splash-logo, #app-splash-name, #app-splash-tagline, #app-splash-loader { animation: none; } #app-splash { visibility: hidden; } }
 </style>
 <div id="app-splash" class="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950 text-white" aria-label="Loading Future Leaders Private Academy">
