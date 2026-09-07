@@ -315,6 +315,12 @@
             <div class="h-1.5 w-40 overflow-hidden rounded-full bg-white/15"><div class="h-full w-1/2 animate-pulse rounded-full bg-gradient-to-r from-emerald-300 to-cyan-300"></div></div>
         </div>
     </div>
+    <div id="page-transition-loader" class="hidden" aria-live="polite" aria-label="Loading page">
+        <div class="page-transition-card">
+            <img src="{% static 'portal/logo.png' %}" alt="Future Leaders Private Academy" class="page-transition-logo">
+            <span class="text-[10px] font-bold uppercase tracking-[0.25em] text-white/80">Loading</span>
+        </div>
+    </div>
 
     {% if user.is_authenticated and request.resolver_match and request.resolver_match.url_name != 'login' and 'password' not in request.resolver_match.url_name %}
         <!-- Global Top Branding Nav (Admin Mode) -->
@@ -1153,6 +1159,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 </script>
+<script src="{% static 'portal/js/page-transition.js' %}"></script>
 <script>
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {

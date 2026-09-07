@@ -101,6 +101,9 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body class="font-sans antialiased flex min-h-screen w-full flex-col">
+    <div id="page-transition-loader" class="hidden" aria-live="polite" aria-label="Loading page">
+        <div class="page-transition-card"><img src="{% static 'portal/logo.png' %}" alt="Future Leaders Private Academy" class="page-transition-logo"><span class="text-[10px] font-bold uppercase tracking-[0.25em] text-white/80">Loading</span></div>
+    </div>
 
     <!-- Global Top Branding Nav (matches the main landing page header) -->
     <nav class="glass-header sticky top-0 z-50">
@@ -138,6 +141,7 @@
         {% block content %}{% endblock %}
     </main>
 
+    <script src="{% static 'portal/js/page-transition.js' %}"></script>
     <script>
         (function () {
             var menu = document.querySelector('.public-mobile-menu');

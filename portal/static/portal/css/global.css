@@ -21,6 +21,59 @@ body {
     overflow-wrap: normal;
 }
 
+@keyframes pageLoaderRoll {
+    to { transform: rotate(360deg); }
+}
+
+#page-transition-loader {
+    align-items: center;
+    background: rgb(2 6 23 / 0.42);
+    display: flex;
+    inset: 0;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    position: fixed;
+    transition: opacity 220ms ease, visibility 220ms ease;
+    visibility: hidden;
+    z-index: 12001;
+}
+
+#page-transition-loader.is-visible {
+    opacity: 1;
+    pointer-events: auto;
+    visibility: visible;
+}
+
+.page-transition-card {
+    align-items: center;
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    background: linear-gradient(135deg, rgb(255 255 255 / 0.2), rgb(255 255 255 / 0.08));
+    border: 1px solid rgb(255 255 255 / 0.35);
+    border-radius: 1.75rem;
+    box-shadow: 0 24px 80px rgb(2 6 23 / 0.35), inset 0 1px 1px rgb(255 255 255 / 0.35);
+    display: flex;
+    flex-direction: column;
+    gap: .9rem;
+    padding: 1.5rem 2rem;
+}
+
+.page-transition-logo {
+    animation: pageLoaderRoll 1s linear infinite;
+    height: 3.5rem;
+    object-fit: contain;
+    width: 3.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #page-transition-loader,
+    .page-transition-logo {
+        animation: none;
+        transition: none;
+    }
+}
+
 /* Status pills and compact badges must stay readable as single labels. */
 :is(.rounded-full, .status-badge, .exam-status-badge, span[class*='rounded-lg']) {
     white-space: nowrap;

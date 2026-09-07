@@ -37,6 +37,9 @@
   {% block extra_head %}{% endblock %}
 </head>
 <body class="public-site public-interior min-h-screen bg-slate-50 text-slate-900 antialiased">
+  <div id="page-transition-loader" class="hidden" aria-live="polite" aria-label="Loading page">
+    <div class="page-transition-card"><img src="{% static 'portal/logo.png' %}" alt="Future Leaders Private Academy" class="page-transition-logo"><span class="text-[10px] font-bold uppercase tracking-[0.25em] text-white/80">Loading</span></div>
+  </div>
   {% if request.resolver_match.url_name == 'public_home' %}<div id="premium-cursor" class="fixed w-6 h-6 bg-gradient-to-tr from-blue-500 to-purple-500 rounded-full pointer-events-none z-[99999] mix-blend-screen shadow-[0_0_30px_10px_rgba(168,85,247,0.6)] blur-[1px] transition-transform ease-out duration-75 -translate-x-1/2 -translate-y-1/2"></div>{% endif %}
   <div class="fixed inset-0 overflow-hidden pointer-events-none z-[-1]">
     <div class="absolute top-[-10%] left-[-10%] w-[40vw] h-[40vw] bg-blue-600/20 rounded-full blur-[120px] mix-blend-screen animate-pulse"></div>
@@ -77,6 +80,7 @@
       </nav>
   </aside>
 
+  <script src="{% static 'portal/js/page-transition.js' %}"></script>
   <script>
     (function () {
       var menu = document.querySelector('.public-mobile-menu');
