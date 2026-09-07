@@ -20,7 +20,7 @@ class ClassRoom(models.Model):
     ]
 
     name = models.CharField(max_length=50, unique=True)  # e.g., "Primary 4", "KG 2"
-    section = models.CharField(max_length=20, choices=SECTION_CHOICES)
+    section = models.CharField(max_length=100, choices=SECTION_CHOICES)
     level_number = models.IntegerField(null=True, blank=True) # e.g., 1, 2, 3, 4, 6 (skipping 5)
     sequence = models.IntegerField(null=True, blank=True)
     is_terminal = models.BooleanField(default=False)
@@ -43,7 +43,7 @@ class ClassRoomSubject(models.Model):
 class AccountProfile(models.Model):
     ROLE_CHOICES = [('admin', 'Admin'), ('principal', 'Principal'), ('bursar', 'Bursar'), ('teacher', 'Teacher'), ('registrar', 'Registrar'), ('parent', 'Parent'), ('student', 'Student')]
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='account_profile')
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES)
+    role = models.CharField(max_length=100, choices=ROLE_CHOICES)
     profile_picture = models.ImageField(upload_to='account_profiles/', max_length=255, blank=True, null=True)
 
     def __str__(self):
@@ -78,7 +78,7 @@ class Student(models.Model):
     ]
 
     # Auto-Generated ID
-    student_id = models.CharField(max_length=30, unique=True, blank=True)
+    student_id = models.CharField(max_length=100, unique=True, blank=True)
     lin = models.CharField(max_length=50, unique=True, blank=True, null=True)
     is_lin_visible = models.BooleanField(default=False)
 
@@ -86,7 +86,7 @@ class Student(models.Model):
     first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50, verbose_name='Surname')
     other_name = models.CharField(max_length=50, blank=True, null=True)
-    sex = models.CharField(max_length=10, choices=SEX_CHOICES)
+    sex = models.CharField(max_length=100, choices=SEX_CHOICES)
     date_of_birth = models.DateField()
     state_of_origin = models.CharField(max_length=50)
     lga_of_origin = models.CharField(max_length=50)
@@ -100,11 +100,11 @@ class Student(models.Model):
     physically_challenged = models.BooleanField(default=False)
 
     # Optional Contact & Personal Info
-    phone_number = models.CharField(max_length=20, blank=True, null=True)
-    religion = models.CharField(max_length=30, choices=RELIGION_CHOICES, blank=True, null=True)
+    phone_number = models.CharField(max_length=100, blank=True, null=True)
+    religion = models.CharField(max_length=100, choices=RELIGION_CHOICES, blank=True, null=True)
     email = models.EmailField(blank=True, null=True)
 
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Student')
+    status = models.CharField(max_length=100, choices=STATUS_CHOICES, default='Student')
     date_enrolled = models.DateField(auto_now_add=True)
     consecutive_absence_flag = models.BooleanField(default=False)
     teacher_comment = models.TextField(blank=True, default='')
@@ -156,21 +156,21 @@ class Parent(models.Model):
         ('Widowed', 'Widowed'),
     ]
 
-    parent_id = models.CharField(max_length=30, unique=True, blank=True)
+    parent_id = models.CharField(max_length=100, unique=True, blank=True)
     name = models.CharField(max_length=120, blank=True)
     first_name = models.CharField(max_length=50, blank=True)
     last_name = models.CharField(max_length=50, blank=True)
     middle_name = models.CharField(max_length=50, blank=True)
-    phone_number = models.CharField(max_length=20, unique=True)
-    sex = models.CharField(max_length=10, choices=SEX_CHOICES)
+    phone_number = models.CharField(max_length=100, unique=True)
+    sex = models.CharField(max_length=100, choices=SEX_CHOICES)
     email = models.EmailField(blank=True, null=True)
-    religion = models.CharField(max_length=30, blank=True, null=True)
+    religion = models.CharField(max_length=100, blank=True, null=True)
     occupation = models.CharField(max_length=100, blank=True, null=True)
-    marital_status = models.CharField(max_length=20, choices=MARITAL_STATUS_CHOICES)
+    marital_status = models.CharField(max_length=100, choices=MARITAL_STATUS_CHOICES)
     address = models.TextField()
     state = models.CharField(max_length=50)
     lga = models.CharField(max_length=80)
-    status = models.CharField(max_length=10, choices=[('Active', 'Active'), ('Inactive', 'Inactive')], default='Inactive')
+    status = models.CharField(max_length=100, choices=[('Active', 'Active'), ('Inactive', 'Inactive')], default='Inactive')
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='parent_record')
 
     class Meta:
@@ -200,20 +200,20 @@ class Parent(models.Model):
 
 
 class Teacher(models.Model):
-    staff_id = models.CharField(max_length=30, unique=True, blank=True)
+    staff_id = models.CharField(max_length=100, unique=True, blank=True)
     first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50, verbose_name='Surname')
     other_name = models.CharField(max_length=50, blank=True)
     other_name = models.CharField(max_length=50, blank=True, null=True)
     
     staff_type = models.CharField(max_length=50, blank=True, null=True)
-    birth_month = models.CharField(max_length=20, blank=True, null=True)
-    birth_day = models.CharField(max_length=10, blank=True, null=True)
+    birth_month = models.CharField(max_length=100, blank=True, null=True)
+    birth_day = models.CharField(max_length=100, blank=True, null=True)
     state_of_origin = models.CharField(max_length=50, blank=True, null=True)
     lga_of_origin = models.CharField(max_length=50, blank=True, null=True)
-    status = models.CharField(max_length=20, default='Active') # Active or Inactive
+    status = models.CharField(max_length=100, default='Active') # Active or Inactive
     
-    phone_number = models.CharField(max_length=20)
+    phone_number = models.CharField(max_length=100)
     email = models.EmailField(unique=True)
     passport = models.ImageField(upload_to='teacher_passports/', max_length=255, blank=True, null=True)
     date_joined = models.DateField(auto_now_add=True)
@@ -247,7 +247,7 @@ class TeacherQualification(models.Model):
 
     teacher = models.ForeignKey(Teacher, on_delete=models.CASCADE, related_name='qualifications')
     school = models.CharField(max_length=150)
-    qualification = models.CharField(max_length=30, choices=QUALIFICATION_CHOICES)
+    qualification = models.CharField(max_length=100, choices=QUALIFICATION_CHOICES)
     year = models.PositiveIntegerField()
     is_highest = models.BooleanField(default=False)
 
@@ -259,7 +259,7 @@ class TeacherQualification(models.Model):
 
 
 class AcademicSession(models.Model):
-    name = models.CharField(max_length=20, unique=True)
+    name = models.CharField(max_length=100, unique=True)
     is_active = models.BooleanField(default=False)
     rollover_completed = models.BooleanField(default=False)
 
@@ -278,7 +278,7 @@ class AcademicSession(models.Model):
 class AcademicTerm(models.Model):
     TERM_CHOICES = [('First Term', 'First Term'), ('Second Term', 'Second Term'), ('Third Term', 'Third Term')]
     session = models.ForeignKey(AcademicSession, on_delete=models.CASCADE, related_name='terms')
-    term_name = models.CharField(max_length=30, choices=TERM_CHOICES)
+    term_name = models.CharField(max_length=100, choices=TERM_CHOICES)
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
     next_term_begins = models.DateField(null=True, blank=True)
@@ -334,7 +334,7 @@ class SessionRolloverRecord(models.Model):
     closing_session = models.ForeignKey(AcademicSession, on_delete=models.CASCADE, related_name='rollover_records')
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='rollover_records')
     original_class = models.ForeignKey(ClassRoom, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
-    original_status = models.CharField(max_length=20)
+    original_status = models.CharField(max_length=100)
     target_term = models.ForeignKey(AcademicTerm, on_delete=models.CASCADE, related_name='+')
     created_enrollment = models.BooleanField(default=False)
     previous_enrollment_class = models.ForeignKey(ClassRoom, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
@@ -386,7 +386,7 @@ class FeePayment(models.Model):
 
 class SchoolPaymentAccount(models.Model):
     bank_name = models.CharField(max_length=100)
-    account_number = models.CharField(max_length=30)
+    account_number = models.CharField(max_length=100)
     account_name = models.CharField(max_length=150)
     is_active = models.BooleanField(default=True)
 
@@ -431,7 +431,7 @@ class Attendance(models.Model):
     classroom = models.ForeignKey(ClassRoom, on_delete=models.PROTECT, related_name='attendance')
     session = models.ForeignKey(AcademicSession, on_delete=models.PROTECT, related_name='attendance')
     date = models.DateField()
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Present')
+    status = models.CharField(max_length=100, choices=STATUS_CHOICES, default='Present')
 
     class Meta:
         constraints = [
@@ -450,7 +450,7 @@ class AttendanceRecord(models.Model):
     classroom = models.ForeignKey(ClassRoom, on_delete=models.CASCADE, null=True, blank=True, related_name='legacy_attendance_records')
     term = models.ForeignKey(AcademicTerm, on_delete=models.CASCADE, null=True, blank=True, related_name='legacy_attendance_records')
     date = models.DateField()
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Present')
+    status = models.CharField(max_length=100, choices=STATUS_CHOICES, default='Present')
     is_present = models.BooleanField(default=True)
 
     def __str__(self):
@@ -490,7 +490,7 @@ class CBTQuestion(models.Model):
     option_b = models.CharField(max_length=255)
     option_c = models.CharField(max_length=255)
     option_d = models.CharField(max_length=255)
-    correct_answer = models.CharField(max_length=1, choices=ANSWER_CHOICES)
+    correct_answer = models.CharField(max_length=100, choices=ANSWER_CHOICES)
     order = models.PositiveIntegerField(default=1)
 
     class Meta:
@@ -517,7 +517,7 @@ class CBTAttempt(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='cbt_attempts')
     started_at = models.DateTimeField(auto_now_add=True)
     submitted_at = models.DateTimeField(null=True, blank=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='in_progress')
+    status = models.CharField(max_length=100, choices=STATUS_CHOICES, default='in_progress')
     score = models.PositiveIntegerField(default=0)
 
     class Meta:
@@ -527,7 +527,7 @@ class CBTAttempt(models.Model):
 class CBTResponse(models.Model):
     attempt = models.ForeignKey(CBTAttempt, on_delete=models.CASCADE, related_name='responses')
     question = models.ForeignKey(CBTQuestion, on_delete=models.CASCADE)
-    answer = models.CharField(max_length=1, choices=CBTQuestion.ANSWER_CHOICES, blank=True)
+    answer = models.CharField(max_length=100, choices=CBTQuestion.ANSWER_CHOICES, blank=True)
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=['attempt', 'question'], name='unique_attempt_question_response')]
@@ -580,7 +580,7 @@ class StudentTermRecord(models.Model):
     term_two_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     term_three_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     cumulative_average = models.DecimalField(max_digits=5, decimal_places=2, default=0)
-    promotion_status = models.CharField(max_length=10, choices=PROMOTION_CHOICES, default='Repeated')
+    promotion_status = models.CharField(max_length=100, choices=PROMOTION_CHOICES, default='Repeated')
     promotion_notice_dismissed = models.BooleanField(default=False)
 
     class Meta:
@@ -638,7 +638,7 @@ class AuditLog(models.Model):
     ]
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='audit_logs')
-    action_type = models.CharField(max_length=40, choices=ACTION_CHOICES)
+    action_type = models.CharField(max_length=100, choices=ACTION_CHOICES)
     target_description = models.TextField()
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     changes_json = models.JSONField(default=dict, blank=True)
@@ -668,7 +668,7 @@ class AdmissionCampaign(models.Model):
     target_term = models.ForeignKey(AcademicTerm, on_delete=models.PROTECT, related_name='admission_campaigns')
     application_fee = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     deadline = models.DateTimeField()
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Active')
+    status = models.CharField(max_length=100, choices=STATUS_CHOICES, default='Active')
     is_active = models.BooleanField(default=True)
 
     class Meta:
@@ -702,9 +702,9 @@ class Applicant(models.Model):
     last_name = models.CharField(max_length=50, verbose_name='Surname')
     other_name = models.CharField(max_length=50, blank=True)
     date_of_birth = models.DateField(null=True, blank=True)
-    sex = models.CharField(max_length=10, choices=[('Male', 'Male'), ('Female', 'Female')], blank=True)
+    sex = models.CharField(max_length=100, choices=[('Male', 'Male'), ('Female', 'Female')], blank=True)
     nationality = models.CharField(max_length=50, default='Nigerian', blank=True)
-    religion = models.CharField(max_length=30, choices=Student.RELIGION_CHOICES, blank=True)
+    religion = models.CharField(max_length=100, choices=Student.RELIGION_CHOICES, blank=True)
     state_of_origin = models.CharField(max_length=50, blank=True)
     lga = models.CharField(max_length=80, blank=True)
     passport = models.ImageField(upload_to='applicant_passports/', max_length=255, blank=True, null=True)
@@ -720,30 +720,30 @@ class Applicant(models.Model):
 
     # Step 3: Parent/Guardian Information
     parent_name = models.CharField(max_length=100, blank=True)
-    parent_phone = models.CharField(max_length=20, blank=True)
+    parent_phone = models.CharField(max_length=100, blank=True)
     parent_email = models.EmailField(blank=True, null=True)
     father_name = models.CharField(max_length=100, blank=True)
     father_occupation = models.CharField(max_length=100, blank=True)
     father_job_title = models.CharField(max_length=100, blank=True)
-    father_phone = models.CharField(max_length=20, blank=True)
+    father_phone = models.CharField(max_length=100, blank=True)
     father_email = models.EmailField(blank=True, null=True)
     father_address = models.TextField(blank=True)
     mother_name = models.CharField(max_length=100, blank=True)
     mother_occupation = models.CharField(max_length=100, blank=True)
     mother_job_title = models.CharField(max_length=100, blank=True)
-    mother_phone = models.CharField(max_length=20, blank=True)
+    mother_phone = models.CharField(max_length=100, blank=True)
     mother_email = models.EmailField(blank=True, null=True)
     mother_address = models.TextField(blank=True)
     next_of_kin_name = models.CharField(max_length=120, blank=True)
     next_of_kin_relationship = models.CharField(max_length=50, blank=True)
-    next_of_kin_phone = models.CharField(max_length=20, blank=True)
+    next_of_kin_phone = models.CharField(max_length=100, blank=True)
 
-    payment_status = models.CharField(max_length=10, choices=PAYMENT_STATUS_CHOICES, default='Pending')
-    admission_status = models.CharField(max_length=10, choices=ADMISSION_STATUS_CHOICES, default='Pending')
+    payment_status = models.CharField(max_length=100, choices=PAYMENT_STATUS_CHOICES, default='Pending')
+    admission_status = models.CharField(max_length=100, choices=ADMISSION_STATUS_CHOICES, default='Pending')
     enrolled_student = models.OneToOneField('Student', on_delete=models.SET_NULL, null=True, blank=True, related_name='applicant_record')
     provisioned_parent = models.OneToOneField('Parent', on_delete=models.SET_NULL, null=True, blank=True, related_name='applicant_parent_record')
-    student_id = models.CharField(max_length=30, blank=True)
-    parent_id = models.CharField(max_length=30, blank=True)
+    student_id = models.CharField(max_length=100, blank=True)
+    parent_id = models.CharField(max_length=100, blank=True)
     submitted_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -786,7 +786,7 @@ class Message(models.Model):
     sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='sent_messages')
     subject = models.CharField(max_length=150)
     body = models.TextField()
-    priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='Standard')
+    priority = models.CharField(max_length=100, choices=PRIORITY_CHOICES, default='Standard')
     timestamp = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -821,7 +821,7 @@ class StaffSalaryProfile(models.Model):
     tax_deduction = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     pension_deduction = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     bank_name = models.CharField(max_length=100, blank=True)
-    account_number = models.CharField(max_length=30, blank=True)
+    account_number = models.CharField(max_length=100, blank=True)
     is_active = models.BooleanField(default=True)
 
     class Meta:
@@ -870,7 +870,7 @@ class PayrollRun(models.Model):
     total_gross = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     total_net = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     processed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='processed_payroll_runs')
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Draft')
+    status = models.CharField(max_length=100, choices=STATUS_CHOICES, default='Draft')
     timestamp = models.DateTimeField(auto_now_add=True)
 
     class Meta:
