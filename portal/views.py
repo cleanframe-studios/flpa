@@ -9,6 +9,9 @@ from django.contrib.auth.models import Group
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib import messages
+from django.conf import settings
+from django.core.mail import EmailMessage
+from smtplib import SMTPException
 from django.views.decorators.http import require_POST
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
@@ -303,8 +306,20 @@ def contact_page(request):
         name = request.POST.get('name', '').strip()
         email = request.POST.get('email', '').strip()
         message = request.POST.get('message', '').strip()
-        print(f'Public contact enquiry from {name} <{email}>: {message}')
-        messages.success(request, 'Thank you. Your enquiry has been received and our team will be in touch.')
+        try:
+            validate_email(email)
+            enquiry = EmailMessage(
+                subject=f'Website enquiry from {name}',
+                body=f'Name: {name}\nEmail: {email}\n\nMessage:\n{message}',
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[settings.CONTACT_EMAIL],
+                reply_to=[email],
+            )
+            enquiry.send(fail_silently=False)
+        except (ValidationError, SMTPException):
+            messages.error(request, 'We could not send your enquiry right now. Please try again or contact us directly by email.')
+        else:
+            messages.success(request, 'Thank you. Your enquiry has been sent and our team will be in touch.')
     return render(request, 'portal/contact_page.html')
 
 
