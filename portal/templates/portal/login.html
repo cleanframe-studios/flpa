@@ -61,7 +61,7 @@
         <p class="text-sm text-gray-300 mt-2 font-light">Secure Portal Authentication</p>
     </div>
 
-    <form method="POST" action="">
+    <form id="login-form" method="POST" action="">
         {% csrf_token %}
         
         <!-- Username Input -->
@@ -83,11 +83,28 @@
         </div>
         
         <!-- The Interactive Button: Solid White to Red Gradient with Shine -->
-        <button class="shine-btn w-full bg-white text-gray-900 font-bold py-4 px-4 rounded-xl shadow-xl transform hover:scale-[1.02] active:scale-[0.98] hover:bg-gradient-to-r hover:from-brand-darkRed hover:to-brand-brightRed hover:text-white transition-all duration-300 ease-in-out focus:outline-none" 
+        <button id="login-submit" class="shine-btn w-full bg-white text-gray-900 font-bold py-4 px-4 rounded-xl shadow-xl transform hover:scale-[1.02] active:scale-[0.98] hover:bg-gradient-to-r hover:from-brand-darkRed hover:to-brand-brightRed hover:text-white transition-all duration-300 ease-in-out focus:outline-none disabled:cursor-wait disabled:opacity-70"
                 type="submit">
             Sign In
         </button>
     </form>
+    <script>
+        (function () {
+            var form = document.getElementById('login-form');
+            var submit = document.getElementById('login-submit');
+            if (!form || !submit) return;
+            form.addEventListener('submit', function (event) {
+                if (form.dataset.submitting === 'true') {
+                    event.preventDefault();
+                    return;
+                }
+                form.dataset.submitting = 'true';
+                submit.disabled = true;
+                submit.setAttribute('aria-busy', 'true');
+                submit.textContent = 'Signing in...';
+            });
+        })();
+    </script>
 </div>
 </div>
 
