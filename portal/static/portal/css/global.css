@@ -21,6 +21,32 @@ body {
     overflow-wrap: anywhere;
 }
 
+/* Keep browser-only controls out of the installed app shell. */
+.web-only-banner {
+    display: block;
+}
+
+.bottom-app-nav {
+    display: none;
+}
+
+@media (display-mode: standalone), (display-mode: fullscreen) {
+    html,
+    body {
+        min-height: 100%;
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .web-only-banner {
+        display: none !important;
+    }
+
+    .bottom-app-nav {
+        display: flex !important;
+        padding-bottom: max(.5rem, env(safe-area-inset-bottom));
+    }
+}
+
 .public-interior,
 .public-interior * {
     cursor: auto !important;
