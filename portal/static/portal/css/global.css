@@ -116,9 +116,13 @@ body {
     .bottom-app-nav {
         display: flex !important;
         padding-bottom: max(.5rem, env(safe-area-inset-bottom));
-        background: linear-gradient(115deg, rgb(239 246 255 / 0.96), rgb(254 242 242 / 0.96), rgb(219 234 254 / 0.96)) !important;
+        background: linear-gradient(115deg, rgb(219 234 254 / 0.68), rgb(254 226 226 / 0.62), rgb(191 219 254 / 0.7)) !important;
         background-size: 220% 220% !important;
         animation: standaloneNavGradient 8s ease-in-out infinite;
+        backdrop-filter: blur(24px) saturate(1.35);
+        -webkit-backdrop-filter: blur(24px) saturate(1.35);
+        border-color: rgb(255 255 255 / 0.62) !important;
+        box-shadow: 0 20px 45px rgb(15 23 42 / 0.2), inset 0 1px 1px rgb(255 255 255 / 0.75) !important;
     }
 
     #app-global-branding,
