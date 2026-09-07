@@ -49,7 +49,7 @@
       </div>
     </nav>
     <div class="public-mobile-overlay fixed inset-0 z-40 hidden bg-slate-950/50" aria-hidden="true"></div>
-    <aside id="public-mobile-drawer" class="public-mobile-drawer fixed inset-y-0 left-0 z-50 w-[min(20rem,85vw)] -translate-x-full border-r border-white/15 p-6 text-white shadow-2xl transition-transform duration-300 lg:hidden" aria-label="Mobile navigation">
+    <aside id="public-mobile-drawer" class="public-mobile-drawer fixed inset-y-0 left-0 z-50 w-[min(20rem,85vw)] -translate-x-full border-r border-white/15 p-6 text-white shadow-2xl transition-transform duration-300 lg:hidden" aria-label="Mobile navigation" aria-hidden="true">
       <div class="flex items-center justify-between border-b border-white/15 pb-5"><span class="text-xs font-black uppercase tracking-[0.2em] text-blue-100">Navigation</span><button type="button" class="public-mobile-close text-3xl leading-none text-white/70 hover:text-white" aria-label="Close navigation menu">&times;</button></div>
       <nav class="mt-8 grid gap-2 text-sm font-bold" aria-label="Mobile navigation links">
         <a href="{% url 'public_home' %}" class="rounded-xl px-4 py-3 hover:bg-white/10">Home</a>
@@ -72,17 +72,20 @@
         drawer.classList.add('-translate-x-full');
         overlay.classList.add('hidden');
         menu.setAttribute('aria-expanded', 'false');
+        drawer.setAttribute('aria-hidden', 'true');
         document.body.classList.remove('overflow-hidden');
       }
       menu.addEventListener('click', function () {
         drawer.classList.remove('-translate-x-full');
         overlay.classList.remove('hidden');
         menu.setAttribute('aria-expanded', 'true');
+        drawer.setAttribute('aria-hidden', 'false');
         document.body.classList.add('overflow-hidden');
       });
       close.addEventListener('click', closeDrawer);
       overlay.addEventListener('click', closeDrawer);
       drawer.querySelectorAll('a').forEach(function (link) { link.addEventListener('click', closeDrawer); });
+      document.addEventListener('keydown', function (event) { if (event.key === 'Escape' && menu.getAttribute('aria-expanded') === 'true') closeDrawer(); });
     })();
   </script>
 

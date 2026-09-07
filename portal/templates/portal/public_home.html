@@ -52,7 +52,7 @@
     #vision-mission article p, #vision-mission article span { color: #fff !important; }
     #home { background: url('{% static "portal/background.jpg" %}') center / cover fixed; }
     .hero-grid { background-image: radial-gradient(rgba(255, 255, 255, .07) 1px, transparent 1px); background-size: 24px 24px; }
-    .login-atmosphere { background: linear-gradient(to bottom, rgba(11, 19, 43, 0.85), rgba(11, 19, 43, 0.95)); opacity: 1; }
+    .hero-overlay { background: linear-gradient(to bottom, rgba(11, 19, 43, 0.85), rgba(11, 19, 43, 0.95)); }
     .public-mobile-drawer { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
     @media (min-width: 1024px) { .public-mobile-menu, .public-mobile-overlay { display: none; } }
     @keyframes kenBurns { from { transform: scale(1); } to { transform: scale(1.1); } }
@@ -120,7 +120,7 @@
         <div class="hero-slide absolute inset-0 bg-cover bg-center transition-opacity duration-1000 ease-in-out opacity-0" style="background-image: url('{% static 'portal/images/act_1.jpg' %}');"></div>
       </div>
       <div class="hero-grid absolute inset-0 z-0 opacity-20 pointer-events-none"></div>
-      <div class="login-atmosphere absolute inset-0 z-[1]"></div>
+      <div class="hero-overlay absolute inset-0 z-[1]" aria-hidden="true"></div>
       <div class="relative z-10 mx-auto grid min-h-screen max-w-7xl grid-cols-1 items-start gap-12 px-5 pb-32 pt-16 lg:grid-cols-2 lg:px-8">
         <div class="rise lg:pr-8">
           <p class="mb-6 text-xs font-black uppercase tracking-[0.25em] text-red-400 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">EXCELLENCE THROUGH GOD</p>
@@ -239,17 +239,20 @@
         drawer.classList.add('-translate-x-full');
         overlay.classList.add('hidden');
         menu.setAttribute('aria-expanded', 'false');
+        drawer.setAttribute('aria-hidden', 'true');
         document.body.classList.remove('overflow-hidden');
       }
       menu.addEventListener('click', function () {
         drawer.classList.remove('-translate-x-full');
         overlay.classList.remove('hidden');
         menu.setAttribute('aria-expanded', 'true');
+        drawer.setAttribute('aria-hidden', 'false');
         document.body.classList.add('overflow-hidden');
       });
       close.addEventListener('click', closeDrawer);
       overlay.addEventListener('click', closeDrawer);
       drawer.querySelectorAll('a').forEach(function (link) { link.addEventListener('click', closeDrawer); });
+      document.addEventListener('keydown', function (event) { if (event.key === 'Escape' && menu.getAttribute('aria-expanded') === 'true') closeDrawer(); });
     })();
     const slides = document.querySelectorAll('.hero-slide');
     let currentSlide = 0;
