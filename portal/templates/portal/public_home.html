@@ -264,46 +264,46 @@
     const cursor = document.getElementById('premium-cursor');
     if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
       if (cursor) cursor.remove();
-      return;
-    }
-    const hero = document.getElementById('home');
-    let mouseX = 0;
-    let mouseY = 0;
-    let heroVisible = true;
-    let cursorActive = false;
-    document.addEventListener('mousemove', (e) => {
-      mouseX = e.clientX;
-      mouseY = e.clientY;
-      if (heroVisible) showCursor();
-    });
-    function animateCursor() {
-      if (cursorActive && cursor) {
-        cursor.style.left = mouseX + 'px';
-        cursor.style.top = mouseY + 'px';
+    } else {
+      const hero = document.getElementById('home');
+      let mouseX = 0;
+      let mouseY = 0;
+      let heroVisible = true;
+      let cursorActive = false;
+      document.addEventListener('mousemove', (e) => {
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+        if (heroVisible) showCursor();
+      });
+      function animateCursor() {
+        if (cursorActive && cursor) {
+          cursor.style.left = mouseX + 'px';
+          cursor.style.top = mouseY + 'px';
+        }
+        requestAnimationFrame(animateCursor);
       }
-      requestAnimationFrame(animateCursor);
+      animateCursor();
+      function showCursor() {
+        if (!heroVisible) return;
+        document.body.classList.add('cursor-neon-active');
+        cursorActive = true;
+        cursor.classList.remove('opacity-0');
+      }
+      function hideCursor() {
+        cursorActive = false;
+        document.body.classList.remove('cursor-neon-active');
+        cursor.classList.add('opacity-0');
+      }
+      new IntersectionObserver((entries) => {
+        heroVisible = entries[0].isIntersecting;
+        if (heroVisible) showCursor();
+        else hideCursor();
+      }, { threshold: 0.1 }).observe(hero);
+      document.querySelectorAll('#home a, #home button').forEach((element) => {
+        element.addEventListener('mouseenter', () => cursor.classList.add('scale-110'));
+        element.addEventListener('mouseleave', () => cursor.classList.remove('scale-110'));
+      });
     }
-    animateCursor();
-    function showCursor() {
-      if (!heroVisible) return;
-      document.body.classList.add('cursor-neon-active');
-      cursorActive = true;
-      cursor.classList.remove('opacity-0');
-    }
-    function hideCursor() {
-      cursorActive = false;
-      document.body.classList.remove('cursor-neon-active');
-      cursor.classList.add('opacity-0');
-    }
-    new IntersectionObserver((entries) => {
-      heroVisible = entries[0].isIntersecting;
-      if (heroVisible) showCursor();
-      else hideCursor();
-    }, { threshold: 0.1 }).observe(hero);
-    document.querySelectorAll('#home a, #home button').forEach((element) => {
-      element.addEventListener('mouseenter', () => cursor.classList.add('scale-110'));
-      element.addEventListener('mouseleave', () => cursor.classList.remove('scale-110'));
-    });
   </script>{% endif %}
 </body>
 </html>
