@@ -1,0 +1,224 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap');
+
+html,
+body,
+body *,
+button,
+input,
+select,
+textarea,
+optgroup {
+    font-family: 'Montserrat' !important;
+}
+
+html {
+    font-synthesis: none;
+}
+
+.public-interior,
+.public-interior * {
+    cursor: auto !important;
+}
+
+.public-site a,
+.public-site button,
+.public-site [role='button'],
+.public-site .public-card,
+.public-site article,
+.public-site form,
+.public-site iframe {
+    transition: all 300ms ease-out;
+}
+
+.public-site a:hover,
+.public-site button:hover,
+.public-site [role='button']:hover,
+.public-site .public-card:hover,
+.public-site article:hover,
+.public-site form:hover,
+.public-site iframe:hover {
+    transform: translateY(-0.375rem);
+    border-color: rgb(59 130 246 / 0.5);
+    box-shadow: 0 20px 40px rgb(30 58 138 / 0.25);
+}
+
+.public-site footer a:hover,
+.public-site footer button:hover {
+    transform: none;
+    border-color: inherit;
+    box-shadow: none;
+}
+
+.public-site a:hover,
+.public-site button:hover,
+.public-site [role='button']:hover {
+    transform: none !important;
+}
+
+.public-site #status-modal form:hover,
+.public-site #status-modal a:hover,
+.public-site #status-modal button:hover,
+.public-site #status-modal input:hover {
+    transform: none !important;
+    box-shadow: none;
+}
+
+.public-site footer > div > div:first-child .text-slate-400::before {
+    content: 'Established January 2010';
+    display: block;
+    margin-bottom: 1rem;
+    color: #bfdbfe;
+    font-size: .75rem;
+    font-weight: 700;
+    letter-spacing: .2em;
+    line-height: 1.25;
+    text-transform: uppercase;
+}
+
+.public-site .public-gradient-hover {
+    background-size: 200% 200%;
+    transition: all 300ms ease-out, background-position 500ms ease-out;
+}
+
+.public-site .public-gradient-hover:hover {
+    background-position: 100% 100%;
+}
+
+.public-site .public-light-section {
+    background-color: #f8fafc;
+}
+
+.public-site .public-gradient-section {
+    background-image: linear-gradient(135deg, #020617 0%, #172554 52%, #450a0a 100%);
+    color: #fff;
+}
+
+.public-site .public-light-section .public-card,
+.public-site .public-light-section article,
+.public-site .public-light-section form {
+    background: linear-gradient(135deg, rgb(15 23 42 / 0.98), rgb(30 58 138 / 0.96));
+    border: 1px solid rgb(255 255 255 / 0.1);
+    color: #fff;
+    box-shadow: 0 20px 50px -12px rgb(30 58 138 / 0.35);
+}
+
+.public-site .public-light-section .public-card :is(h2, h3, p, label),
+.public-site .public-light-section article :is(h2, h3, p),
+.public-site .public-light-section form :is(h2, h3, p, label) {
+    color: inherit;
+}
+
+.public-site .public-light-section input,
+.public-site .public-light-section textarea,
+.public-site .public-light-section select {
+    background-color: rgb(255 255 255 / 0.1);
+    border-color: rgb(255 255 255 / 0.2);
+    color: #fff;
+}
+
+.public-site main > section:nth-of-type(odd) {
+    background-image: linear-gradient(135deg, #020617 0%, #172554 52%, #450a0a 100%) !important;
+    color: #fff;
+}
+
+.public-site main > section:first-child {
+    padding-top: 10rem;
+}
+
+.public-site main > section:nth-of-type(even) {
+    background: #f8fafc !important;
+    color: #172554;
+}
+
+.public-home #admissions,
+.public-home #gallery {
+    background: #f8fafc !important;
+    color: #172554;
+}
+
+.public-home #about {
+    background-image: linear-gradient(135deg, #020617 0%, #172554 52%, #450a0a 100%) !important;
+    color: #fff;
+}
+
+.public-home #about h2,
+.public-home #about h3,
+.public-home #about p,
+.public-home #about a {
+    color: #fff !important;
+}
+
+.public-home #about article {
+    background: rgb(255 255 255 / 0.06) !important;
+    border-color: rgb(255 255 255 / 0.12) !important;
+}
+
+.public-site main > section:nth-of-type(odd) :is(h1, h2, h3, p, label, span) {
+    color: inherit;
+}
+
+.public-site main > section:nth-of-type(even):not([id]) article,
+.public-site main > section:nth-of-type(even):not([id]) form,
+.public-site main > section:nth-of-type(even):not([id]) .glass,
+.public-site main > section:nth-of-type(even):not([id]) .gallery-item {
+    background: linear-gradient(135deg, rgb(15 23 42 / 0.98), rgb(30 58 138 / 0.96)) !important;
+    border-color: rgb(255 255 255 / 0.1) !important;
+    color: #fff;
+}
+
+.public-site main > section:nth-of-type(even) :is(h1, h2, h3, p, label, span) {
+    color: inherit;
+}
+
+.public-site main > section a:hover,
+.public-site main > section button:hover,
+.public-site .public-card:hover,
+.public-site main > section:nth-of-type(even):not([id]) article:hover {
+    background-image: linear-gradient(120deg, rgb(30 58 138 / 0.98), rgb(185 28 28 / 0.9)) !important;
+    background-size: 200% 200%;
+    background-position: 100% 100%;
+}
+
+.public-site main > section input:focus,
+.public-site main > section textarea:focus,
+.public-site main > section select:focus {
+    border-color: rgb(59 130 246 / 0.8) !important;
+    box-shadow: 0 0 0 3px rgb(59 130 246 / 0.2);
+}
+
+.public-site > header,
+.public-site > header a,
+.public-site > header button,
+.public-site > header a:hover,
+.public-site > header button:hover {
+    transform: none !important;
+}
+
+.public-site > header a,
+.public-site > header button {
+    transition: color 300ms ease-out, background-color 300ms ease-out, border-color 300ms ease-out, box-shadow 300ms ease-out;
+}
+
+.public-brand-link,
+.public-brand-link:hover,
+.public-brand-link:focus,
+.public-brand-link:active,
+.public-brand-link img {
+    background: transparent !important;
+    box-shadow: none !important;
+    filter: none !important;
+    text-shadow: none !important;
+    transform: none !important;
+    transition: none !important;
+}
+
+.public-brand-name,
+.public-brand-name:hover,
+.public-brand-name:focus,
+.public-brand-name:active {
+    box-shadow: none !important;
+    filter: none !important;
+    text-shadow: none !important;
+    transform: none !important;
+    transition: none !important;
+}

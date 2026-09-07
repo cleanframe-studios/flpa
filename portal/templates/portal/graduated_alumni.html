@@ -1,0 +1,46 @@
+{% extends 'portal/base.html' %}
+{% block page_title %}Graduated Alumni{% endblock %}
+{% block content %}
+<div class="min-h-full bg-slate-100 p-6 lg:p-8">
+  <div class="mx-auto max-w-7xl space-y-6">
+    <header class="rounded-3xl bg-gradient-to-r from-blue-950 via-blue-900 to-slate-900 p-8 text-white shadow-lg">
+      <p class="text-xs font-bold uppercase tracking-[0.2em] text-blue-200">Student Manager</p>
+      <h1 class="mt-2 text-2xl font-black">Graduated Alumni</h1>
+      <p class="mt-1 text-sm text-blue-100">A read-only record of students who have completed their time at the academy.</p>
+    </header>
+
+    <form method="get" class="grid gap-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:grid-cols-3">
+      <div class="flex flex-col space-y-1.5">
+        <label class="text-xs font-bold uppercase tracking-wider text-slate-500">Graduation Session</label>
+        <div class="relative">
+        <select name="session" class="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-semibold normal-case tracking-normal text-slate-700 shadow-sm transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 cursor-pointer">
+          <option value="">All sessions</option>
+          {% for session in sessions %}<option value="{{ session.pk }}" {% if selected_session == session.pk|stringformat:'s' %}selected{% endif %}>{{ session.name }}</option>{% endfor %}
+        </select>
+        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div>
+        </div>
+      </div>
+      <div class="flex flex-col space-y-1.5">
+        <label class="text-xs font-bold uppercase tracking-wider text-slate-500">Final Class Completed</label>
+        <div class="relative">
+        <select name="classroom" class="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-semibold normal-case tracking-normal text-slate-700 shadow-sm transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 cursor-pointer">
+          <option value="">All classes</option>
+          {% for classroom in classrooms %}<option value="{{ classroom.pk }}" {% if selected_classroom == classroom.pk|stringformat:'s' %}selected{% endif %}>{{ classroom.name }}</option>{% endfor %}
+        </select>
+        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div>
+        </div>
+      </div>
+      <div class="flex items-end gap-3"><button type="submit" class="rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-blue-700">Apply Filters</button><a href="{% url 'graduated_alumni' %}" class="rounded-xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50">Clear</a></div>
+    </form>
+
+    <section class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <div class="flex items-center justify-between border-b border-slate-100 p-6"><div><h2 class="text-lg font-bold text-slate-900">Alumni Register</h2><p class="mt-1 text-sm text-slate-500">{{ graduated_students|length }} graduate{{ graduated_students|length|pluralize }} recorded.</p></div><span class="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600">Read only</span></div>
+      <div class="overflow-x-auto"><table class="w-full min-w-[850px] text-left text-sm"><thead class="bg-slate-50 text-xs uppercase tracking-wider text-slate-500"><tr><th class="p-4">Full Name</th><th class="p-4">Admission / Registration Number</th><th class="p-4">Final Class Completed</th><th class="p-4">Graduation Session</th><th class="p-4 text-right">Academic History</th></tr></thead><tbody class="divide-y divide-slate-100">
+        {% for student in graduated_students %}
+        <tr class="hover:bg-slate-50/70"><td class="p-4 font-bold text-slate-800">{{ student.last_name }} {{ student.first_name }}{% if student.other_name %} {{ student.other_name }}{% endif %}</td><td class="p-4 font-semibold text-blue-700">{{ student.student_id }}</td><td class="p-4 text-slate-700">{{ student.current_class.name|default:'Not recorded' }}</td><td class="p-4 text-slate-700">{% if student.final_term_record %}{{ student.final_term_record.term.session.name }}{% else %}Not recorded{% endif %}</td><td class="p-4 text-right">{% if student.final_term_record %}<a href="{% url 'preview_report_card' student_id=student.pk session_id=student.final_term_record.term.session_id term_id=student.final_term_record.term_id %}" target="_blank" class="inline-flex rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 transition hover:bg-blue-600 hover:text-white">View Academic History</a>{% else %}<span class="text-xs text-slate-400">Unavailable</span>{% endif %}</td></tr>
+        {% empty %}<tr><td colspan="5" class="p-12 text-center text-sm text-slate-500">No graduated students match the selected filters.</td></tr>{% endfor %}
+      </tbody></table></div>
+    </section>
+  </div>
+</div>
+{% endblock %}

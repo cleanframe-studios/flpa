@@ -1,0 +1,28 @@
+{% extends 'portal/base_public.html' %}
+{% load static %}
+{% block content %}
+<div class="rounded-3xl border border-white/10 bg-slate-900/70 p-8 text-white shadow-2xl shadow-black/50 backdrop-blur-xl text-center">
+    <svg class="mx-auto h-12 w-12 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <h2 class="mt-3 text-xl font-black">Submission Successful</h2>
+    <p class="mt-2 text-sm text-slate-300">Your Registration Number is</p>
+    <p class="mt-1 text-2xl font-black text-emerald-300">{{ applicant.temp_reg_number }}</p>
+    <p class="mt-4 text-xs text-slate-400">Save this number — you'll need it to check your admission status and for payment verification.</p>
+
+    <div class="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5 text-left">
+        <p class="text-[11px] font-bold uppercase tracking-wider text-emerald-300">Payment Instructions</p>
+        <p class="mt-2 text-sm text-slate-200">Pay the application fee of <span class="font-bold text-white">₦{{ applicant.campaign.application_fee|floatformat:0 }}</span> to:</p>
+        <div class="mt-3 space-y-1 rounded-xl bg-white/10 p-4 text-sm">
+            <p><span class="text-slate-400">Bank:</span> <span class="font-bold text-white">Zenith Bank</span></p>
+            <p><span class="text-slate-400">Account Name:</span> <span class="font-bold text-white">Future Leaders Private Academy</span></p>
+            <p><span class="text-slate-400">Account Number:</span> <span class="font-bold text-white">1015937482</span></p>
+        </div>
+        <p class="mt-3 text-xs text-slate-400">After payment, send your receipt via WhatsApp for verification.</p>
+    </div>
+
+    <a href="{{ whatsapp_url }}" target="_blank" rel="noopener" class="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-600/30 transition-all hover:bg-emerald-500">
+        <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M20.52 3.48A11.9 11.9 0 0012.03 0C5.46 0 .1 5.36.1 11.93c0 2.1.55 4.14 1.6 5.94L0 24l6.3-1.65a11.9 11.9 0 005.72 1.46h.01c6.57 0 11.93-5.36 11.93-11.93 0-3.19-1.24-6.19-3.44-8.4z"/></svg>
+        Send Receipt via WhatsApp
+    </a>
+    <a href="{% url 'login' %}" class="mt-6 flex w-full items-center justify-center rounded-full border border-white/20 bg-white/10 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/20">Return to Login / Check Status</a>
+</div>
+{% endblock %}

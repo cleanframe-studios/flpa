@@ -1,0 +1,92 @@
+﻿{% extends 'portal/base.html' %}
+{% load portal_extras %}
+{% block page_title %}Character & Skills{% endblock %}
+{% block content %}
+<div class="min-h-full bg-slate-100 p-6 lg:p-8"><div class="mx-auto max-w-7xl space-y-6"><header class="rounded-3xl bg-gradient-to-r from-blue-900 to-indigo-900 p-8 text-white"><p class="text-xs uppercase tracking-widest text-blue-200">Student Development</p><h1 class="mt-2 text-2xl font-black">Character &amp; Skills</h1></header><script>window.resultTermsMap = {{ terms_json|default:'{}'|safe }};</script><form method="get" class="grid gap-3 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:grid-cols-4">{% include 'portal/result_filter_combobox.html' with field_name='session' label='Session' selected_value=selected_session.pk selected_label=selected_session.name options=sessions %}{% include 'portal/result_filter_combobox.html' with field_name='term' label='Term' label_field='term_name' selected_value=selected_term.pk selected_label=selected_term.term_name options=terms %}{% include 'portal/result_filter_combobox.html' with field_name='classroom' label='Class' selected_value=selected_class.pk selected_label=selected_class.name options=classrooms %}<button class="rounded-xl bg-blue-600 px-5 py-3 font-bold text-white">Load Records</button></form><div class="overflow-x-auto rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><table class="w-full border border-slate-200 text-left text-sm"><thead><tr><th class="border p-3">Student</th><th class="border p-3">Character</th><th class="border p-3">Skills</th></tr></thead><tbody class="divide-y">{% for student in students %}{% with evaluation=evaluations|get_item:student.pk %}<tr><td class="border p-3 font-semibold">{{ student.first_name }} {{ student.last_name }}</td><td class="border p-3"><button type="button" data-student-id="{{ student.pk }}" data-attentiveness="{{ evaluation.attentiveness|default:'' }}" data-punctuality="{{ evaluation.punctuality|default:'' }}" data-self-control="{{ evaluation.self_control|default:'' }}" data-relationship-with-others="{{ evaluation.relationship_with_others|default:'' }}" onclick="openRatingModal('character', this, '{{ student.first_name }} {{ student.last_name }}')" class="rounded-xl bg-gradient-to-r {% if evaluation %}from-emerald-600 to-teal-600{% else %}from-blue-600 to-indigo-600{% endif %} px-4 py-2 text-xs font-bold text-white">{% if evaluation %}Update Ratings{% else %}Rate Character{% endif %}</button></td><td class="border p-3"><button type="button" data-student-id="{{ student.pk }}" data-music="{{ evaluation.music|default:'' }}" data-indoor-games="{{ evaluation.indoor_games|default:'' }}" data-outdoor-games="{{ evaluation.outdoor_games|default:'' }}" data-club-association="{{ evaluation.club_association|default:'' }}" onclick="openRatingModal('skills', this, '{{ student.first_name }} {{ student.last_name }}')" class="rounded-xl bg-gradient-to-r {% if evaluation %}from-emerald-600 to-teal-600{% else %}from-blue-600 to-indigo-600{% endif %} px-4 py-2 text-xs font-bold text-white">{% if evaluation %}Update Ratings{% else %}Rate Skills{% endif %}</button></td></tr>{% endwith %}{% empty %}<tr><td colspan="3" class="p-8 text-center text-slate-500">Select a class to load students.</td></tr>{% endfor %}</tbody></table></div></div></div>
+<div id="rating-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 p-4"><div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl"><div class="mb-5 flex justify-between"><div><p id="rating-category" class="text-xs font-bold uppercase text-blue-600"></p><h2 id="rating-student" class="text-lg font-bold text-slate-800"></h2></div><button type="button" onclick="closeRatingModal()" class="text-2xl text-slate-400">&times;</button></div><form method="post">{% csrf_token %}<input type="hidden" name="student_id" id="rating-student-id"><input type="hidden" name="evaluation_type" id="evaluation-type"><input type="hidden" name="classroom" value="{{ selected_classroom }}"><input type="hidden" name="session" value="{{ selected_session_id }}"><input type="hidden" name="term" value="{{ selected_term_id }}">{% for group in 'character,skills'|split:',' %}<div id="{{ group }}-fields" class="{% if group == 'skills' %}hidden {% endif %}space-y-3">{% if group == 'character' %}{% for field, label in character_traits %}<div class="flex items-center justify-between gap-3"><label>{{ label }}</label><div class="rating-pills flex gap-1 rounded-xl bg-slate-100 p-1"><input type="hidden" name="{{ field }}">{% for value in '12345' %}<button type="button" data-rating-value="{{ value }}" onclick="setRating('{{ field }}', {{ value }}, this)" class="rating-pill rounded-lg border px-3 py-1 text-xs font-bold text-slate-600">{{ value }}</button>{% endfor %}</div></div>{% endfor %}{% else %}{% for field, label in skill_traits %}<div class="flex items-center justify-between gap-3"><label>{{ label }}</label><div class="rating-pills flex gap-1 rounded-xl bg-slate-100 p-1"><input type="hidden" name="{{ field }}">{% for value in '12345' %}<button type="button" data-rating-value="{{ value }}" onclick="setRating('{{ field }}', {{ value }}, this)" class="rating-pill rounded-lg border px-3 py-1 text-xs font-bold text-slate-600">{{ value }}</button>{% endfor %}</div></div>{% endfor %}{% endif %}</div>{% endfor %}<div class="mt-6 flex justify-end gap-3"><button type="button" onclick="closeRatingModal()" class="rounded-xl bg-slate-100 px-5 py-2.5 font-bold text-slate-700 transition-all hover:bg-slate-200">Cancel</button><button type="submit" class="transform rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-2.5 font-bold text-white shadow-lg shadow-blue-500/25 transition-all hover:from-blue-700 hover:to-indigo-700 active:scale-95">Save Ratings</button></div></form></div></div>
+<script>
+const ratingColors = {
+    1: {soft: ['bg-red-50', 'text-red-600', 'border-red-200'], selected: ['bg-red-600', 'text-white']},
+    2: {soft: ['bg-orange-50', 'text-orange-600', 'border-orange-200'], selected: ['bg-orange-500', 'text-white']},
+    3: {soft: ['bg-amber-50', 'text-amber-600', 'border-amber-200'], selected: ['bg-amber-500', 'text-white']},
+    4: {soft: ['bg-lime-50', 'text-lime-700', 'border-lime-200'], selected: ['bg-lime-600', 'text-white']},
+    5: {soft: ['bg-emerald-50', 'text-emerald-700', 'border-emerald-200'], selected: ['bg-emerald-600', 'text-white']}
+};
+
+document.querySelectorAll('.rating-pill').forEach(pill => ratingColors[pill.dataset.ratingValue].soft.forEach(color => pill.classList.add(color)));
+
+function setRating(field, value, button) { 
+    const modal = document.getElementById('rating-modal'); 
+    modal.querySelector('input[name="' + field + '"]').value = value; 
+    
+    button.parentElement.querySelectorAll('.rating-pill').forEach(pill => { 
+        Object.values(ratingColors).forEach(colors => colors.soft.concat(colors.selected).forEach(color => pill.classList.remove(color))); 
+        ratingColors[pill.dataset.ratingValue].soft.forEach(color => pill.classList.add(color)); 
+    }); 
+    
+    button.classList.remove('text-slate-600', 'text-red-600', 'text-orange-600', 'text-amber-600', 'text-lime-700', 'text-emerald-700'); 
+    ratingColors[value].selected.forEach(color => button.classList.add(color)); 
+    button.classList.add('text-white'); 
+}
+
+function clearRatingPill(field) { 
+    const modal = document.getElementById('rating-modal'); 
+    const input = modal.querySelector('input[name="' + field + '"]'); 
+    input.value = ''; 
+    
+    input.parentElement.querySelectorAll('.rating-pill').forEach(pill => { 
+        Object.values(ratingColors).forEach(colors => colors.soft.concat(colors.selected).forEach(color => pill.classList.remove(color))); 
+        ratingColors[pill.dataset.ratingValue].soft.forEach(color => pill.classList.add(color)); 
+    }); 
+}
+
+function selectRatingPill(field, value) { 
+    const modal = document.getElementById('rating-modal'); 
+    const input = modal.querySelector('input[name="' + field + '"]'); 
+    const pill = input.parentElement.querySelector('[data-rating-value="' + value + '"]'); 
+    if (pill) setRating(field, value, pill); 
+}
+
+function openRatingModal(category, trigger, studentName) { 
+    const modal = document.getElementById('rating-modal'); 
+    modal.querySelector('#rating-student-id').value = trigger.dataset.studentId; 
+    modal.querySelector('#rating-student').innerText = studentName; 
+    modal.querySelector('#rating-category').innerText = category === 'character' ? 'Character Traits' : 'Skill Traits'; 
+    modal.querySelector('#evaluation-type').value = category; 
+    
+    // Toggle UI fields based on category
+    if (category === 'character') {
+        document.getElementById('character-fields').classList.remove('hidden');
+        document.getElementById('skills-fields').classList.add('hidden');
+    } else {
+        document.getElementById('character-fields').classList.add('hidden');
+        document.getElementById('skills-fields').classList.remove('hidden');
+    }
+
+    const fields = category === 'character' ? 
+        ['attentiveness', 'punctuality', 'self_control', 'relationship_with_others'] : 
+        ['music', 'indoor_games', 'outdoor_games', 'club_association']; 
+        
+    fields.forEach(field => { 
+        // FIX: Use getAttribute to safely bypass camelCase dataset mapping
+        const dataAttrName = 'data-' + field.replace(/_/g, '-');
+        const value = trigger.getAttribute(dataAttrName) || ''; 
+        
+        if (value) { 
+            selectRatingPill(field, value); 
+        } else { 
+            clearRatingPill(field); 
+        } 
+    }); 
+    
+    modal.classList.remove('hidden'); 
+    modal.classList.add('flex'); 
+}
+
+function closeRatingModal() { 
+    document.getElementById('rating-modal').classList.add('hidden'); 
+    document.getElementById('rating-modal').classList.remove('flex'); 
+}
+</script>
+{% endblock %}
+

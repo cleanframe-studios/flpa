@@ -1,0 +1,71 @@
+{% extends 'portal/base.html' %}
+{% block page_title %}Session Rollover{% endblock %}
+{% block content %}
+<div class="min-h-full bg-slate-100 p-6 lg:p-8">
+  <div class="mx-auto max-w-7xl space-y-6">
+    <header class="rounded-3xl bg-gradient-to-r from-blue-950 via-blue-900 to-slate-900 p-8 text-white shadow-lg">
+      <p class="text-xs font-bold uppercase tracking-[0.2em] text-blue-200">Administration</p>
+      <h1 class="mt-2 text-2xl font-black">End-of-Year Session Rollover Wizard</h1>
+      <p class="mt-1 max-w-2xl text-sm text-blue-100">Progress students into the new academic year using their saved Third Term promotion decisions.</p>
+    </header>
+
+    {% if closing_session and not has_third_term_records %}
+    <section class="border-l-4 border-amber-500 bg-amber-50 p-6 shadow-sm">
+      <p class="font-bold text-amber-900">Session rollover is only available at the end of the Third Term.</p>
+      <p class="mt-1 text-sm text-amber-800">No Third Term evaluation records were found for {{ closing_session.name }}.</p>
+    </section>
+    {% endif %}
+
+    <section class="border-l-4 border-amber-500 bg-amber-50 p-6 shadow-sm">
+      <p class="text-sm font-bold uppercase tracking-wider text-amber-900">High-impact action</p>
+      <p class="mt-2 max-w-3xl text-sm leading-6 text-amber-900">Executing session rollover will progress all passing students to their subsequent classes for the new academic year. Historical academic records will remain securely archived.</p>
+    </section>
+
+    <form method="get" class="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:flex-row sm:items-end sm:justify-between">
+      <label class="block w-full max-w-md text-xs font-bold uppercase tracking-wider text-slate-500">Closing Session
+        <select name="session_id" onchange="this.form.submit()" class="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold normal-case tracking-normal text-slate-800 focus:border-blue-500 focus:outline-none">
+          <option value="">Select a session</option>
+          {% for session in sessions %}<option value="{{ session.pk }}" {% if closing_session.pk == session.pk %}selected{% endif %}>{{ session.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <div class="grid grid-cols-3 gap-3 text-center sm:min-w-[540px]">
+        <div class="rounded-2xl bg-blue-50 p-4"><p class="text-2xl font-black text-blue-900">{{ promoted_count }}</p><p class="mt-1 text-xs font-bold uppercase tracking-wider text-blue-700">Promoting</p></div>
+        <div class="rounded-2xl bg-emerald-50 p-4"><p class="text-2xl font-black text-emerald-900">{{ graduating_count }}</p><p class="mt-1 text-xs font-bold uppercase tracking-wider text-emerald-700">Graduating</p></div>
+        <div class="rounded-2xl bg-slate-100 p-4"><p class="text-2xl font-black text-slate-800">{{ repeated_count }}</p><p class="mt-1 text-xs font-bold uppercase tracking-wider text-slate-600">Repeating</p></div>
+      </div>
+    </form>
+
+    <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div class="flex flex-col gap-3 border-b border-slate-100 pb-5 sm:flex-row sm:items-center sm:justify-between">
+        <div><h2 class="text-lg font-bold text-slate-900">Rollover readiness</h2><p class="mt-1 text-sm text-slate-500">{{ record_count }} Third Term record{{ record_count|pluralize }} found for {% if closing_session %}{{ closing_session.name }}{% else %}the selected session{% endif %}.</p></div>
+        {% if unmapped_count %}<span class="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-800">{{ unmapped_count }} unmapped</span>{% endif %}
+      </div>
+      <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {% for classroom in classrooms %}<div class="rounded-2xl border border-slate-200 bg-slate-50 p-4"><p class="font-bold text-slate-800">{{ classroom.name }}</p>{% if classroom.is_terminal %}<span class="text-emerald-600 font-semibold">Next: Graduating (Alumni)</span>{% elif classroom.next_class %}<span class="text-slate-500">Next: {{ classroom.next_class.name }}</span>{% else %}<span class="text-red-500 font-semibold">Next: Not configured</span>{% endif %}</div>{% empty %}<p class="text-sm text-slate-500">No classrooms configured.</p>{% endfor %}
+      </div>
+      {% if is_rolled_over %}
+      <div class="mt-6 flex items-center justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-6">
+        <div><p class="font-bold text-emerald-900">Rollover Completed</p><p class="mt-1 text-sm text-emerald-700">Students have already been migrated for this session.</p></div>
+        <form method="post">{% csrf_token %}<input type="hidden" name="action" value="revert_rollover"><input type="hidden" name="session_id" value="{{ closing_session.pk }}"><button type="submit" class="rounded-xl bg-red-600 px-5 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-red-700">Revert Rollover (Reset)</button></form>
+      </div>
+      {% else %}
+      <div class="mt-6 flex justify-end">
+        <button type="button" onclick="openRolloverModal()" {% if not closing_session or not all_configured or not has_third_term_records %}disabled{% endif %} class="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-blue-500/25 transition hover:from-blue-700 hover:to-indigo-700 disabled:cursor-not-allowed disabled:opacity-40">Execute Session Rollover</button>
+      </div>
+      {% endif %}
+    </section>
+  </div>
+</div>
+
+<div id="rollover-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
+  <div class="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+    <div class="flex items-start justify-between gap-4"><div><p class="text-xs font-bold uppercase tracking-[0.18em] text-red-600">Confirm rollover</p><h2 class="mt-2 text-xl font-black text-slate-900">Process {{ promoted_count|add:graduating_count }} student{{ promoted_count|add:graduating_count|pluralize }}?</h2></div><button type="button" onclick="closeRolloverModal()" class="rounded-xl p-2 text-xl text-slate-400 hover:bg-slate-100">&times;</button></div>
+    <p class="mt-4 text-sm leading-6 text-slate-600">This will progress {{ promoted_count }} student{{ promoted_count|pluralize }} and graduate {{ graduating_count }} student{{ graduating_count|pluralize }} from {{ closing_session.name }}. Repeated students will remain in their current classes, and historical results will not be changed.</p>
+    <form method="post" class="mt-6 flex justify-end gap-3">{% csrf_token %}<input type="hidden" name="action" value="execute_rollover"><input type="hidden" name="session_id" value="{{ closing_session.pk }}"><button type="button" onclick="closeRolloverModal()" class="rounded-xl bg-slate-100 px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-200">Cancel</button><button type="submit" class="rounded-xl bg-gradient-to-r from-red-600 to-rose-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-red-500/25 hover:from-red-700 hover:to-rose-700">Confirm &amp; Execute</button></form>
+  </div>
+</div>
+<script>
+function openRolloverModal() { const modal = document.getElementById('rollover-modal'); modal.classList.remove('hidden'); modal.classList.add('flex'); }
+function closeRolloverModal() { const modal = document.getElementById('rollover-modal'); modal.classList.add('hidden'); modal.classList.remove('flex'); }
+</script>
+{% endblock %}

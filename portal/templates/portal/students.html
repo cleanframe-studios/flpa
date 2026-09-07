@@ -1,0 +1,536 @@
+{% extends 'portal/base.html' %}
+{% load static %}
+
+<!-- This dynamically changes the title in the base.html header! -->
+{% block page_title %}Student Directory{% endblock %}
+
+{% block content %}
+<style>
+    @media print {
+        body * { visibility: hidden !important; }
+        #student-print-report, #student-print-report * { visibility: visible !important; }
+        #student-print-report { position: absolute; inset: 0; width: 100%; padding: 24px; background: white; }
+    }
+    @keyframes assembleUp {
+        0% { opacity: 0; transform: translateY(20px); }
+        100% { opacity: 1; transform: translateY(0); }
+    }
+    .animate-stage-1 { animation: assembleUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.05s forwards; opacity: 0; }
+    .animate-stage-2 { animation: assembleUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.15s forwards; opacity: 0; }
+</style>
+
+<!-- Top Banner -->
+<div class="animate-stage-1 bg-gradient-to-r from-blue-900 via-blue-800 to-slate-900 text-white border border-blue-900 rounded-3xl p-8 shadow-lg flex flex-col sm:flex-row justify-between items-start sm:items-center">
+    <div class="space-y-2">
+        <h2 class="text-2xl font-extrabold tracking-tight">Student Directory</h2>
+        <p class="text-sm text-blue-100 font-light">Register new students with auto-generated IDs and manage all academy records.</p>
+    </div>
+                    <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5" for="other_name">Other Name *</label>
+                    <input type="text" name="other_name" value="{{ student.other_name|default:'' }}" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500" required>
+        <button onclick="openStudentPrintModal()" class="bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold text-xs py-3 px-4 rounded-xl transition-all flex items-center space-x-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"></path></svg>
+            <span>Print Details</span>
+        </button>
+        <button onclick="openStudentModal()" class="bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-semibold text-xs py-3 px-5 rounded-xl shadow-lg transition-all duration-150 flex items-center space-x-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+            <span>Register New Student</span>
+        </button>
+        </div>{% endif %}
+    </div>
+</div>
+
+{% if request.user.is_staff or request.user.is_superuser or request.user.account_profile.role == 'registrar' %}<div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mt-5">
+    <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm"><p class="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Total Students</p><p class="text-2xl font-black text-slate-900 mt-1">{{ student_counts.total }}</p></div>
+    <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 shadow-sm"><p class="text-[10px] uppercase tracking-wider text-emerald-700 font-bold">Students</p><p class="text-2xl font-black text-emerald-800 mt-1">{{ student_counts.Student }}</p></div>
+    <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 shadow-sm"><p class="text-[10px] uppercase tracking-wider text-amber-700 font-bold">Transferred</p><p class="text-2xl font-black text-amber-800 mt-1">{{ student_counts.Transferred }}</p></div>
+    <div class="bg-red-50 border border-red-200 rounded-2xl p-4 shadow-sm"><p class="text-[10px] uppercase tracking-wider text-red-700 font-bold">Expelled</p><p class="text-2xl font-black text-red-800 mt-1">{{ student_counts.Expelled }}</p></div>
+    <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4 shadow-sm"><p class="text-[10px] uppercase tracking-wider text-blue-700 font-bold">Graduated</p><p class="text-2xl font-black text-blue-800 mt-1">{{ student_counts.Graduated }}</p></div>
+</div>{% else %}<div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm"><p class="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Active Students</p><p class="text-2xl font-black text-slate-900 mt-1">{{ student_counts.Student }}</p></div>{% endif %}
+
+<!-- Directory Table -->
+<div class="animate-stage-2 bg-white border border-slate-200 rounded-3xl p-8 shadow-sm space-y-6">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <h3 class="text-lg font-bold text-slate-900">Enrolled Students Directory</h3>
+            <p class="text-xs text-slate-500">All student profiles sorted by recent enrollment.</p>
+        </div>
+        <div class="relative w-full sm:w-80">
+            <input type="text" placeholder="Search by name, ID, or LGA..." class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 pl-10 text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:border-blue-500 transition-all">
+            <svg class="absolute left-3 top-3 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+        </div>
+    </div>
+
+    <div class="overflow-x-auto border border-slate-100 rounded-2xl">
+        <table id="student-directory-table" class="w-full text-left border-collapse">
+            <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 text-xs uppercase tracking-wider font-semibold">
+                    <th class="py-4 px-6 w-12">#</th>
+                    <th class="py-4 px-6">Student ID</th>
+                    <th class="py-4 px-6">Full Name</th>
+                    <th class="py-4 px-6">Class</th>
+                    <th class="py-4 px-6">State</th>
+                    <th class="py-4 px-6">Status</th>
+                    <th class="py-4 px-6 text-right">Actions</th>
+                <tr class="hover:bg-slate-50/80 transition-colors" data-status="{{ student.status }}" data-student-id="{{ student.student_id }}" data-name="{{ student.last_name }} {{ student.first_name }} {{ student.other_name|default:'' }}" data-class="{% if student.current_class %}{{ student.current_class.name }}{% else %}Unassigned{% endif %}" data-state="{{ student.state_of_origin }}" data-program="{{ student.program }}">
+                    <td class="py-4 px-6 text-slate-400 font-medium">{{ forloop.counter }}</td>
+                    <td class="py-4 px-6 font-semibold text-blue-600">{{ student.student_id }}</td>
+                    
+                    <td class="py-4 px-6">
+                    <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5" for="first_name">First Name *</label>
+                    <input class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500 transition-all" id="first_name" name="first_name" type="text" required>
+                </div>
+                <div>
+                    <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5" for="other_name">Other Name *</label>
+                    <input class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm" id="other_name" name="other_name" type="text" required>
+                                {% if student.passport %}
+                                    <img src="{{ student.passport.url }}" class="w-full h-full object-cover" alt="Passport">
+                                {% else %}
+                                    <div class="w-full h-full flex items-center justify-center text-slate-400 text-xs font-bold">
+                                        {{ student.first_name|slice:":1" }}{{ student.last_name|slice:":1" }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <p class="font-medium text-slate-900">{{ student.last_name }} {{ student.first_name }} {{ student.other_name|default:"" }}</p>
+                            </div>
+                        </div>
+                    </td>
+
+                    <td class="py-4 px-4 font-semibold">
+    {% if student.current_class %}
+        {{ student.current_class.name }}
+    {% else %}
+        <span class="text-rose-500 italic">Unassigned</span>
+    {% endif %}
+</td>
+                    <td class="py-4 px-6">{{ student.state_of_origin }}</td>
+                    
+                    <td class="py-4 px-6">
+                        {% if student.status == 'Student' or student.status == 'Active' or student.status == 'Present' %}
+                            <span class="bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-emerald-200">Student</span>
+                        {% elif student.status == 'Transferred' %}
+                            <span class="bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-amber-200">Transferred</span>
+                        {% elif student.status == 'Expelled' %}
+                            <span class="bg-red-50 text-red-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-red-200">Expelled</span>
+                        {% elif student.status == 'Graduated' %}
+                            <span class="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-blue-200">Graduated</span>
+                        {% elif student.status == 'Left' %}
+                            <span class="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-slate-300">Left</span>
+                        {% else %}
+                            <span class="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full text-xs font-semibold">{{ student.status }}</span>
+                        {% endif %}
+                    </td>
+
+                    <td class="py-4 px-6 text-right">
+                        <a href="{% url 'student_profile' student.pk %}" class="bg-blue-50 hover:bg-blue-100 text-blue-600 font-semibold text-xs py-1.5 px-3 rounded-lg active:scale-95 transition-all inline-block shadow-sm">View Profile</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="py-10 text-center text-slate-400 text-sm">No student records found in the database. Click "Register New Student" to add one!</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="student-print-modal" class="fixed inset-0 z-[9999] h-screen w-screen hidden items-center justify-center bg-slate-900/60 backdrop-blur-md overflow-hidden p-4">
+    <div class="bg-white rounded-3xl max-h-[90vh] max-w-sm w-full overflow-y-auto p-6 shadow-2xl space-y-5">
+        <div class="flex items-center justify-between"><div><h3 class="text-lg font-bold text-slate-900">Print Student Details</h3><p class="text-xs text-slate-500">Select one or more statuses to include.</p></div><button type="button" onclick="closeStudentPrintModal()" class="text-slate-400 hover:text-slate-700 text-xl">&times;</button></div>
+        <div class="grid grid-cols-2 gap-3 text-sm text-slate-700">
+            <label class="flex items-center gap-2"><input type="checkbox" value="Student" checked class="student-print-status h-4 w-4 rounded border-slate-300 text-blue-600"> Student</label>
+            <label class="flex items-center gap-2"><input type="checkbox" value="Transferred" checked class="student-print-status h-4 w-4 rounded border-slate-300 text-blue-600"> Transferred</label>
+            <label class="flex items-center gap-2"><input type="checkbox" value="Expelled" checked class="student-print-status h-4 w-4 rounded border-slate-300 text-blue-600"> Expelled</label>
+            <label class="flex items-center gap-2"><input type="checkbox" value="Graduated" checked class="student-print-status h-4 w-4 rounded border-slate-300 text-blue-600"> Graduated</label>
+        </div>
+        <div class="flex justify-end gap-2 border-t border-slate-100 pt-4"><button type="button" onclick="closeStudentPrintModal()" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold">Cancel</button><button type="button" onclick="printStudentDetails()" class="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold">Print</button></div>
+    </div>
+</div>
+<div id="student-print-report" class="hidden"></div>
+
+<!-- Student Registration Modal -->
+<div id="student-modal" class="fixed inset-0 z-[9999] h-screen w-screen bg-slate-900/60 backdrop-blur-md hidden flex items-center justify-center p-4 overflow-hidden">
+    <div class="bg-white rounded-3xl max-w-2xl w-full p-8 shadow-2xl border border-slate-200 transform transition-all my-8 max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+            <div>
+                <h3 class="text-xl font-bold text-slate-900">Student Registration Form</h3>
+                <p class="text-xs text-slate-500">Student ID will be generated automatically upon submission.</p>
+            </div>
+            <button onclick="closeStudentModal()" class="text-slate-400 hover:text-slate-600 p-1 active:scale-95 transition-transform">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+
+        <form method="POST" action="" enctype="multipart/form-data" class="space-y-6">
+            {% csrf_token %}
+            
+            <div class="flex flex-col items-center justify-center bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl p-6 relative hover:border-blue-500 transition-all group cursor-pointer" onclick="document.getElementById('passport').click()">
+                <div id="passport-preview-container" class="w-24 h-32 rounded-2xl bg-slate-200 overflow-hidden flex items-center justify-center shadow-inner relative mb-3">
+                    <svg id="upload-placeholder-icon" class="w-10 h-10 text-slate-400 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2-2v12a2 2 0 002 2z"></path>
+                    </svg>
+                    <img id="image-preview" class="w-full h-full object-cover hidden" alt="Passport Preview">
+                </div>
+                <p class="text-xs font-bold text-slate-700 uppercase tracking-wider">Passport Photograph (3:4)</p>
+                <p class="text-[11px] text-slate-400 mt-0.5">Click to browse or drop image (JPG, PNG)</p>
+                <input class="crop-enabled hidden" id="passport" name="passport" type="file" accept="image/*" onchange="previewPassport(event)">
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5" for="first_name">First Name *</label>
+                    <input class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500 transition-all" id="first_name" name="first_name" type="text" required>
+                </div>
+                <div>
+                    <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5" for="last_name">Surname *</label>
+                    <input class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500 transition-all" id="last_name" name="last_name" type="text" required>
+                </div>
+                <div>
+                    <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5" for="other_name">Other Name</label>
+                    <input class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500 transition-all" id="other_name" name="other_name" type="text">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5" for="sex">Sex *</label>
+                    <div class="relative custom-select" data-name="sex">
+                        <div class="select-box w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 text-slate-800 text-sm focus-within:border-blue-500 transition-all flex justify-between items-center h-[42px]">
+                            <input type="text" name="sex" id="sex" class="search-input w-full bg-transparent outline-none placeholder-slate-400" autocomplete="off" required>
+                            <svg class="dropdown-icon w-4 h-4 text-slate-400 cursor-pointer transform transition-transform duration-200 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </div>
+                        <div class="options-container absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg hidden max-h-48 overflow-y-auto top-full left-0">
+                            <ul class="options-list py-1 text-sm text-slate-700"></ul>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5" for="date_of_birth">Date of Birth *</label>
+                    <input class="global-date-picker w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500 transition-all" id="date_of_birth" name="date_of_birth" type="text" required>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5" for="lin">LIN (Learner's Identification Number) *</label>
+                    <input class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500 transition-all" id="lin" name="lin" type="text" required>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5" for="state_of_origin">State of Origin *</label>
+                    <div class="relative custom-select" data-name="state_of_origin">
+                        <div class="select-box w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 text-slate-800 text-sm focus-within:border-blue-500 transition-all flex justify-between items-center h-[42px]">
+                            <input type="text" name="state_of_origin" id="state_of_origin" class="search-input w-full bg-transparent outline-none placeholder-slate-400" autocomplete="off" required>
+                            <svg class="dropdown-icon w-4 h-4 text-slate-400 cursor-pointer transform transition-transform duration-200 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </div>
+                        <div class="options-container absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg hidden max-h-48 overflow-y-auto top-full left-0">
+                            <ul class="options-list py-1 text-sm text-slate-700"></ul>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5" for="lga_of_origin">LGA of Origin *</label>
+                    <div class="relative custom-select" data-name="lga_of_origin">
+                        <div class="select-box w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 text-slate-800 text-sm focus-within:border-blue-500 transition-all flex justify-between items-center h-[42px]">
+                            <input type="text" name="lga_of_origin" id="lga_of_origin" class="search-input w-full bg-transparent outline-none placeholder-slate-400" autocomplete="off" required>
+                            <svg class="dropdown-icon w-4 h-4 text-slate-400 cursor-pointer transform transition-transform duration-200 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </div>
+                        <div class="options-container absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg hidden max-h-48 overflow-y-auto top-full left-0">
+                            <ul class="options-list py-1 text-sm text-slate-700"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5" for="program">Program *</label>
+                    <div class="relative custom-select" data-name="program">
+                        <div class="select-box w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 text-slate-800 text-sm focus-within:border-blue-500 transition-all flex justify-between items-center h-[42px]">
+                            <input type="text" name="program" id="program" class="search-input w-full bg-transparent outline-none placeholder-slate-400" autocomplete="off" required>
+                            <svg class="dropdown-icon w-4 h-4 text-slate-400 cursor-pointer transform transition-transform duration-200 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </div>
+                        <div class="options-container absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg hidden max-h-48 overflow-y-auto top-full left-0">
+                            <ul class="options-list py-1 text-sm text-slate-700"></ul>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5" for="student_class">Class *</label>
+                    <div class="relative custom-select" data-name="student_class">
+                        <div class="select-box w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 text-slate-800 text-sm focus-within:border-blue-500 transition-all flex justify-between items-center h-[42px]">
+                            <input type="text" name="current_class" id="student_class" class="search-input w-full bg-transparent outline-none placeholder-slate-400" autocomplete="off" required>
+                            <svg class="dropdown-icon w-4 h-4 text-slate-400 cursor-pointer transform transition-transform duration-200 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </div>
+                        <div class="options-container absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg hidden max-h-48 overflow-y-auto top-full left-0">
+                            <ul class="options-list py-1 text-sm text-slate-700"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5" for="phone_number">Phone Number</label>
+                    <input class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500 transition-all" id="phone_number" name="phone_number" type="text">
+                </div>
+                <div>
+                    <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5" for="religion">Religion</label>
+                    <div class="relative custom-select" data-name="religion">
+                        <div class="select-box w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 text-slate-800 text-sm focus-within:border-blue-500 transition-all flex justify-between items-center h-[42px]">
+                            <input type="text" name="religion" id="religion" class="search-input w-full bg-transparent outline-none placeholder-slate-400" autocomplete="off">
+                            <svg class="dropdown-icon w-4 h-4 text-slate-400 cursor-pointer transform transition-transform duration-200 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </div>
+                        <div class="options-container absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg hidden max-h-48 overflow-y-auto top-full left-0">
+                            <ul class="options-list py-1 text-sm text-slate-700"></ul>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5" for="email">Email Address</label>
+                    <input class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500 transition-all" id="email" name="email" type="email" placeholder="student@example.com" oninput="validateEmail(this)">
+                    <p id="email-error" class="text-[10px] text-red-500 mt-1 hidden">Please enter a valid email address.</p>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                <div>
+                    <span class="block text-xs font-bold text-slate-800 uppercase tracking-wider">Physically Challenged Status</span>
+                    <span class="text-[11px] text-slate-500">Toggle if the student requires special accommodations.</span>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="physically_challenged" name="physically_challenged" class="sr-only peer">
+                    <div class="w-12 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 shadow-inner"></div>
+                </label>
+            </div>
+
+            <div class="pt-4 flex space-x-3 border-t border-slate-100">
+                <button type="button" onclick="closeStudentModal()" class="w-1/2 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 font-semibold py-3 px-4 rounded-xl text-sm transition-all duration-150">Cancel</button>
+                <button type="submit" class="w-1/2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-semibold py-3 px-4 rounded-xl text-sm shadow-md transition-all duration-150">Save & Generate ID</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openStudentPrintModal() { const modal = document.getElementById('student-print-modal'); modal.classList.remove('hidden'); modal.classList.add('flex'); }
+    function closeStudentPrintModal() { const modal = document.getElementById('student-print-modal'); modal.classList.add('hidden'); modal.classList.remove('flex'); }
+    function printStudentDetails() {
+        const statuses = Array.from(document.querySelectorAll('.student-print-status:checked')).map(input => input.value);
+        if (!statuses.length) { alert('Select at least one student status to print.'); return; }
+        const rows = Array.from(document.querySelectorAll('#student-directory-table tbody tr[data-status]')).filter(row => statuses.includes(row.dataset.status));
+        const report = document.getElementById('student-print-report');
+        report.innerHTML = `<h1 style="font:700 22px Arial;margin-bottom:6px">Future Leaders Private Academy</h1><h2 style="font:600 16px Arial;margin-bottom:6px">Student Details</h2><p style="font:12px Arial;margin-bottom:16px">Statuses: ${statuses.join(', ')}</p><table style="width:100%;border-collapse:collapse;font:12px Arial"><thead><tr><th style="border:1px solid #cbd5e1;padding:8px;text-align:left">#</th><th style="border:1px solid #cbd5e1;padding:8px;text-align:left">Student ID</th><th style="border:1px solid #cbd5e1;padding:8px;text-align:left">Full Name</th><th style="border:1px solid #cbd5e1;padding:8px;text-align:left">Program</th><th style="border:1px solid #cbd5e1;padding:8px;text-align:left">Class</th><th style="border:1px solid #cbd5e1;padding:8px;text-align:left">State</th><th style="border:1px solid #cbd5e1;padding:8px;text-align:left">Status</th></tr></thead><tbody>${rows.map((row, index) => `<tr><td style="border:1px solid #cbd5e1;padding:8px">${index + 1}</td><td style="border:1px solid #cbd5e1;padding:8px">${row.dataset.studentId}</td><td style="border:1px solid #cbd5e1;padding:8px">${row.dataset.name}</td><td style="border:1px solid #cbd5e1;padding:8px">${row.dataset.program}</td><td style="border:1px solid #cbd5e1;padding:8px">${row.dataset.class}</td><td style="border:1px solid #cbd5e1;padding:8px">${row.dataset.state}</td><td style="border:1px solid #cbd5e1;padding:8px">${row.dataset.status}</td></tr>`).join('') || '<tr><td colspan="7" style="border:1px solid #cbd5e1;padding:12px;text-align:center">No student records match these statuses.</td></tr>'}</tbody></table>`;
+        closeStudentPrintModal();
+        report.classList.remove('hidden');
+        window.print();
+        window.onafterprint = () => report.classList.add('hidden');
+    }
+
+    const locationData = {
+        "Abia": ["Aba North", "Aba South", "Arochukwu", "Bende", "Ikwuano", "Isiala Ngwa North", "Isiala Ngwa South", "Isuikwuato", "Obi Ngwa", "Ohafia", "Osisioma", "Ugwunagbo", "Ukwa East", "Ukwa West", "Umuahia North", "Umuahia South", "Umu Nneochi"],
+        "Adamawa": ["Demsa", "Fufure", "Ganye", "Gayuk", "Gombi", "Grie", "Hong", "Jada", "Larmurde", "Madagali", "Maiha", "Mayo Belwa", "Michika", "Mubi North", "Mubi South", "Numan", "Shelleng", "Song", "Toungo", "Yola North", "Yola South"],
+        "Akwa Ibom": ["Abak", "Eastern Obolo", "Eket", "Esit Eket", "Essien Udim", "Etim Ekpo", "Etinan", "Ibeno", "Ibesikpo Asutan", "Ibiono-Ibom", "Ika", "Ikono", "Ikot Abasi", "Ikot Ekpene", "Ini", "Itu", "Mbo", "Mkpat-Enin", "Nsit-Atai", "Nsit-Ibom", "Nsit-Ubium", "Obot Akara", "Okobo", "Onna", "Oron", "Oruk Anam", "Udung-Uko", "Ukanafun", "Uruan", "Urue-Offong/Oruko", "Uyo"],
+        "Anambra": ["Aguata", "Anambra East", "Anambra West", "Anaocha", "Awka North", "Awka South", "Ayamelum", "Dunukofia", "Ekwusigo", "Idemili North", "Idemili South", "Ihiala", "Njikoka", "Nnewi North", "Nnewi South", "Ogbaru", "Onitsha North", "Onitsha South", "Orumba North", "Orumba South", "Oyi"],
+        "Bauchi": ["Alkaleri", "Bauchi", "Bogoro", "Damban", "Darazo", "Dass", "Gamawa", "Ganjuwa", "Giade", "Itas/Gadau", "Jama'are", "Katagum", "Kirfi", "Misau", "Ningi", "Shira", "Tafawa Balewa", "Toro", "Warji", "Zaki"],
+        "Bayelsa": ["Brass", "Ekeremor", "Kolokuma/Opokuma", "Nembe", "Ogbia", "Sagbama", "Southern Ijaw", "Yenagoa"],
+        "Benue": ["Ado", "Agatu", "Apa", "Buruku", "Gboko", "Guma", "Gwer East", "Gwer West", "Katsina-Ala", "Konshisha", "Kwande", "Logo", "Makurdi", "Obi", "Ogbadibo", "Ohimini", "Oju", "Okpokwu", "Otukpo", "Tarka", "Ukum", "Ushongo", "Vandeikya"],
+        "Borno": ["Abadam", "Askira/Uba", "Bama", "Bayo", "Biu", "Chibok", "Damboa", "Dikwa", "Gubio", "Guzamala", "Gwoza", "Hawul", "Jere", "Kaga", "Kala/Balge", "Konduga", "Kukawa", "Kwaya Kusar", "Mafa", "Magumeri", "Maiduguri", "Marte", "Mobbar", "Monguno", "Ngala", "Nganzai", "Shani"],
+        "Cross River": ["Abi", "Akamkpa", "Akpabuyo", "Bakassi", "Bekwarra", "Biase", "Boki", "Calabar Municipal", "Calabar South", "Etung", "Ikom", "Obanliku", "Obubra", "Obudu", "Odukpani", "Ogoja", "Yakuur", "Yala"],
+        "Delta": ["Aniocha North", "Aniocha South", "Bomadi", "Burutu", "Ethiope East", "Ethiope West", "Ika North East", "Ika South", "Isoko North", "Isoko South", "Ndokwa East", "Ndokwa West", "Okpe", "Oshimili North", "Oshimili South", "Patani", "Sapele", "Udu", "Ughelli North", "Ughelli South", "Ukwuani", "Uvwie", "Warri North", "Warri South", "Warri South West"],
+        "Ebonyi": ["Abakaliki", "Afikpo North", "Afikpo South", "Ebonyi", "Ezza North", "Ezza South", "Ikwo", "Ishielu", "Ivo", "Izzi", "Ohaozara", "Ohaukwu", "Onicha"],
+        "Edo": ["Akoko-Edo", "Egor", "Esan Central", "Esan North-East", "Esan South-East", "Esan West", "Etsako Central", "Etsako East", "Etsako West", "Igueben", "Ikpoba Okha", "Orhionmwon", "Oredo", "Ovia North-East", "Ovia South-West", "Owan East", "Owan West", "Uhunmwonde"],
+        "Ekiti": ["Ado Ekiti", "Efon", "Ekiti East", "Ekiti South-West", "Ekiti West", "Emure", "Gbonyin", "Ido Osi", "Ijero", "Ikere", "Ikole", "Ilejemeje", "Irepodun/Ifelodun", "Ise/Orun", "Moba", "Oye"],
+        "Enugu": ["Aninri", "Awgu", "Enugu East", "Enugu North", "Enugu South", "Ezeagu", "Igbo Etiti", "Igbo Eze North", "Igbo Eze South", "Isi Uzo", "Nkanu East", "Nkanu West", "Nsukka", "Oji River", "Udenu", "Udi", "Uzo Uwani"],
+        "FCT": ["Abaji", "Bwari", "Gwagwalada", "Kuje", "Kwali", "Municipal Area Council"],
+        "Gombe": ["Akko", "Balanga", "Billiri", "Dukku", "Funakaye", "Gombe", "Kaltungo", "Kwami", "Nafada", "Shongom", "Yamaltu/Deba"],
+        "Imo": ["Aboh Mbaise", "Ahiazu Mbaise", "Ehime Mbano", "Ezinihitte", "Ideato North", "Ideato South", "Ihitte/Uboma", "Ikeduru", "Isiala Mbano", "Isu", "Mbaitoli", "Ngor Okpala", "Njaba", "Nkwerre", "Nwangele", "Obowo", "Oguta", "Ohaji/Egbema", "Okigwe", "Orlu", "Orsu", "Oru East", "Oru West", "Owerri Municipal", "Owerri North", "Owerri West", "Unuimo"],
+        "Jigawa": ["Auyo", "Babura", "Biriniwa", "Birnin Kudu", "Buji", "Dutse", "Gagarawa", "Garki", "Gumel", "Guri", "Gwaram", "Gwiwa", "Hadejia", "Jahun", "Kafin Hausa", "Kaugama", "Kazaure", "Kiri Kasama", "Kiyawa", "Maigatari", "Malam Madori", "Miga", "Ringim", "Roni", "Sule Tankarkar", "Taura", "Yankwashi"],
+        "Kaduna": ["Birnin Gwari", "Chikun", "Giwa", "Igabi", "Ikara", "Jaba", "Jema'a", "Kachia", "Kaduna North", "Kaduna South", "Kagarko", "Kajuru", "Kaura", "Kauru", "Kubau", "Kudan", "Lere", "Makarfi", "Sabon Gari", "Sanga", "Soba", "Zangon Kataf", "Zaria"],
+        "Kano": ["Ajingi", "Albasu", "Bagwai", "Bebeji", "Bichi", "Bunkure", "Dala", "Dambatta", "Dawakin Kudu", "Dawakin Tofa", "Doguwa", "Fagge", "Gabasawa", "Garko", "Garun Mallam", "Gaya", "Gezawa", "Gwale", "Gwarzo", "Kabo", "Kano Municipal", "Karaye", "Kibiya", "Kiru", "Kumbotso", "Kunchi", "Kura", "Madobi", "Makoda", "Minjibir", "Nasarawa", "Rano", "Rimin Gado", "Rogo", "Shanono", "Sumaila", "Takai", "Tarauni", "Tofa", "Tsanyawa", "Tudun Wada", "Ungogo", "Warawa", "Wudil"],
+        "Katsina": ["Bakori", "Batagarawa", "Batsari", "Baure", "Bindawa", "Charanchi", "Dandume", "Danja", "Dan Musa", "Daura", "Dutsi", "Dutsin Ma", "Faskari", "Funtua", "Ingawa", "Jibia", "Kafur", "Kaita", "Kankara", "Kankia", "Katsina", "Kurfi", "Kusada", "Mai'Adua", "Malumfashi", "Mani", "Mashi", "Matazu", "Musawa", "Rimi", "Sabuwa", "Safana", "Sandamu", "Zango"],
+        "Kebbi": ["Aleiro", "Arewa Dandi", "Argungu", "Augie", "Bagudo", "Birnin Kebbi", "Bunza", "Dandi", "Fakai", "Gwandu", "Jega", "Kalgo", "Koko/Besse", "Maiyama", "Ngaski", "Sakaba", "Shanga", "Suru", "Wasagu/Danko", "Yauri", "Zuru"],
+        "Kogi": ["Adavi", "Ajaokuta", "Ankpa", "Bassa", "Dekina", "Ibaji", "Idah", "Igalamela Odolu", "Ijumu", "Kabba/Bunu", "Kogi", "Lokoja", "Mopa Muro", "Ofu", "Ogori/Magongo", "Okehi", "Okene", "Olamaboro", "Omala", "Yagba East", "Yagba West"],
+        "Kwara": ["Asa", "Baruten", "Edu", "Ekiti", "Ifelodun", "Ilorin East", "Ilorin South", "Ilorin West", "Irepodun", "Isin", "Kaiama", "Moro", "Offa", "Oke Ero", "Oyun", "Pategi"],
+        "Lagos": ["Agege", "Ajeromi-Ifelodun", "Alimosho", "Amuwo-Odofin", "Apapa", "Badagry", "Epe", "Eti Osa", "Ibeju-Lekki", "Ifako-Ijaiye", "Ikeja", "Ikorodu", "Kosofe", "Lagos Island", "Lagos Mainland", "Mushin", "Ojo", "Oshodi-Isolo", "Shomolu", "Surulere"],
+        "Nasarawa": ["Akwanga", "Awe", "Doma", "Karu", "Keana", "Keffi", "Kokona", "Lafia", "Nasarawa", "Nasarawa Egon", "Obi", "Toto", "Wamba"],
+        "Niger": ["Agaie", "Agwara", "Bida", "Borgu", "Bosso", "Chanchaga", "Edati", "Gbako", "Gurara", "Katcha", "Kontagora", "Lapai", "Lavun", "Magama", "Mariga", "Mashegu", "Mokwa", "Muya", "Pailoro", "Rafi", "Rijau", "Shiroro", "Suleja", "Tafa", "Wushishi"],
+        "Ogun": ["Abeokuta North", "Abeokuta South", "Ado-Odo/Ota", "Egbado North", "Egbado South", "Ewekoro", "Ifo", "Ijebu East", "Ijebu North", "Ijebu North East", "Ijebu Ode", "Ikenne", "Imeko Afon", "Ipokia", "Obafemi Owode", "Odeda", "Odogbolu", "Ogun Waterside", "Remo North", "Shagamu"],
+        "Ondo": ["Akoko North-East", "Akoko North-West", "Akoko South-East", "Akoko South-West", "Akure North", "Akure South", "Ese Odo", "Idanre", "Ifedore", "Ilaje", "Ile Oluji/Okeigbo", "Irele", "Odigbo", "Okitipupa", "Ondo East", "Ondo West", "Ose", "Owo"],
+        "Osun": ["Atakumosa East", "Atakumosa West", "Aiyedaade", "Aiyedire", "Boluwaduro", "Boripe", "Ede North", "Ede South", "Ife Central", "Ife East", "Ife North", "Ife South", "Egbedore", "Ejigbo", "Ifedayo", "Ifelodun", "Ila", "Ilesa East", "Ilesa West", "Irepodun", "Irewole", "Isokan", "Iwo", "Obokun", "Odo Otin", "Ola Oluwa", "Olorunda", "Oriade", "Orolu", "Osogbo"],
+        "Oyo": ["Afijio", "Akinyele", "Atiba", "Atisbo", "Egbeda", "Ibadan North", "Ibadan North-East", "Ibadan North-West", "Ibadan South-East", "Ibadan South-West", "Ibarapa Central", "Ibarapa East", "Ibarapa North", "Ido", "Irepo", "Iseyin", "Itesiwaju", "Iwajowa", "Kajola", "Lagelu", "Ogbomosho North", "Ogbomosho South", "Ogo Oluwa", "Olorunsogo", "Oluyole", "Ona Ara", "Orelope", "Ori Ire", "Oyo East", "Oyo West", "Saki East", "Saki West", "Surulere"],
+        "Plateau": ["Bokkos", "Barkin Ladi", "Bassa", "Jos East", "Jos North", "Jos South", "Kanam", "Kanke", "Langtang North", "Langtang South", "Mangu", "Mikang", "Pankshin", "Qua'an Pan", "Riyom", "Shendam", "Wase"],
+        "Rivers": ["Abua/Odual", "Ahoada East", "Ahoada West", "Akuku-Toru", "Andoni", "Asari-Toru", "Bonny", "Degema", "Eleme", "Emuoha", "Etche", "Gokana", "Ikwerre", "Khana", "Obio/Akpor", "Ogba/Egbema/Ndoni", "Ogu/Bolo", "Okrika", "Omuma", "Opobo/Nkoro", "Oyigbo", "Port Harcourt", "Tai"],
+        "Sokoto": ["Binji", "Bodinga", "Dange Shuni", "Gada", "Goronyo", "Gudu", "Gwadabawa", "Illela", "Isa", "Kebbe", "Kware", "Rabah", "Sabon Birni", "Shagari", "Silame", "Sokoto North", "Sokoto South", "Tambuwal", "Tangaza", "Tureta", "Wamako", "Wurno", "Yabo"],
+        "Taraba": ["Ardo Kola", "Bali", "Donga", "Gashaka", "Gassol", "Ibi", "Jalingo", "Karim Lamido", "Kurmi", "Lau", "Sardauna", "Takum", "Ussa", "Wukari", "Yorro", "Zing"],
+        "Yobe": ["Bade", "Bursari", "Damaturu", "Fika", "Fune", "Geidam", "Gujba", "Gulani", "Jakusko", "Karasuwa", "Machina", "Nangere", "Nguru", "Potiskum", "Tarmua", "Yunusari", "Yusufari"],
+        "Zamfara": ["Anka", "Bakura", "Birnin Magaji/Kiyaw", "Bukkuyum", "Bungudu", "Gummi", "Gusau", "Kaura Namoda", "Maradun", "Maru", "Shinkafi", "Talata Mafara", "Chafe", "Zurmi"]
+    };
+
+    const classData = {
+        "Kindergarten (KG)": ["KG 1", "KG 2"],
+        "Nursery (NUR)": ["Nursery 1", "Nursery 2", "Nursery 3"],
+        "Primary (PRY)": ["Primary 1", "Primary 2", "Primary 3", "Primary 4", "Primary 5", "Primary 6"]
+    };
+
+    /* --- Custom Searchable Select Engine --- */
+    function populateCustomSelect(name, options, placeholder) {
+        const container = document.querySelector(`.custom-select[data-name="${name}"]`);
+        if(!container) return;
+        
+        const input = container.querySelector('.search-input');
+        const ul = container.querySelector('.options-list');
+        
+        input.placeholder = placeholder;
+        ul.innerHTML = '';
+        
+        if (options.length === 0) {
+            const li = document.createElement('li');
+            li.className = 'px-4 py-2.5 text-slate-400 italic cursor-default text-xs';
+            li.textContent = 'No options available';
+            ul.appendChild(li);
+            return;
+        }
+
+        options.forEach(opt => {
+            const li = document.createElement('li');
+            li.className = 'option-item px-4 py-2.5 hover:bg-blue-50 cursor-pointer transition-colors text-slate-700';
+            li.textContent = opt;
+            
+            li.addEventListener('mousedown', (e) => { 
+                e.preventDefault(); 
+                input.value = opt;
+                closeAllSelects();
+                input.dispatchEvent(new Event('change', { bubbles: true })); 
+            });
+            ul.appendChild(li);
+        });
+    }
+
+    function openSelect(container) {
+        container.querySelectorAll('.option-item').forEach(item => item.style.display = '');
+        container.querySelector('.options-container').classList.remove('hidden');
+        container.querySelector('.dropdown-icon').classList.add('rotate-180');
+        container.querySelector('.select-box').classList.add('border-blue-500');
+    }
+
+    function closeAllSelects() {
+        document.querySelectorAll('.custom-select').forEach(container => {
+            container.querySelector('.options-container').classList.add('hidden');
+            container.querySelector('.dropdown-icon').classList.remove('rotate-180');
+            container.querySelector('.select-box').classList.remove('border-blue-500');
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        populateCustomSelect('sex', ["Male", "Female"], "Select Sex...");
+        populateCustomSelect('religion', ["Christianity", "Islam", "Other"], "Select Religion...");
+        
+        const stateOptions = Object.keys(locationData).sort();
+        populateCustomSelect('state_of_origin', stateOptions, "Select State...");
+        populateCustomSelect('lga_of_origin', [], "Select State First...");
+        
+        populateCustomSelect('program', ["Kindergarten (KG)", "Nursery (NUR)", "Primary (PRY)"], "Select Program...");
+        populateCustomSelect('student_class', [], "Select Program First...");
+
+        document.querySelectorAll('input[name="state_of_origin"]').forEach(input => {
+            input.addEventListener('change', (e) => {
+                const state = e.target.value;
+                const lgas = locationData[state] ? locationData[state].sort() : [];
+                populateCustomSelect('lga_of_origin', lgas, "Select LGA...");
+            });
+        });
+
+        document.querySelectorAll('input[name="program"]').forEach(input => {
+            input.addEventListener('change', (e) => {
+                const prog = e.target.value;
+                const classes = classData[prog] || [];
+                populateCustomSelect('student_class', classes, "Select Class...");
+            });
+        });
+
+        document.querySelectorAll('.custom-select').forEach(container => {
+            const input = container.querySelector('.search-input');
+            const ul = container.querySelector('.options-list');
+            const icon = container.querySelector('.dropdown-icon');
+
+            input.addEventListener('focus', () => {
+                closeAllSelects();
+                openSelect(container);
+            });
+
+            input.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openSelect(container);
+            });
+
+            input.addEventListener('input', () => {
+                openSelect(container);
+                const filter = input.value.toLowerCase();
+                const items = ul.querySelectorAll('.option-item');
+                items.forEach(item => {
+                    if (item.textContent.toLowerCase().includes(filter)) {
+                        item.style.display = '';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            });
+
+            icon.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (container.querySelector('.options-container').classList.contains('hidden')) {
+                    closeAllSelects();
+                    openSelect(container);
+                    input.focus();
+                } else {
+                    closeAllSelects();
+                }
+            });
+        });
+
+        document.addEventListener('click', closeAllSelects);
+    });
+    
+    function openStudentModal() { document.getElementById('student-modal').classList.remove('hidden'); }
+    function closeStudentModal() { document.getElementById('student-modal').classList.add('hidden'); }
+
+    function previewPassport(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.getElementById('image-preview');
+                const icon = document.getElementById('upload-placeholder-icon');
+                img.src = e.target.result;
+                img.classList.remove('hidden');
+                icon.classList.add('hidden');
+            }
+            reader.readAsDataURL(file);
+        }
+    }
+
+    function autoExpandTextarea(el) {
+        el.style.height = 'auto';
+        el.style.height = (el.scrollHeight) + 'px';
+    }
+
+    function validateEmail(input) {
+        const errorMsg = document.getElementById('email-error');
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (input.value.trim() === '' || emailRegex.test(input.value)) {
+            errorMsg.classList.add('hidden');
+            input.classList.remove('border-red-500');
+        } else {
+            errorMsg.classList.remove('hidden');
+            input.classList.add('border-red-500');
+        }
+    }
+</script>
+<script>
+document.querySelectorAll('#student-print-modal, #student-modal').forEach(modal => document.body.appendChild(modal));
+</script>
+{% endblock %}

@@ -1,0 +1,121 @@
+{% extends 'portal/base.html' %}
+{% block page_title %}Review Applicants{% endblock %}
+{% block content %}
+<div class="min-h-full bg-slate-100 p-6 lg:p-8">
+  <div class="mx-auto max-w-7xl space-y-6">
+    <header class="rounded-3xl bg-gradient-to-r from-blue-900 to-blue-700 p-8 text-white shadow-lg">
+      <p class="text-xs font-bold uppercase tracking-[0.2em] text-blue-200">Admissions &amp; Enrollment</p>
+      <h1 class="mt-2 text-2xl font-black">Review Applicants</h1>
+      <p class="mt-1 text-sm text-blue-100">Verify payments and create or revoke applicant student profiles.</p>
+    </header>
+
+    <section class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[1100px] text-left text-sm">
+          <thead class="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500"><tr><th class="p-4">Reg No.</th><th class="p-4">Applicant</th><th class="p-4">Class</th><th class="p-4">Parent</th><th class="p-4">Payment</th><th class="p-4">Status</th><th class="p-4 text-right">Actions</th></tr></thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for applicant in applicants %}
+            <tr class="align-top hover:bg-slate-50/70">
+              <td class="p-4 font-mono font-semibold text-blue-700">{{ applicant.temp_reg_number }}</td>
+              <td class="p-4 font-semibold text-slate-900">{{ applicant.first_name }} {{ applicant.last_name }}</td>
+              <td class="p-4 text-slate-600">{{ applicant.intended_class.name }}</td>
+              <td class="p-4 text-slate-600">{{ applicant.parent_name }}<br><span class="text-xs text-slate-400">{{ applicant.parent_phone }}</span></td>
+              <td class="p-4">{% if applicant.payment_status == 'Verified' %}<span class="rounded-lg bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">Verified</span>{% else %}<span class="rounded-lg bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">Pending</span>{% endif %}</td>
+              <td class="p-4">{% if applicant.admission_status == 'Approved' %}<span class="rounded-lg bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-800">Approved{% if applicant.enrolled_student %} · {{ applicant.enrolled_student.student_id }}{% endif %}</span>{% elif applicant.admission_status == 'Accepted' %}<span class="rounded-lg bg-indigo-100 px-2.5 py-1 text-xs font-bold text-indigo-800">Accepted</span>{% elif applicant.admission_status == 'Rejected' %}<span class="rounded-lg bg-red-100 px-2.5 py-1 text-xs font-bold text-red-800">Rejected</span>{% elif applicant.admission_status == 'Verified' %}<span class="rounded-lg bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">Verified</span>{% else %}<span class="rounded-lg bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">Pending</span>{% endif %}</td>
+              <td class="p-4 text-right">
+                <div class="flex flex-wrap justify-end gap-2">
+                  <a href="{% url 'admission_print' applicant.pk %}" target="_blank" class="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-200">Print Form</a>
+                {% if applicant.admission_status == 'Pending' or applicant.admission_status == 'Verified' %}
+                  {% if applicant.payment_status != 'Verified' %}
+                  <form method="post">{% csrf_token %}<input type="hidden" name="action" value="verify_payment"><input type="hidden" name="applicant_id" value="{{ applicant.pk }}"><button type="submit" class="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100">Verify Payment</button></form>
+                  {% endif %}
+                  <form method="post">{% csrf_token %}<input type="hidden" name="action" value="approve_enroll"><input type="hidden" name="applicant_id" value="{{ applicant.pk }}"><button type="submit" class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700">Approve</button></form>
+                  <form method="post">{% csrf_token %}<input type="hidden" name="action" value="reject"><input type="hidden" name="applicant_id" value="{{ applicant.pk }}"><button type="submit" class="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 hover:bg-red-100">Reject</button></form>
+                {% endif %}
+                {% if applicant.admission_status == 'Approved' %}
+                  <button type="button" onclick="openRevokeModal('{% url 'revoke_admission' applicant.pk %}')" class="rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-800 hover:bg-amber-100">Revoke Approval</button>
+                {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" class="p-12 text-center text-sm text-slate-500">No applicants have applied yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div id="revoke-admission-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-950/60 p-4 backdrop-blur-md" role="dialog" aria-modal="true" aria-labelledby="revoke-admission-title">
+  <div class="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900/80 p-6 text-white shadow-2xl shadow-black/50 backdrop-blur-xl">
+    <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-amber-300">Revoke admission</p>
+    <h2 id="revoke-admission-title" class="mt-2 text-xl font-black">Revoke this admission?</h2>
+    <p class="mt-3 text-sm leading-6 text-slate-300">Are you sure you want to revoke this admission? This will permanently delete the generated Student and Parent profiles.</p>
+    <p id="revoke-admission-error" class="mt-3 hidden text-sm font-semibold text-red-300" role="alert"></p>
+    <div class="mt-6 flex justify-end gap-3">
+      <button type="button" id="revoke-admission-cancel" class="rounded-xl border border-slate-600 bg-transparent px-4 py-2.5 text-sm font-bold text-slate-300 hover:bg-slate-700">Cancel</button>
+      <button type="button" id="revoke-admission-confirm" class="rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-amber-600/30 hover:bg-amber-500">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<form id="revoke-admission-csrf" class="hidden">{% csrf_token %}</form>
+<script>
+function openRevokeModal(url) {
+  var modal = document.getElementById('revoke-admission-modal');
+  var confirmButton = document.getElementById('revoke-admission-confirm');
+  var errorMessage = document.getElementById('revoke-admission-error');
+
+  confirmButton.dataset.revokeUrl = url;
+  confirmButton.disabled = false;
+  confirmButton.textContent = 'Confirm';
+  errorMessage.classList.add('hidden');
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+}
+
+function closeRevokeModal() {
+  var modal = document.getElementById('revoke-admission-modal');
+  var errorMessage = document.getElementById('revoke-admission-error');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+  errorMessage.classList.add('hidden');
+}
+
+document.getElementById('revoke-admission-cancel').addEventListener('click', closeRevokeModal);
+document.getElementById('revoke-admission-modal').addEventListener('click', function (event) {
+  if (event.target === event.currentTarget) closeRevokeModal();
+});
+document.getElementById('revoke-admission-confirm').addEventListener('click', function () {
+  var confirmButton = this;
+  var errorMessage = document.getElementById('revoke-admission-error');
+  var csrfToken = document.querySelector('#revoke-admission-csrf [name="csrfmiddlewaretoken"]').value;
+
+  confirmButton.disabled = true;
+  confirmButton.textContent = 'Revoking...';
+  fetch(confirmButton.dataset.revokeUrl, {
+    method: 'POST',
+    headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' }
+  })
+    .then(function (response) {
+      return response.text().then(function (body) {
+        var data;
+        try { data = JSON.parse(body); } catch (error) { data = {}; }
+        if (!response.ok || !data.success) {
+          throw new Error(data.message || 'Unable to revoke this admission.');
+        }
+        return data;
+      });
+    })
+    .then(function () { window.location.reload(); })
+    .catch(function (error) {
+      errorMessage.textContent = error.message;
+      errorMessage.classList.remove('hidden');
+      confirmButton.disabled = false;
+      confirmButton.textContent = 'Confirm';
+    });
+});
+</script>
+{% endblock %}

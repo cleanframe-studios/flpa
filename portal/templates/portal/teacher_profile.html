@@ -1,0 +1,537 @@
+{% extends 'portal/base.html' %}
+{% load static %}
+
+{% block page_title %}Staff Profile{% endblock %}
+
+{% block main_classes %}flex-grow flex flex-col p-0 bg-slate-100{% endblock %}
+{% block container_class %}w-full flex-grow flex flex-col min-h-0 bg-slate-100 text-slate-800 relative overflow-hidden{% endblock %}
+
+{% block content %}
+<style>
+    @media print {
+        @page { size: A4 portrait; margin: 10mm; }
+        body, html { margin: 0 !important; padding: 0 !important; width: 100% !important; background: #fff !important; }
+        body * { 
+            visibility: hidden !important; 
+        }
+        body.print-details-mode #printable-document-view, body.print-details-mode #printable-document-view * { visibility: visible !important; }
+        body.print-id-mode #id-card-print-container, body.print-id-mode #id-card-print-container * { 
+            visibility: visible !important; 
+        }
+        body.print-details-mode #printable-document-view { display: block !important; position: absolute; inset: 0; width: 100%; background: #fff; color: #000; }
+        #id-card-print-container, #id-card-print-container * { visibility: visible !important; }
+        #id-card-print-container { position: absolute !important; top: 10mm !important; left: 50% !important; transform: translateX(-50%) !important; width: 180mm !important; margin: 0 !important; padding: 0 !important; display: block !important; background: #fff !important; box-shadow: none !important; }
+        #id-card-print-wrapper { display: flex !important; flex-direction: row !important; justify-content: space-between !important; align-items: flex-start !important; width: 100% !important; gap: 8mm !important; page-break-inside: avoid !important; break-inside: avoid !important; }
+        #id-card-print-wrapper > div { flex: 0 0 85.6mm !important; width: 85.6mm !important; height: 54mm !important; box-sizing: border-box !important; overflow: hidden !important; page-break-inside: avoid !important; }
+        .id-card-face { 
+            width: 300px !important;
+            height: 460px !important;
+            box-shadow: none !important; 
+            border: 1px solid #cbd5e1 !important; 
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+        }
+    }
+</style>
+
+<div class="flex-grow flex w-full min-h-0 bg-slate-100 font-sans relative overflow-y-auto">
+    <div class="flex-grow flex flex-col p-8 space-y-8 max-w-7xl mx-auto w-full">
+        
+        <!-- Top Navigation -->
+        <div class="flex justify-between items-center">
+            <a href="{% url 'teachers' %}" class="inline-flex items-center space-x-2 text-xs font-semibold text-slate-600 hover:text-blue-600 bg-white border border-slate-200 py-2.5 px-4 rounded-xl shadow-sm transition-all">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                <span>Back to Staff Directory</span>
+            </a>
+            <div class="flex items-center space-x-3">
+                <button onclick="printDetails()" class="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold py-2.5 px-4 rounded-xl shadow transition-all active:scale-95">Print Details</button>
+                <span class="rounded-full border px-3 py-1.5 text-xs font-bold {% if teacher.status == 'Active' %}border-emerald-200 bg-emerald-50 text-emerald-700{% else %}border-red-200 bg-red-50 text-red-700{% endif %}">
+                    {% if teacher.status == 'Active' %}Active{% else %}Inactive{% endif %}
+                </span>
+                <button onclick="printIdCard()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-2.5 px-4 rounded-xl shadow transition-all flex items-center space-x-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                    <span>Print Staff ID</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- Column 1: Staff ID Card Preview -->
+            <div class="space-y-6">
+                <div id="id-card-print-container" class="flex flex-col sm:flex-row lg:flex-col gap-4 items-center justify-center">
+                    <div id="id-card-print-wrapper">
+                    
+                    <!-- FRONT OF STAFF ID CARD -->
+                    <div class="id-card-face w-[300px] h-[460px] bg-white text-slate-900 rounded-2xl shadow-xl border border-slate-200 p-5 flex flex-col justify-between relative overflow-hidden">
+                        <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <img src="{% static 'portal/logo.png' %}" class="w-52 h-52 object-contain opacity-[0.05]" alt="Watermark Logo">
+                        </div>
+
+                        <div class="flex items-center justify-between border-b-2 border-blue-600 pb-2 relative z-10">
+                            <div class="flex items-center space-x-2.5">
+                                <img src="{% static 'portal/logo.png' %}" class="w-8 h-8 object-contain" alt="Logo">
+                                <div>
+                                    <h4 class="text-[10px] font-black uppercase tracking-tight text-blue-950 leading-tight">Future Leaders Private Academy</h4>
+                                    <p class="text-[9px] text-slate-500 font-medium">Official Staff Identity Card</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col items-center text-center relative z-10 my-auto">
+                            <div class="w-28 h-36 rounded-xl bg-slate-100 border-2 border-slate-300 overflow-hidden shadow-md mb-3 flex items-center justify-center">
+                                {% if teacher.passport %}
+                                    <img src="{{ teacher.passport.url }}" class="w-full h-full object-cover" alt="Staff Passport">
+                                {% else %}
+                                    <svg class="w-12 h-12 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                                {% endif %}
+                            </div>
+
+                            <h3 class="text-base font-extrabold text-slate-900 tracking-tight leading-snug">{{ teacher.last_name }} {{ teacher.first_name }}</h3>
+                            <p class="text-xs text-slate-600 font-medium">{{ teacher.other_name|default:"" }}</p>
+                        </div>
+
+                        <div class="space-y-2 relative z-10">
+                            <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-xs flex justify-between">
+                                <div>
+                                    <span class="text-[9px] text-slate-400 font-semibold uppercase block">Staff Type:</span>
+                                    <span class="font-bold text-blue-900">{{ teacher.staff_type|default:"Staff" }}</span>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-[9px] text-slate-400 font-semibold uppercase block">State/LGA:</span>
+                                    <span class="font-bold text-slate-800">{{ teacher.state_of_origin|default:"N/A" }}</span>
+                                </div>
+                            </div>
+
+                            <div class="bg-blue-950 text-white rounded-xl py-2 px-3 flex justify-between items-center shadow-inner">
+                                <span class="text-[10px] uppercase tracking-widest text-blue-300 font-semibold">Staff No:</span>
+                                <span class="font-mono font-bold text-amber-300 text-sm tracking-wider">{{ teacher.staff_id }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BACK OF STAFF ID CARD -->
+                    <div class="id-card-face w-[300px] h-[460px] bg-white text-slate-900 rounded-2xl shadow-xl border border-slate-200 p-5 flex flex-col justify-between relative overflow-hidden">
+                        <div class="border-b border-slate-200 pb-2 text-center">
+                            <p class="text-[10px] font-bold uppercase tracking-widest text-blue-900">Important Information</p>
+                        </div>
+
+                        <div class="space-y-3 text-[11px] text-slate-600 relative z-10">
+                            <p class="leading-relaxed">This card is the property of <strong class="text-slate-900">Future Leaders Private Academy</strong>. If found, please return to the school administration.</p>
+                            
+                            <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 space-y-1 text-[10px]">
+                                <p><strong class="text-slate-800">Address:</strong> 7 Afolayan Street, Ijeun Lukosi, Okemosan, Abeokuta, Ogun State, Nigeria</p>
+                                <p><strong class="text-slate-800">Phone:</strong> +2347063747789</p>
+                                <p><strong class="text-slate-800">Email:</strong> futureleadersacademy@gmail.com</p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3 border-t border-slate-200 pt-3">
+                            <div class="flex justify-between items-end">
+                                <div class="text-center">
+                                    <div class="w-28 h-10 flex items-end justify-center mb-0.5">
+                                        <img src="{% static 'portal/sign.png' %}" class="max-h-9 object-contain" alt="Signature">
+                                    </div>
+                                    <div class="w-28 border-b border-slate-400 mb-1"></div>
+                                    <span class="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Authorized Signature</span>
+                                </div>
+                                <div class="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center p-1 border border-blue-100">
+                                    <img src="{% static 'portal/logo.png' %}" class="w-full h-full object-contain" alt="Logo">
+                                </div>
+                            </div>
+                            <div class="bg-slate-100 h-8 rounded-lg flex items-center justify-center font-mono text-slate-400 text-xs tracking-widest border border-slate-200">
+                                ||| | |||| || | || |||
+                            </div>
+                        </div>
+                    </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Column 2 & 3: Editable Teacher Form & Delete Section -->
+            <div class="lg:col-span-2 space-y-6">
+                <div class="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm space-y-6">
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900">Staff Bio & Professional Records</h3>
+                        <p class="text-xs text-slate-500">Modify staff records and status. Staff ID remains immutable.</p>
+                    </div>
+
+                    <form method="POST" enctype="multipart/form-data" class="space-y-5">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="update_details">
+
+                        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex justify-between items-center">
+                            <div>
+                                <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Staff ID (Immutable)</span>
+                                <span class="text-sm font-mono font-bold text-blue-600">{{ teacher.staff_id }}</span>
+                            </div>
+                            <span class="text-xs text-slate-500 italic">Joined on {{ teacher.date_joined }}</span>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5">Surname *</label>
+                                <input type="text" name="last_name" value="{{ teacher.last_name }}" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500" required>
+                            </div>
+                            <div>
+                                <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5">First Name *</label>
+                                <input type="text" name="first_name" value="{{ teacher.first_name }}" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500" required>
+                            </div>
+                            <div>
+                                <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5">Other Name *</label>
+                                <input type="text" name="other_name" value="{{ teacher.other_name|default:'' }}" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500" required>
+                            </div>
+                        </div>
+
+                        <!-- Modern Custom Dropdowns for Staff Type & Status -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <!-- Staff Type Custom Dropdown -->
+                            <div class="relative">
+                                <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5">Staff Type *</label>
+                                <input type="hidden" name="staff_type" id="staff_type_input" value="{{ teacher.staff_type|default:'Teaching' }}" required>
+                                <div id="staff_type_dropdown_btn" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm flex justify-between items-center cursor-pointer select-none hover:border-blue-400 transition-all">
+                                    <span id="staff_type_selected_text">{{ teacher.staff_type|default:"Teaching" }}</span>
+                                    <svg class="w-4 h-4 text-slate-400 transition-transform duration-200" id="staff_type_arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </div>
+                                <div id="staff_type_menu" class="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl max-h-60 overflow-y-auto hidden p-1.5 space-y-0.5"></div>
+                            </div>
+
+                            <!-- Staff Status Custom Dropdown -->
+                            <div class="relative">
+                                <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5">Staff Status *</label>
+                                <input type="hidden" name="status" id="status_input" value="{{ teacher.status|default:'Active' }}" required>
+                                <div id="status_dropdown_btn" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm flex justify-between items-center cursor-pointer select-none hover:border-blue-400 transition-all">
+                                    <span id="status_selected_text">{{ teacher.status|default:"Active" }}</span>
+                                    <svg class="w-4 h-4 text-slate-400 transition-transform duration-200" id="status_arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </div>
+                                <div id="status_menu" class="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl max-h-60 overflow-y-auto hidden p-1.5 space-y-0.5"></div>
+                            </div>
+                        </div>
+
+                        <!-- Modern Custom Dropdowns for State & LGA -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <!-- State Custom Dropdown -->
+                            <div class="relative">
+                                <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5">State of Origin *</label>
+                                <input type="hidden" name="state_of_origin" id="state_input" value="{{ teacher.state_of_origin|default:'' }}" required>
+                                <div id="state_dropdown_btn" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm flex justify-between items-center cursor-pointer select-none hover:border-blue-400 transition-all">
+                                    <span id="state_selected_text">{{ teacher.state_of_origin|default:"Select State..." }}</span>
+                                    <svg class="w-4 h-4 text-slate-400 transition-transform duration-200" id="state_arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </div>
+                                <div id="state_menu" class="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl max-h-60 overflow-y-auto hidden p-1.5 space-y-0.5"></div>
+                            </div>
+
+                            <!-- LGA Custom Dropdown -->
+                            <div class="relative">
+                                <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5">LGA of Origin *</label>
+                                <input type="hidden" name="lga_of_origin" id="lga_input" value="{{ teacher.lga_of_origin|default:'' }}" required>
+                                <div id="lga_dropdown_btn" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm flex justify-between items-center cursor-pointer select-none hover:border-blue-400 transition-all">
+                                    <span id="lga_selected_text">{{ teacher.lga_of_origin|default:"Select LGA..." }}</span>
+                                    <svg class="w-4 h-4 text-slate-400 transition-transform duration-200" id="lga_arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </div>
+                                <div id="lga_menu" class="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl max-h-60 overflow-y-auto hidden p-1.5 space-y-0.5"></div>
+                            </div>
+                        </div>
+
+                        <!-- Modern Custom Dropdowns for Birth Month & Day -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5">Birth Month & Day</label>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <!-- Birth Month Custom Dropdown -->
+                                    <div class="relative">
+                                        <input type="hidden" name="birth_month" id="month_input" value="{{ teacher.birth_month|default:'' }}">
+                                        <div id="month_dropdown_btn" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm flex justify-between items-center cursor-pointer select-none hover:border-blue-400 transition-all">
+                                            <span id="month_selected_text">{{ teacher.birth_month|default:"Month" }}</span>
+                                            <svg class="w-4 h-4 text-slate-400 transition-transform duration-200" id="month_arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                        </div>
+                                        <div id="month_menu" class="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl max-h-60 overflow-y-auto hidden p-1.5 space-y-0.5"></div>
+                                    </div>
+
+                                    <!-- Birth Day Custom Dropdown -->
+                                    <div class="relative">
+                                        <input type="hidden" name="birth_day" id="day_input" value="{{ teacher.birth_day|default:'' }}">
+                                        <div id="day_dropdown_btn" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm flex justify-between items-center cursor-pointer select-none hover:border-blue-400 transition-all">
+                                            <span id="day_selected_text">{{ teacher.birth_day|default:"Day" }}</span>
+                                            <svg class="w-4 h-4 text-slate-400 transition-transform duration-200" id="day_arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                        </div>
+                                        <div id="day_menu" class="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl max-h-60 overflow-y-auto hidden p-1.5 space-y-0.5"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5">Phone Number *</label>
+                                <input type="text" name="phone_number" value="{{ teacher.phone_number|default:'' }}" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500" required>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5">Email Address *</label>
+                                <input type="email" name="email" value="{{ teacher.email }}" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500" required>
+                            </div>
+                            <div>
+                                <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5">Update Passport Photo (Optional)</label>
+                                <input type="file" name="passport" accept="image/*" class="crop-enabled block w-full text-sm text-slate-500 file:mr-4 file:cursor-pointer file:rounded-xl file:border-0 file:bg-blue-50 file:px-5 file:py-2.5 file:text-sm file:font-bold file:text-blue-700 transition hover:file:bg-blue-100">
+                            </div>
+                        </div>
+
+                        <div class="border-t border-slate-100 pt-5 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h4 class="text-sm font-bold text-slate-900">Professional Qualifications</h4>
+                                    <p class="text-xs text-slate-500">Update qualifications and identify the highest qualification.</p>
+                                </div>
+                                <button type="button" onclick="addQualificationRow('profile-qualifications')" class="text-xs font-semibold text-blue-600 hover:text-blue-700">+ Add Qualification</button>
+                            </div>
+                            <div id="profile-qualifications" class="space-y-3">
+                                {% for qualification in teacher.qualifications.all %}
+                                <div class="qualification-row grid grid-cols-1 md:grid-cols-[1.3fr_1fr_0.7fr_auto] gap-3 items-end">
+                                    <div><label class="block text-[10px] font-semibold uppercase text-slate-500 mb-1">School Attended</label><input name="qualification_school" type="text" value="{{ qualification.school }}" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-sm" placeholder="School or institution"></div>
+                                    <div><label class="block text-[10px] font-semibold uppercase text-slate-500 mb-1">Qualification</label><div class="relative qualification-select"><input name="qualification" type="text" value="{{ qualification.qualification }}" class="qualification-input w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 pr-9 text-sm cursor-pointer" placeholder="Select Qualification..." readonly><svg class="qualification-arrow absolute right-3 top-3 w-4 h-4 text-slate-400 pointer-events-none transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9l6 6 6-6"></path></svg><div class="qualification-menu absolute z-50 hidden mt-1 w-full max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl"></div></div></div>
+                                    <div><label class="block text-[10px] font-semibold uppercase text-slate-500 mb-1">Year</label><div class="relative qualification-year-select"><input name="qualification_year" type="text" value="{{ qualification.year }}" class="qualification-year-input w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 pr-9 text-sm cursor-pointer" placeholder="Select Year..." readonly><svg class="qualification-year-arrow absolute right-3 top-3 w-4 h-4 text-slate-400 pointer-events-none transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9l6 6 6-6"></path></svg><div class="qualification-year-menu absolute z-50 hidden mt-1 w-full max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl"></div></div></div>
+                                    <label class="flex items-center gap-2 pb-2 text-[10px] font-semibold text-slate-600 whitespace-nowrap"><input type="hidden" name="qualification_highest" value="{% if qualification.is_highest %}1{% else %}0{% endif %}"><input type="checkbox" class="highest-qualification h-4 w-4 rounded border-slate-300 text-blue-600" {% if qualification.is_highest %}checked{% endif %}> Highest</label>
+                                </div>
+                                {% empty %}
+                                <div class="qualification-row grid grid-cols-1 md:grid-cols-[1.3fr_1fr_0.7fr_auto] gap-3 items-end">
+                                    <div><label class="block text-[10px] font-semibold uppercase text-slate-500 mb-1">School Attended</label><input name="qualification_school" type="text" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-sm" placeholder="School or institution"></div>
+                                    <div><label class="block text-[10px] font-semibold uppercase text-slate-500 mb-1">Qualification</label><div class="relative qualification-select"><input name="qualification" type="text" class="qualification-input w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 pr-9 text-sm cursor-pointer" placeholder="Select Qualification..." readonly><svg class="qualification-arrow absolute right-3 top-3 w-4 h-4 text-slate-400 pointer-events-none transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9l6 6 6-6"></path></svg><div class="qualification-menu absolute z-50 hidden mt-1 w-full max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl"></div></div></div>
+                                    <div><label class="block text-[10px] font-semibold uppercase text-slate-500 mb-1">Year</label><div class="relative qualification-year-select"><input name="qualification_year" type="text" class="qualification-year-input w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 pr-9 text-sm cursor-pointer" placeholder="Select Year..." readonly><svg class="qualification-year-arrow absolute right-3 top-3 w-4 h-4 text-slate-400 pointer-events-none transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9l6 6 6-6"></path></svg><div class="qualification-year-menu absolute z-50 hidden mt-1 w-full max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl"></div></div></div>
+                                    <label class="flex items-center gap-2 pb-2 text-[10px] font-semibold text-slate-600 whitespace-nowrap"><input type="hidden" name="qualification_highest" value="0"><input type="checkbox" class="highest-qualification h-4 w-4 rounded border-slate-300 text-blue-600"> Highest</label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end pt-4 border-t border-slate-100">
+                            <button type="submit" class="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-semibold py-3 px-6 rounded-xl text-sm shadow-md transition-all">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Danger Zone: Delete Staff Card with Custom Modal Trigger -->
+                <div class="bg-white border border-red-200 rounded-3xl p-6 shadow-sm flex justify-between items-center">
+                    <div>
+                        <h4 class="text-sm font-bold text-red-600">Delete Staff Record</h4>
+                        <p class="text-xs text-slate-500 mt-0.5">Once deleted, this staff profile and credentials cannot be recovered.</p>
+                    </div>
+                    <!-- Note the onsubmit="event.preventDefault(); openDeleteModal(...) -->
+                    <form id="deleteStaffForm" method="POST" action="{% url 'delete_teacher' teacher.pk %}" onsubmit="event.preventDefault(); openDeleteModal(this, '{{ teacher.first_name }} {{ teacher.last_name }}');">
+                        {% csrf_token %}
+                        <button type="submit" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-2.5 px-5 rounded-xl transition-all shadow-sm">Delete Staff</button>
+                    </form>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<div id="printable-document-view" class="hidden bg-white p-8 text-black">
+    <header class="mb-8 border-b-2 border-slate-900 pb-4 text-center"><h1 class="text-xl font-bold uppercase">Future Leaders Private Academy</h1><h2 class="mt-2 text-lg font-semibold">Staff Details</h2><p class="mt-1 text-xs">Date Generated: {% now "F j, Y" %}</p></header>
+    <table class="w-full border-collapse border border-slate-300 text-sm"><tbody><tr><th class="w-1/3 border border-slate-300 p-3 text-left font-semibold">Staff ID</th><td class="border border-slate-300 p-3">{{ teacher.staff_id }}</td></tr><tr><th class="border border-slate-300 p-3 text-left font-semibold">Full Name</th><td class="border border-slate-300 p-3">{{ teacher.first_name }} {{ teacher.other_name|default:'' }} {{ teacher.last_name }}</td></tr><tr><th class="border border-slate-300 p-3 text-left font-semibold">Staff Type</th><td class="border border-slate-300 p-3">{{ teacher.staff_type|default:'Staff' }}</td></tr><tr><th class="border border-slate-300 p-3 text-left font-semibold">Sex</th><td class="border border-slate-300 p-3">{{ teacher.sex }}</td></tr><tr><th class="border border-slate-300 p-3 text-left font-semibold">State / LGA</th><td class="border border-slate-300 p-3">{{ teacher.state_of_origin|default:'Not provided' }}, {{ teacher.lga_of_origin|default:'Not provided' }}</td></tr><tr><th class="border border-slate-300 p-3 text-left font-semibold">Phone</th><td class="border border-slate-300 p-3">{{ teacher.phone_number|default:'Not provided' }}</td></tr><tr><th class="border border-slate-300 p-3 text-left font-semibold">Email</th><td class="border border-slate-300 p-3">{{ teacher.email|default:'Not provided' }}</td></tr><tr><th class="border border-slate-300 p-3 text-left font-semibold">Date Joined</th><td class="border border-slate-300 p-3">{{ teacher.date_joined }}</td></tr></tbody></table>
+</div>
+
+<!-- CUSTOM DELETE CONFIRMATION MODAL CARD -->
+<div id="deleteModal" class="fixed inset-0 z-[9999] h-screen w-screen bg-slate-950/60 backdrop-blur-sm flex items-center justify-center hidden transition-opacity p-4 overflow-hidden">
+    <div class="bg-slate-900/80 border border-white/10 rounded-3xl p-6 max-h-[90vh] max-w-sm w-full overflow-y-auto shadow-2xl shadow-black/50 backdrop-blur-xl space-y-4 transform transition-all scale-95 opacity-0 duration-200" id="modalCard">
+        <div class="w-12 h-12 rounded-2xl bg-red-500/20 text-red-300 flex items-center justify-center font-bold text-xl mx-auto shadow-inner">
+            ⚠️
+        </div>
+        <div class="text-center space-y-1">
+            <h3 class="text-base font-bold text-white" id="modalTitle">Are you sure?</h3>
+            <p class="text-xs text-slate-300 leading-relaxed" id="modalDesc">This action cannot be undone. All records associated with this profile will be permanently removed.</p>
+        </div>
+        <div class="flex space-x-3 pt-2">
+            <button type="button" onclick="closeDeleteModal()" class="flex-1 rounded-full border border-slate-600 bg-transparent hover:bg-slate-700 text-slate-300 font-semibold py-2.5 text-xs transition-all">Cancel</button>
+            <button type="button" id="confirmDeleteBtn" class="flex-1 rounded-full bg-red-600 hover:bg-red-500 text-white font-semibold py-2.5 text-xs transition-all shadow-lg shadow-red-600/30">Yes, Delete</button>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript for Custom Modal & Dropdowns -->
+<script>
+function printDetails(){document.body.classList.remove('print-id-mode');document.body.classList.add('print-details-mode');window.print();}
+function printIdCard(){document.body.classList.remove('print-details-mode');document.body.classList.add('print-id-mode');window.print();}
+window.addEventListener('afterprint',()=>document.body.classList.remove('print-details-mode','print-id-mode'));
+    const qualificationOptions = ["Below SSCE", "SSCE/WASSCE", "OND/Diploma", "NCE", "HND", "BSc", "MSc", "BA", "MA", "MEd", "PhD"];
+    function setupQualificationRow(row) {
+        const input = row.querySelector('.qualification-input');
+        const menu = row.querySelector('.qualification-menu');
+        const arrow = row.querySelector('.qualification-arrow');
+        menu.innerHTML = qualificationOptions.map(option => `<button type="button" class="block w-full rounded-lg px-3 py-2 text-left text-xs text-slate-700 hover:bg-blue-50" data-value="${option}">${option}</button>`).join('');
+        input.addEventListener('click', event => { event.stopPropagation(); document.querySelectorAll('.qualification-menu').forEach(other => { if (other !== menu) other.classList.add('hidden'); }); menu.classList.toggle('hidden'); arrow.classList.toggle('rotate-180'); });
+        menu.querySelectorAll('button').forEach(option => option.addEventListener('mousedown', event => { event.preventDefault(); input.value = option.dataset.value; menu.classList.add('hidden'); arrow.classList.remove('rotate-180'); }));
+        row.querySelector('.highest-qualification').addEventListener('change', event => { if (event.target.checked) document.querySelectorAll('.highest-qualification').forEach(other => { if (other !== event.target) { other.checked = false; other.previousElementSibling.value = '0'; } }); event.target.previousElementSibling.value = event.target.checked ? '1' : '0'; });
+        const yearInput = row.querySelector('.qualification-year-input');
+        const yearMenu = row.querySelector('.qualification-year-menu');
+        const yearArrow = row.querySelector('.qualification-year-arrow');
+        const currentYear = new Date().getFullYear();
+        yearMenu.innerHTML = Array.from({length: currentYear - 1949}, (_, index) => currentYear - index).map(year => `<button type="button" class="block w-full rounded-lg px-3 py-2 text-left text-xs text-slate-700 hover:bg-blue-50" data-value="${year}">${year}</button>`).join('');
+        yearInput.addEventListener('click', event => { event.stopPropagation(); yearMenu.classList.toggle('hidden'); yearArrow.classList.toggle('rotate-180'); });
+        yearMenu.querySelectorAll('button').forEach(option => option.addEventListener('mousedown', event => { event.preventDefault(); yearInput.value = option.dataset.value; yearMenu.classList.add('hidden'); yearArrow.classList.remove('rotate-180'); }));
+    }
+    function addQualificationRow(containerId) { const container = document.getElementById(containerId); const row = container.querySelector('.qualification-row').cloneNode(true); row.querySelectorAll('input').forEach(input => { if (input.type === 'hidden') input.value = '0'; else if (input.type === 'checkbox') input.checked = false; else input.value = ''; }); container.appendChild(row); setupQualificationRow(row); }
+    document.addEventListener('click', () => { document.querySelectorAll('.qualification-menu, .qualification-year-menu').forEach(menu => menu.classList.add('hidden')); document.querySelectorAll('.qualification-arrow, .qualification-year-arrow').forEach(arrow => arrow.classList.remove('rotate-180')); });
+    document.querySelectorAll('.qualification-row').forEach(setupQualificationRow);
+
+    let targetForm = null;
+
+    function openDeleteModal(formElement, name) {
+        targetForm = formElement;
+        document.getElementById('modalTitle').textContent = `Delete ${name}?`;
+        document.getElementById('modalDesc').textContent = `Are you sure you want to delete ${name}'s profile? This action cannot be undone and will permanently remove all associated data.`;
+        
+        const modal = document.getElementById('deleteModal');
+        const card = document.getElementById('modalCard');
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            card.classList.remove('scale-95', 'opacity-0');
+            card.classList.add('scale-100', 'opacity-100');
+        }, 10);
+    }
+
+    function closeDeleteModal() {
+        const modal = document.getElementById('deleteModal');
+        const card = document.getElementById('modalCard');
+        card.classList.remove('scale-100', 'opacity-100');
+        card.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            targetForm = null;
+        }, 200);
+    }
+
+    document.getElementById('confirmDeleteBtn').addEventListener('click', () => {
+        if (targetForm) {
+            targetForm.submit();
+        }
+    });
+    const locationData = {
+        "Abia": ["Aba North", "Aba South", "Arochukwu", "Bende", "Ikwuano", "Isiala Ngwa North", "Isiala Ngwa South", "Isuikwuato", "Obi Ngwa", "Ohafia", "Osisioma", "Ugwunagbo", "Ukwa East", "Ukwa West", "Umuahia North", "Umuahia South", "Umu Nneochi"],
+        "Adamawa": ["Demsa", "Fufure", "Ganye", "Gayuk", "Gombi", "Grie", "Hong", "Jada", "Larmurde", "Madagali", "Maiha", "Mayo Belwa", "Michika", "Mubi North", "Mubi South", "Numan", "Shelleng", "Song", "Toungo", "Yola North", "Yola South"],
+        "Akwa Ibom": ["Abak", "Eastern Obolo", "Eket", "Esit Eket", "Essien Udim", "Etim Ekpo", "Etinan", "Ibeno", "Ibesikpo Asutan", "Ibiono-Ibom", "Ika", "Ikono", "Ikot Abasi", "Ikot Ekpene", "Ini", "Itu", "Mbo", "Mkpat-Enin", "Nsit-Atai", "Nsit-Ibom", "Nsit-Ubium", "Obot Akara", "Okobo", "Onna", "Oron", "Oruk Anam", "Udung-Uko", "Ukanafun", "Uruan", "Urue-Offong/Oruko", "Uyo"],
+        "Anambra": ["Aguata", "Anambra East", "Anambra West", "Anaocha", "Awka North", "Awka South", "Ayamelum", "Dunukofia", "Ekwusigo", "Idemili North", "Idemili South", "Ihiala", "Njikoka", "Nnewi North", "Nnewi South", "Ogbaru", "Onitsha North", "Onitsha South", "Orumba North", "Orumba South", "Oyi"],
+        "Bauchi": ["Alkaleri", "Bauchi", "Bogoro", "Damban", "Darazo", "Dass", "Gamawa", "Ganjuwa", "Giade", "Itas/Gadau", "Jama'are", "Katagum", "Kirfi", "Misau", "Ningi", "Shira", "Tafawa Balewa", "Toro", "Warji", "Zaki"],
+        "Bayelsa": ["Brass", "Ekeremor", "Kolokuma/Opokuma", "Nembe", "Ogbia", "Sagbama", "Southern Ijaw", "Yenagoa"],
+        "Benue": ["Ado", "Agatu", "Apa", "Buruku", "Gboko", "Guma", "Gwer East", "Gwer West", "Katsina-Ala", "Konshisha", "Kwande", "Logo", "Makurdi", "Obi", "Ogbadibo", "Ohimini", "Oju", "Okpokwu", "Otukpo", "Tarka", "Ukum", "Ushongo", "Vandeikya"],
+        "Borno": ["Abadam", "Askira/Uba", "Bama", "Bayo", "Biu", "Chibok", "Damboa", "Dikwa", "Gubio", "Guzamala", "Gwoza", "Hawul", "Jere", "Kaga", "Kala/Balge", "Konduga", "Kukawa", "Kwaya Kusar", "Mafa", "Magumeri", "Maiduguri", "Marte", "Mobbar", "Monguno", "Ngala", "Nganzai", "Shani"],
+        "Cross River": ["Abi", "Akamkpa", "Akpabuyo", "Bakassi", "Bekwarra", "Biase", "Boki", "Calabar Municipal", "Calabar South", "Etung", "Ikom", "Obanliku", "Obubra", "Obudu", "Odukpani", "Ogoja", "Yakuur", "Yala"],
+        "Delta": ["Aniocha North", "Aniocha South", "Bomadi", "Burutu", "Ethiope East", "Ethiope West", "Ika North East", "Ika South", "Isoko North", "Isoko South", "Ndokwa East", "Ndokwa West", "Okpe", "Oshimili North", "Oshimili South", "Patani", "Sapele", "Udu", "Ughelli North", "Ughelli South", "Ukwuani", "Uvwie", "Warri North", "Warri South", "Warri South West"],
+        "Ebonyi": ["Abakaliki", "Afikpo North", "Afikpo South", "Ebonyi", "Ezza North", "Ezza South", "Ikwo", "Ishielu", "Ivo", "Izzi", "Ohaozara", "Ohaukwu", "Onicha"],
+        "Edo": ["Akoko-Edo", "Egor", "Esan Central", "Esan North-East", "Esan South-East", "Esan West", "Etsako Central", "Etsako East", "Etsako West", "Igueben", "Ikpoba Okha", "Orhionmwon", "Oredo", "Ovia North-East", "Ovia South-West", "Owan East", "Owan West", "Uhunmwonde"],
+        "Ekiti": ["Ado Ekiti", "Efon", "Ekiti East", "Ekiti South-West", "Ekiti West", "Emure", "Gbonyin", "Ido Osi", "Ijero", "Ikere", "Ikole", "Ilejemeje", "Irepodun/Ifelodun", "Ise/Orun", "Moba", "Oye"],
+        "Enugu": ["Aninri", "Awgu", "Enugu East", "Enugu North", "Enugu South", "Ezeagu", "Igbo Etiti", "Igbo Eze North", "Igbo Eze South", "Isi Uzo", "Nkanu East", "Nkanu West", "Nsukka", "Oji River", "Udenu", "Udi", "Uzo Uwani"],
+        "FCT": ["Abaji", "Bwari", "Gwagwalada", "Kuje", "Kwali", "Municipal Area Council"],
+        "Gombe": ["Akko", "Balanga", "Billiri", "Dukku", "Funakaye", "Gombe", "Kaltungo", "Kwami", "Nafada", "Shongom", "Yamaltu/Deba"],
+        "Imo": ["Aboh Mbaise", "Ahiazu Mbaise", "Ehime Mbano", "Ezinihitte", "Ideato North", "Ideato South", "Ihitte/Uboma", "Ikeduru", "Isiala Mbano", "Isu", "Mbaitoli", "Ngor Okpala", "Njaba", "Nkwerre", "Nwangele", "Obowo", "Oguta", "Ohaji/Egbema", "Okigwe", "Orlu", "Orsu", "Oru East", "Oru West", "Owerri Municipal", "Owerri North", "Owerri West", "Unuimo"],
+        "Jigawa": ["Auyo", "Babura", "Biriniwa", "Birnin Kudu", "Buji", "Dutse", "Gagarawa", "Garki", "Gumel", "Guri", "Gwaram", "Gwiwa", "Hadejia", "Jahun", "Kafin Hausa", "Kaugama", "Kazaure", "Kiri Kasama", "Kiyawa", "Maigatari", "Malam Madori", "Miga", "Ringim", "Roni", "Sule Tankarkar", "Taura", "Yankwashi"],
+        "Kaduna": ["Birnin Gwari", "Chikun", "Giwa", "Igabi", "Ikara", "Jaba", "Jema'a", "Kachia", "Kaduna North", "Kaduna South", "Kagarko", "Kajuru", "Kaura", "Kauru", "Kubau", "Kudan", "Lere", "Makarfi", "Sabon Gari", "Sanga", "Soba", "Zangon Kataf", "Zaria"],
+        "Kano": ["Ajingi", "Albasu", "Bagwai", "Bebeji", "Bichi", "Bunkure", "Dala", "Dambatta", "Dawakin Kudu", "Dawakin Tofa", "Doguwa", "Fagge", "Gabasawa", "Garko", "Garun Mallam", "Gaya", "Gezawa", "Gwale", "Gwarzo", "Kabo", "Kano Municipal", "Karaye", "Kibiya", "Kiru", "Kumbotso", "Kunchi", "Kura", "Madobi", "Makoda", "Minjibir", "Nasarawa", "Rano", "Rimin Gado", "Rogo", "Shanono", "Sumaila", "Takai", "Tarauni", "Tofa", "Tsanyawa", "Tudun Wada", "Ungogo", "Warawa", "Wudil"],
+        "Katsina": ["Bakori", "Batagarawa", "Batsari", "Baure", "Bindawa", "Charanchi", "Dandume", "Danja", "Dan Musa", "Daura", "Dutsi", "Dutsin Ma", "Faskari", "Funtua", "Ingawa", "Jibia", "Kafur", "Kaita", "Kankara", "Kankia", "Katsina", "Kurfi", "Kusada", "Mai'Adua", "Malumfashi", "Mani", "Mashi", "Matazu", "Musawa", "Rimi", "Sabuwa", "Safana", "Sandamu", "Zango"],
+        "Kebbi": ["Aleiro", "Arewa Dandi", "Argungu", "Augie", "Bagudo", "Birnin Kebbi", "Bunza", "Dandi", "Fakai", "Gwandu", "Jega", "Kalgo", "Koko/Besse", "Maiyama", "Ngaski", "Sakaba", "Shanga", "Suru", "Wasagu/Danko", "Yauri", "Zuru"],
+        "Kogi": ["Adavi", "Ajaokuta", "Ankpa", "Bassa", "Dekina", "Ibaji", "Idah", "Igalamela Odolu", "Ijumu", "Kabba/Bunu", "Kogi", "Lokoja", "Mopa Muro", "Ofu", "Ogori/Magongo", "Okehi", "Okene", "Olamaboro", "Omala", "Yagba East", "Yagba West"],
+        "Kwara": ["Asa", "Baruten", "Edu", "Ekiti", "Ifelodun", "Ilorin East", "Ilorin South", "Ilorin West", "Irepodun", "Isin", "Kaiama", "Moro", "Offa", "Oke Ero", "Oyun", "Pategi"],
+        "Lagos": ["Agege", "Ajeromi-Ifelodun", "Alimosho", "Amuwo-Odofin", "Apapa", "Badagry", "Epe", "Eti Osa", "Ibeju-Lekki", "Ifako-Ijaiye", "Ikeja", "Ikorodu", "Kosofe", "Lagos Island", "Lagos Mainland", "Mushin", "Ojo", "Oshodi-Isolo", "Shomolu", "Surulere"],
+        "Nasarawa": ["Akwanga", "Awe", "Doma", "Karu", "Keana", "Keffi", "Kokona", "Lafia", "Nasarawa", "Nasarawa Egon", "Obi", "Toto", "Wamba"],
+        "Niger": ["Agaie", "Agwara", "Bida", "Borgu", "Bosso", "Chanchaga", "Edati", "Gbako", "Gurara", "Katcha", "Kontagora", "Lapai", "Lavun", "Magama", "Mariga", "Mashegu", "Mokwa", "Muya", "Pailoro", "Rafi", "Rijau", "Shiroro", "Suleja", "Tafa", "Wushishi"],
+        "Ogun": ["Abeokuta North", "Abeokuta South", "Ado-Odo/Ota", "Egbado North", "Egbado South", "Ewekoro", "Ifo", "Ijebu East", "Ijebu North", "Ijebu North East", "Ijebu Ode", "Ikenne", "Imeko Afon", "Ipokia", "Obafemi Owode", "Odeda", "Odogbolu", "Ogun Waterside", "Remo North", "Shagamu"],
+        "Ondo": ["Akoko North-East", "Akoko North-West", "Akoko South-East", "Akoko South-West", "Akure North", "Akure South", "Ese Odo", "Idanre", "Ifedore", "Ilaje", "Ile Oluji/Okeigbo", "Irele", "Odigbo", "Okitipupa", "Ondo East", "Ondo West", "Ose", "Owo"],
+        "Osun": ["Atakumosa East", "Atakumosa West", "Aiyedaade", "Aiyedire", "Boluwaduro", "Boripe", "Ede North", "Ede South", "Ife Central", "Ife East", "Ife North", "Ife South", "Egbedore", "Ejigbo", "Ifedayo", "Ifelodun", "Ila", "Ilesa East", "Ilesa West", "Irepodun", "Irewole", "Isokan", "Iwo", "Obokun", "Odo Otin", "Ola Oluwa", "Olorunda", "Oriade", "Orolu", "Osogbo"],
+        "Oyo": ["Afijio", "Akinyele", "Atiba", "Atisbo", "Egbeda", "Ibadan North", "Ibadan North-East", "Ibadan North-West", "Ibadan South-East", "Ibadan South-West", "Ibarapa Central", "Ibarapa East", "Ibarapa North", "Ido", "Irepo", "Iseyin", "Itesiwaju", "Iwajowa", "Kajola", "Lagelu", "Ogbomosho North", "Ogbomosho South", "Ogo Oluwa", "Olorunsogo", "Oluyole", "Ona Ara", "Orelope", "Ori Ire", "Oyo East", "Oyo West", "Saki East", "Saki West", "Surulere"],
+        "Plateau": ["Bokkos", "Barkin Ladi", "Bassa", "Jos East", "Jos North", "Jos South", "Kanam", "Kanke", "Langtang North", "Langtang South", "Mangu", "Mikang", "Pankshin", "Qua'an Pan", "Riyom", "Shendam", "Wase"],
+        "Rivers": ["Abua/Odual", "Ahoada East", "Ahoada West", "Akuku-Toru", "Andoni", "Asari-Toru", "Bonny", "Degema", "Eleme", "Emuoha", "Etche", "Gokana", "Ikwerre", "Khana", "Obio/Akpor", "Ogba/Egbema/Ndoni", "Ogu/Bolo", "Okrika", "Omuma", "Opobo/Nkoro", "Oyigbo", "Port Harcourt", "Tai"],
+        "Sokoto": ["Binji", "Bodinga", "Dange Shuni", "Gada", "Goronyo", "Gudu", "Gwadabawa", "Illela", "Isa", "Kebbe", "Kware", "Rabah", "Sabon Birni", "Shagari", "Silame", "Sokoto North", "Sokoto South", "Tambuwal", "Tangaza", "Tureta", "Wamako", "Wurno", "Yabo"],
+        "Taraba": ["Ardo Kola", "Bali", "Donga", "Gashaka", "Gassol", "Ibi", "Jalingo", "Karim Lamido", "Kurmi", "Lau", "Sardauna", "Takum", "Ussa", "Wukari", "Yorro", "Zing"],
+        "Yobe": ["Bade", "Bursari", "Damaturu", "Fika", "Fune", "Geidam", "Gujba", "Gulani", "Jakusko", "Karasuwa", "Machina", "Nangere", "Nguru", "Potiskum", "Tarmua", "Yunusari", "Yusufari"],
+        "Zamfara": ["Anka", "Bakura", "Birnin Magaji/Kiyaw", "Bukkuyum", "Bungudu", "Gummi", "Gusau", "Kaura Namoda", "Maradun", "Maru", "Shinkafi", "Talata Mafara", "Chafe", "Zurmi"]
+    };
+
+    function setupCustomDropdown(btnId, menuId, inputId, textId, arrowId, items, onSelectCallback) {
+        const btn = document.getElementById(btnId);
+        const menu = document.getElementById(menuId);
+        const input = document.getElementById(inputId);
+        const text = document.getElementById(textId);
+        const arrow = document.getElementById(arrowId);
+
+        function renderItems(filter = '') {
+            menu.innerHTML = '';
+            const filtered = items.filter(item => item.toLowerCase().includes(filter.toLowerCase()));
+            if (filtered.length === 0) {
+                menu.innerHTML = '<div class="px-4 py-2 text-xs text-slate-400">No results found</div>';
+                return;
+            }
+            filtered.forEach(item => {
+                const div = document.createElement('div');
+                div.className = "px-3.5 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 rounded-xl cursor-pointer transition-colors";
+                div.textContent = item;
+                div.addEventListener('click', () => {
+                    input.value = item;
+                    text.textContent = item;
+                    text.classList.remove('text-slate-400');
+                    text.classList.add('text-slate-800');
+                    menu.classList.add('hidden');
+                    arrow.classList.remove('rotate-180');
+                    if (onSelectCallback) onSelectCallback(item);
+                });
+                menu.appendChild(div);
+            });
+        }
+
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.querySelectorAll('[id$="_menu"]').forEach(m => {
+                if (m.id !== menuId) m.classList.add('hidden');
+            });
+            const isOpen = !menu.classList.contains('hidden');
+            if (isOpen) {
+                menu.classList.add('hidden');
+                arrow.classList.remove('rotate-180');
+            } else {
+                renderItems();
+                menu.classList.remove('hidden');
+                arrow.classList.add('rotate-180');
+            }
+        });
+
+        renderItems();
+    }
+
+    window.addEventListener('click', () => {
+        document.querySelectorAll('[id$="_menu"]').forEach(m => m.classList.add('hidden'));
+        document.querySelectorAll('[id$="_arrow"]').forEach(a => a.classList.remove('rotate-180'));
+    });
+
+    // Initialize Staff Type & Status
+    setupCustomDropdown('staff_type_dropdown_btn', 'staff_type_menu', 'staff_type_input', 'staff_type_selected_text', 'staff_type_arrow', ["Teaching", "Non-Teaching"]);
+    setupCustomDropdown('status_dropdown_btn', 'status_menu', 'status_input', 'status_selected_text', 'status_arrow', ["Active", "Inactive"]);
+
+    // Initialize State & LGA
+    const states = Object.keys(locationData).sort();
+    const currentState = document.getElementById('state_input').value;
+    const currentLGA = document.getElementById('lga_input').value;
+
+    setupCustomDropdown('state_dropdown_btn', 'state_menu', 'state_input', 'state_selected_text', 'state_arrow', states, (selectedState) => {
+        document.getElementById('lga_input').value = '';
+        document.getElementById('lga_selected_text').textContent = 'Select LGA...';
+        setupCustomDropdown('lga_dropdown_btn', 'lga_menu', 'lga_input', 'lga_selected_text', 'lga_arrow', locationData[selectedState] || []);
+    });
+
+    if (currentState && locationData[currentState]) {
+        setupCustomDropdown('lga_dropdown_btn', 'lga_menu', 'lga_input', 'lga_selected_text', 'lga_arrow', locationData[currentState]);
+    } else {
+        setupCustomDropdown('lga_dropdown_btn', 'lga_menu', 'lga_input', 'lga_selected_text', 'lga_arrow', []);
+    }
+
+    // Initialize Birth Month & Day
+    const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    setupCustomDropdown('month_dropdown_btn', 'month_menu', 'month_input', 'month_selected_text', 'month_arrow', months);
+
+    const days = Array.from({length: 31}, (_, i) => (i + 1).toString());
+    setupCustomDropdown('day_dropdown_btn', 'day_menu', 'day_input', 'day_selected_text', 'day_arrow', days);
+</script>
+<script>
+document.querySelectorAll('#deleteModal').forEach(modal => document.body.appendChild(modal));
+</script>
+{% endblock %}

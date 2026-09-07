@@ -1,0 +1,5 @@
+{% extends 'portal/base.html' %}
+{% block page_title %}Results{% endblock %}
+{% block content %}
+<div class="min-h-full bg-slate-100 p-6 lg:p-8"><div class="mx-auto max-w-6xl space-y-6"><div class="rounded-3xl bg-gradient-to-r from-blue-900 to-slate-900 p-8 text-white"><p class="text-xs uppercase tracking-widest text-blue-200">Parent Workspace</p><h1 class="mt-2 text-2xl font-black">Results</h1><p class="mt-1 text-sm text-blue-100">Published report sheets for your children.</p></div><div class="grid gap-4 sm:grid-cols-2">{% for child in children %}<div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><h2 class="font-bold text-slate-900">{{ child.first_name }} {{ child.last_name }}</h2><p class="mt-1 text-xs text-slate-500">{{ child.student_id }}</p><div class="mt-5 flex gap-2"><a href="{% url 'report_card' child.pk %}" class="rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold text-white">Report Card</a></div></div>{% empty %}<p class="text-sm text-slate-500">No children are linked to this account.</p>{% endfor %}</div></div></div>
+{% endblock %}

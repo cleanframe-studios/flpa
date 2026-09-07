@@ -1,0 +1,61 @@
+{% extends 'portal/base.html' %}
+{% block page_title %}Term Enrollment{% endblock %}
+{% block content %}
+<div class="p-6 lg:p-8 bg-slate-100 min-h-full">
+	<div class="max-w-7xl mx-auto space-y-6">
+		<div class="bg-gradient-to-r from-blue-900 via-blue-800 to-slate-900 text-white rounded-3xl p-8 shadow-lg">
+			<h1 class="text-2xl font-black">Term Enrollment</h1>
+			<p class="text-xs text-blue-100 mt-1">Create a historical enrollment snapshot for the active academic term.</p>
+		</div>
+
+		<div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm flex flex-col md:flex-row justify-between gap-4 items-start md:items-center">
+			<div>
+				<h2 class="font-bold text-slate-900">
+					{% if active_term %}
+						{{ active_term }}
+					{% else %}
+						No active term
+					{% endif %}
+				</h2>
+				<p class="text-xs text-slate-500">Students are enrolled using their current classroom assignment.</p>
+			</div>
+
+			{% if active_term %}
+				<form method="post">
+					{% csrf_token %}
+					<button class="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-5 py-3 text-xs font-bold">
+						Enroll Active Students
+					</button>
+				</form>
+			{% endif %}
+		</div>
+
+		<div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm overflow-x-auto">
+			<table class="w-full text-left text-sm">
+				<thead>
+					<tr class="bg-slate-50 text-xs uppercase">
+						<th class="p-3">Student ID</th>
+						<th class="p-3">Student</th>
+						<th class="p-3">Class</th>
+						<th class="p-3">Term</th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for enrollment in enrollments %}
+						<tr class="border-t">
+							<td class="p-3 text-blue-600 font-semibold">{{ enrollment.student.student_id }}</td>
+							<td class="p-3">{{ enrollment.student.last_name }} {{ enrollment.student.first_name }}</td>
+							<td class="p-3">{{ enrollment.classroom.name }}</td>
+							<td class="p-3">{{ enrollment.term.term_name }}</td>
+						</tr>
+					{% empty %}
+						<tr>
+							<td colspan="4" class="p-10 text-center text-slate-500">No enrollments yet.</td>
+						</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		</div>
+	</div>
+</div>
+{% endblock %}

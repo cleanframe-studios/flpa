@@ -1,0 +1,165 @@
+{% load static portal_extras %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ student.first_name }} {{ student.last_name }} - Report Card</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @media print {
+            body { background: white; margin: 0; padding: 0; }
+            .shadow-2xl { box-shadow: none !important; }
+            .no-print { display: none !important; }
+            @page { margin: 0.5cm; }
+        }
+    </style>
+</head>
+<body class="bg-slate-200">
+<button onclick="window.print()" class="no-print fixed top-4 right-4 z-50 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-blue-500/25 transition-all active:scale-95 hover:from-blue-700 hover:to-indigo-700">Print Report Card</button>
+
+<div class="max-w-[210mm] min-h-[297mm] mx-auto bg-white shadow-2xl p-8 sm:p-12 text-slate-800 text-sm">
+    {% if not term %}
+    <p class="p-8 text-center text-slate-500">No academic term is currently active.</p>
+    {% elif not published %}
+    <p class="p-8 text-center text-slate-500">This report card has not been published yet.</p>
+    {% else %}
+
+    {% if fee_override %}<div class="mb-5 border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-800">[Admin Override] Viewing unpaid student report card.</div>{% endif %}
+
+    <!-- Header -->
+    <div class="flex flex-col items-center border-b-4 border-blue-900 pb-6 text-center">
+        <img src="{% static 'portal/logo.png' %}" alt="School Logo" class="h-20 w-auto object-contain">
+        <h1 class="mt-3 text-2xl font-black uppercase tracking-wide bg-gradient-to-r from-blue-900 to-indigo-700 bg-clip-text text-transparent">Future Leaders Private Academy</h1>
+        <p class="mt-1 text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Report Sheet</p>
+    </div>
+
+    <!-- General Statistics -->
+    <div class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div class="space-y-2 rounded-2xl border border-slate-200 p-4">
+            <div class="flex justify-between bg-slate-50 rounded-lg px-3 py-2"><span class="font-semibold text-slate-500">Student Name</span><span class="font-bold text-slate-800">{{ student.first_name }} {{ student.last_name }}</span></div>
+            <div class="flex justify-between px-3 py-2"><span class="font-semibold text-slate-500">Admission No</span><span class="font-bold text-slate-800">{{ student.student_id }}</span></div>
+            <div class="flex justify-between bg-slate-50 rounded-lg px-3 py-2"><span class="font-semibold text-slate-500">Class</span><span class="font-bold text-slate-800">{{ classroom.name }}</span></div>
+            <div class="flex justify-between px-3 py-2"><span class="font-semibold text-slate-500">Term / Session</span><span class="font-bold text-slate-800">{{ term.term_name }} &middot; {{ session.name }}</span></div>
+        </div>
+        <div class="space-y-2 rounded-2xl border border-slate-200 p-4">
+            <div class="flex justify-between bg-slate-50 rounded-lg px-3 py-2"><span class="font-semibold text-slate-500">Days School Opened</span><span class="font-bold text-slate-800">{{ days_opened }}</span></div>
+            <div class="flex justify-between px-3 py-2"><span class="font-semibold text-slate-500">Days Present</span><span class="font-bold text-slate-800">{{ days_present }}</span></div>
+            <div class="flex justify-between px-3 py-2"><span class="font-semibold text-slate-500">Days Absent</span><span class="font-bold text-slate-800">{{ days_absent }}</span></div>
+            <div class="flex justify-between bg-slate-50 rounded-lg px-3 py-2"><span class="font-semibold text-slate-500">Overall Percentage</span><span class="font-bold text-slate-800">{{ percentage }}%</span></div>
+            <div class="flex justify-between px-3 py-2"><span class="font-semibold text-slate-500">Class Position</span><span class="font-bold text-slate-800">{{ position|default:'-' }}</span></div>
+        </div>
+        {% if is_third_term %}
+        <div class="sm:col-span-2 rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
+            <p class="mb-3 text-xs font-bold uppercase tracking-wider text-blue-900">Annual Promotion Summary</p>
+            <div class="grid grid-cols-2 gap-2 text-xs sm:grid-cols-5">
+                <div><span class="block font-semibold text-slate-500">1st Term</span><span class="font-bold text-slate-800">{{ term_one_percentage|floatformat:1 }}%</span></div>
+                <div><span class="block font-semibold text-slate-500">2nd Term</span><span class="font-bold text-slate-800">{{ term_two_percentage|floatformat:1 }}%</span></div>
+                <div><span class="block font-semibold text-slate-500">3rd Term</span><span class="font-bold text-slate-800">{{ term_three_percentage|floatformat:1 }}%</span></div>
+                <div><span class="block font-semibold text-slate-500">Annual Average</span><span class="font-bold text-slate-800">{{ cumulative_average|floatformat:1 }}%</span></div>
+                <div class="col-span-2 sm:col-span-1"><span class="block font-semibold text-slate-500">Final Decision</span><span class="font-bold text-slate-800">{% if promotion_status == 'Promoted' %}Promoted to {{ next_classroom.name|default:'next class' }}{% else %}Repeated{% endif %}</span></div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Performance in Subjects -->
+    <div class="mt-6 rounded-2xl border border-slate-200">
+        <table class="w-full table-fixed text-left text-[10px]">
+            <thead class="bg-blue-900 text-[10px] uppercase text-white">
+                <tr>
+                    <th class="p-2 break-words">Subject</th>
+                    <th class="p-2 break-words">C.A (30%)</th>
+                    <th class="p-2 break-words">Exam (70%)</th>
+                    <th class="p-2 break-words">Total (100%)</th>
+                    <th class="p-2 break-words">Cumulative</th>
+                    <th class="p-2 break-words">Grade</th>
+                    <th class="p-2 break-words">Remarks</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for row in subject_rows %}
+                <tr class="even:bg-slate-50">
+                    <td class="p-2 whitespace-normal break-words font-bold text-slate-800">{{ row.result.subject.name }}</td>
+                    <td class="p-2 whitespace-normal break-words">{{ row.result.continuous_assessment }}</td>
+                    <td class="p-2 whitespace-normal break-words">{{ row.result.exam_total }}</td>
+                    <td class="p-2 whitespace-normal break-words font-bold">{{ row.result.total }}</td>
+                    <td class="p-2 whitespace-normal break-words">{{ row.cumulative|floatformat:1 }}</td>
+                    <td class="p-2 whitespace-normal break-words font-bold">{{ row.grade }}</td>
+                    <td class="p-2 whitespace-normal break-words">{{ row.remark }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="p-8 text-center text-slate-500">No subject results recorded.</td></tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr class="bg-slate-100 font-bold text-slate-800">
+                    <td class="p-3" colspan="3">Grand Total / Average</td>
+                    <td class="p-3">{{ total_score }}</td>
+                    <td class="p-3"></td>
+                    <td class="p-3" colspan="2">{{ percentage }}%</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <!-- Character & Skills -->
+    <div class="mt-6">
+        <p class="mb-2 text-[11px] font-semibold text-slate-500">Grading Key: 5 = Excellent &middot; 4 = Very Good &middot; 3 = Good &middot; 2 = Fair &middot; 1 = Poor</p>
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div class="overflow-hidden rounded-2xl border border-slate-200">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-800 text-white"><tr><th class="p-3">Character</th><th class="p-3">Grade (1-5)</th></tr></thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for field, label in character_traits %}
+                        <tr class="even:bg-slate-50"><td class="p-3">{{ label }}</td><td class="p-3 font-bold">{{ evaluation|get_attr:field|default:'-' }}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="overflow-hidden rounded-2xl border border-slate-200">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-800 text-white"><tr><th class="p-3">Skills</th><th class="p-3">Grade (1-5)</th></tr></thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for field, label in skill_traits %}
+                        <tr class="even:bg-slate-50"><td class="p-3">{{ label }}</td><td class="p-3 font-bold">{{ evaluation|get_attr:field|default:'-' }}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Comments & Signatures -->
+    <div class="mt-8 space-y-6">
+        <div>
+            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Teacher's Comment</p>
+            <p class="mt-1 border-b border-slate-300 pb-3 italic text-slate-700">{{ teacher_comment|default:'No comment provided.' }}</p>
+        </div>
+        <div>
+            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Proprietor Comment</p>
+            <p class="mt-1 border-b border-slate-300 pb-3 italic text-slate-700">{{ automated_proprietress_comment|default:'No comment available.' }}</p>
+            <div class="mt-4 flex justify-end">
+                <div class="flex flex-col items-center w-48">
+                    <div class="relative h-16 w-full flex items-center justify-center">
+                        <img src="{% static 'portal/stamp.png' %}" alt="Official Stamp" class="absolute inset-0 w-full h-full object-contain mix-blend-multiply">
+                    </div>
+                    <p class="mt-1 text-xs font-bold text-slate-800 z-10">{{ publish_date|date:"F d, Y"|default:"Not Published" }}</p>
+                    <div class="w-full border-t border-slate-800 mt-1"></div>
+                    <p class="text-[10px] font-bold uppercase mt-1 tracking-wider">Proprietor Signature / Date</p>
+                </div>
+            </div>
+        </div>
+        <div class="flex flex-wrap justify-between gap-3 border-t border-slate-200 pt-4 text-xs text-slate-500">
+            <span>Term Began: {{ term_start|default:'____' }}</span>
+            <span>Term Ended: {{ term_end|default:'____' }}</span>
+            <span>Next Term Begins: {{ next_term_begins|default:'____' }}</span>
+        </div>
+    </div>
+    {% endif %}
+</div>
+<script>
+if (window.location.hash === '#print') window.addEventListener('load', () => window.print());
+</script>
+</body>
+</html>

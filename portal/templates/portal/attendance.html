@@ -1,0 +1,123 @@
+{% extends 'portal/base.html' %}
+
+{% block page_title %}Daily Attendance{% endblock %}
+{% block main_classes %}flex-grow flex flex-col p-0 bg-slate-100{% endblock %}
+{% block container_class %}w-full flex-grow flex flex-col min-h-0 bg-slate-100 text-slate-800 relative overflow-visible{% endblock %}
+
+{% block content %}
+<div class="animate-stage-1 min-h-full bg-slate-100 p-6 lg:p-8">
+    <style>
+        @keyframes assembleUp { 0% { opacity: 0; transform: translateY(20px); } 100% { opacity: 1; transform: translateY(0); } }
+        .animate-stage-1 { animation: assembleUp .6s cubic-bezier(.16,1,.3,1) .05s forwards; opacity: 0; }
+    </style>
+    <div class="animate-stage-1 mx-auto max-w-7xl space-y-6">
+        <div class="rounded-3xl bg-gradient-to-r from-blue-900 via-blue-800 to-slate-900 p-8 text-white shadow-lg">
+            <h1 class="text-2xl font-black tracking-tight">Daily Attendance Register</h1>
+            <p class="mt-1 text-xs text-blue-100">Choose a classroom, generated week, and school day to load the register.</p>
+        </div>
+
+        <script>window.resultTermsMap = {{ terms_json|default:'{}'|safe }};</script>
+
+        {% if not active_term %}
+        <div class="flex items-start gap-4 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-900 shadow-sm">
+            <div><h2 class="font-bold">Attendance is unavailable</h2><p class="mt-1 text-sm leading-6">No active academic session found. Please activate a session and term in the Academic Calendar before taking attendance.</p></div>
+        </div>
+        {% else %}
+        <div class="flex flex-col gap-4 rounded-2xl border border-blue-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+            <div><p class="text-xs font-bold uppercase tracking-wider text-slate-500">Active academic period</p><p class="mt-1 text-lg font-black text-slate-900">{{ current_session.name }}</p><p class="text-sm text-slate-600">{{ active_term.term_name }}</p></div>
+            <span class="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-700">Session and term active</span>
+        </div>
+
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <form method="get" class="grid grid-cols-1 gap-4 md:grid-cols-5 md:items-end">
+                    {% include 'portal/result_filter_combobox.html' with field_name='session' label='Session' selected_value=selected_session.pk selected_label=selected_session.name options=sessions %}
+                    {% include 'portal/result_filter_combobox.html' with field_name='term' label='Term' label_field='term_name' selected_value=selected_term.pk selected_label=selected_term.term_name options=terms %}
+                    <div class="profile-select-wrap relative"><span class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600">1. Classroom</span><input type="hidden" name="classroom" value="{{ selected_class_id|default:'' }}" required><button type="button" class="select-button flex w-full items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-left text-sm text-slate-700" aria-haspopup="listbox" aria-expanded="false">{% if selected_class %}{{ selected_class.name }}{% else %}Select classroom...{% endif %}<svg class="h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 9 6 6 6-6"></path></svg></button><div class="select-menu absolute z-50 mt-2 max-h-60 overflow-y-auto hidden w-full rounded-xl border border-slate-200 bg-white p-1 shadow-2xl" role="listbox">{% for classroom in classrooms %}<button type="button" class="select-option block w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-blue-50" data-value="{{ classroom.pk }}">{{ classroom.name }}</button>{% endfor %}</div></div>
+                <div class="custom-select relative"><span class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600">2. Academic week</span><input type="hidden" name="week" value="{{ selected_week_id|default:'' }}" required><button type="button" class="select-button flex w-full items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-left text-sm text-slate-700" aria-haspopup="listbox" aria-expanded="false">{% if selected_week %}Week {{ selected_week.week_number }} ({{ selected_week.start_date|date:'d M Y' }} - {{ selected_week.end_date|date:'d M Y' }}){% else %}Select generated week...{% endif %}<svg class="h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 9 6 6 6-6"></path></svg></button><div data-no-filter="true" class="select-menu absolute z-50 mt-2 max-h-60 overflow-y-auto hidden w-full rounded-xl border border-slate-200 bg-white p-1 shadow-2xl" role="listbox">{% for week in weeks %}<button type="button" class="select-option block w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-blue-50" data-value="{{ week.pk }}">Week {{ week.week_number }} ({{ week.start_date|date:'d M Y' }} - {{ week.end_date|date:'d M Y' }})</button>{% endfor %}</div></div>
+                <div class="custom-select relative"><span class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600">3. School day</span><input type="hidden" name="day" value="{% if selected_day is not None %}{{ selected_day }}{% endif %}" required><button type="button" class="select-button flex w-full items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-left text-sm text-slate-700">{% for option in day_options %}{% if selected_day == option.value %}{{ option.label }}{% if option.date %} ({{ option.date|date:'d M Y' }}){% endif %}{% endif %}{% endfor %}{% if selected_day is None %}Select school day...{% endif %}<svg class="h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 9 6 6 6-6"></path></svg></button><div data-no-filter="true" class="select-menu absolute z-50 mt-2 max-h-60 overflow-y-auto hidden w-full rounded-xl border border-slate-200 bg-white p-1 shadow-2xl" role="listbox">{% for option in day_options %}<button type="button" class="select-option block w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-blue-50" data-value="{{ option.value }}">{{ option.label }}{% if option.date %} ({{ option.date|date:'d M Y' }}){% endif %}</button>{% endfor %}</div></div>
+                <button type="submit" class="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 md:col-span-5">Load Register</button>
+            </form>
+        </div>
+
+        {% if selected_class and selected_week and selected_date is not None %}
+        <form method="post" class="overflow-visible rounded-3xl border border-slate-200 bg-white shadow-sm">
+            {% csrf_token %}<input type="hidden" name="action" value="save_attendance"><input type="hidden" name="session" value="{{ selected_session.pk }}"><input type="hidden" name="term" value="{{ selected_term.pk }}"><input type="hidden" name="classroom" value="{{ selected_class.pk }}"><input type="hidden" name="week" value="{{ selected_week.pk }}"><input type="hidden" name="day" value="{{ selected_day }}">
+            <div class="flex flex-col justify-between gap-3 border-b border-slate-100 p-6 sm:flex-row sm:items-center"><div><h2 class="text-lg font-bold text-slate-900">{{ selected_class.name }} Register</h2><p class="text-xs text-slate-500">Week {{ selected_week.week_number }} · {{ selected_date|date:'l, d F Y' }} · {{ students|length }} enrolled student{{ students|length|pluralize }}</p></div><div class="flex items-center gap-2"><span class="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">{% if attendance_recorded %}Attendance recorded{% else %}Default: Present{% endif %}</span>{% if attendance_recorded and request.user.is_superuser %}<button type="button" onclick="openClearAttendanceModal()" class="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-bold text-rose-700 hover:bg-rose-100">Clear Attendance</button>{% endif %}</div></div>
+            <div class="overflow-x-auto"><table class="w-full border-collapse text-left"><thead><tr class="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wider text-slate-600"><th class="w-16 px-6 py-4">#</th><th class="px-6 py-4">Student ID</th><th class="px-6 py-4">Student Name</th><th class="px-6 py-4">Attendance Status</th></tr></thead><tbody class="divide-y divide-slate-100 text-sm">{% for student in students %}<tr class="hover:bg-slate-50/70"><td class="px-6 py-4 text-slate-400">{{ forloop.counter }}</td><td class="px-6 py-4 font-semibold text-blue-600">{{ student.student_id }}</td><td class="px-6 py-4 font-medium text-slate-900">{{ student.last_name }} {{ student.first_name }} {{ student.other_name|default:'' }}</td><td class="px-6 py-4"><div class="flex flex-wrap gap-2">{% for value,label in status_choices %}<label class="cursor-pointer"><input type="radio" name="status_{{ student.pk }}" value="{{ value }}" {% if student.attendance_status == value %}checked{% endif %} class="peer sr-only"><span class="inline-flex rounded-lg border px-3 py-2 text-xs font-semibold transition {% if value == 'Present' %}border-emerald-300 bg-emerald-50 text-emerald-700 peer-checked:bg-emerald-600 peer-checked:text-white{% elif value == 'Absent' %}border-rose-300 bg-rose-50 text-rose-700 peer-checked:bg-rose-600 peer-checked:text-white{% elif value == 'Late' %}border-amber-300 bg-amber-50 text-amber-700 peer-checked:bg-amber-500 peer-checked:text-white{% elif value == 'Excused' %}border-blue-300 bg-blue-50 text-blue-700 peer-checked:bg-blue-600 peer-checked:text-white{% endif %}">{{ label }}</span></label>{% endfor %}</div></td></tr>{% empty %}<tr><td colspan="4" class="py-12 text-center text-sm text-slate-500">No active students are assigned to this classroom.</td></tr>{% endfor %}</tbody></table></div>
+            {% if students %}<div class="flex justify-end border-t border-slate-100 p-6"><button type="submit" class="rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-blue-700">{% if attendance_recorded %}Update Register{% else %}Save Register{% endif %}</button></div>{% endif %}
+        </form>
+        {% endif %}
+        {% endif %}
+    </div>
+</div>
+{% if request.user.is_superuser %}<div id="clearAttendanceModal" class="fixed inset-0 z-[9999] hidden h-screen w-screen items-center justify-center overflow-hidden bg-slate-950/60 p-4 backdrop-blur-md"><div class="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl border border-white/10 bg-slate-900/80 p-6 text-white shadow-2xl shadow-black/50 backdrop-blur-xl"><h2 class="text-lg font-black text-white">Clear Attendance Register?</h2><p class="mt-2 text-sm leading-6 text-slate-300">This will permanently delete all attendance records for this class on this date. This action cannot be undone.</p><form method="post" action="{% url 'clear_attendance' %}" class="mt-6 flex justify-end gap-3">{% csrf_token %}<input type="hidden" name="classroom" value="{{ selected_class.pk }}"><input type="hidden" name="date" value="{{ selected_date|date:'Y-m-d' }}"><input type="hidden" name="week" value="{{ selected_week.pk }}"><input type="hidden" name="day" value="{{ selected_day }}"><button type="button" onclick="closeClearAttendanceModal()" class="rounded-full border border-slate-600 bg-transparent px-4 py-3 text-xs font-bold text-slate-300 transition-all hover:bg-slate-700">Cancel</button><button type="submit" class="rounded-full bg-red-600 px-4 py-3 text-xs font-bold text-white shadow-lg shadow-red-600/30 transition-all hover:bg-red-500">Yes, Clear Register</button></form></div></div>{% endif %}
+<style>
+    .select-menu { display: block; }
+    .select-menu.hidden { display: none; }
+    .select-option:focus-visible { outline: 2px solid #2563eb; outline-offset: 1px; }
+</style>
+<script>
+function openClearAttendanceModal(){const modal=document.getElementById('clearAttendanceModal');modal.classList.remove('hidden');modal.classList.add('flex');}
+function closeClearAttendanceModal(){const modal=document.getElementById('clearAttendanceModal');modal.classList.add('hidden');modal.classList.remove('flex');}
+document.getElementById('clearAttendanceModal')?.addEventListener('click',event=>{if(event.target.id==='clearAttendanceModal')closeClearAttendanceModal();});
+    const classroomCombobox = document.querySelector('.profile-select-wrap');
+    if (classroomCombobox) {
+        const hiddenInput = classroomCombobox.querySelector('input[type="hidden"]');
+        const legacyButton = classroomCombobox.querySelector('.select-button');
+        const legacyMenu = classroomCombobox.querySelector('.select-menu');
+        if (hiddenInput && legacyButton && legacyMenu) {
+            const input = document.createElement('input');
+            input.type = 'text'; input.name = 'classroom_display';
+            input.className = 'profile-search-input w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 pr-10 text-sm text-slate-700 placeholder-slate-400 focus:border-blue-500 focus:outline-none';
+            input.autocomplete = 'off'; input.placeholder = 'Select classroom...';
+            input.value = legacyButton.textContent.replace(/[⌄v]/gi, '').trim();
+            const field = document.createElement('div'); field.className = 'relative'; field.appendChild(input);
+            const chevron = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            chevron.setAttribute('class', 'profile-chevron pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-transform duration-200');
+            chevron.setAttribute('fill', 'none'); chevron.setAttribute('stroke', 'currentColor'); chevron.setAttribute('viewBox', '0 0 24 24');
+            chevron.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9 7 7-7-7"></path>';
+            field.appendChild(chevron); legacyButton.replaceWith(field);
+            legacyMenu.classList.remove('select-menu'); legacyMenu.classList.add('profile-menu'); legacyMenu.dataset.noFilter = 'true';
+            legacyMenu.querySelectorAll('.select-option').forEach(option => { option.classList.remove('select-option'); option.classList.add('profile-option'); });
+            const open = () => { legacyMenu.classList.remove('hidden'); chevron.classList.add('rotate-180'); };
+            const close = () => { legacyMenu.classList.add('hidden'); chevron.classList.remove('rotate-180'); };
+            input.addEventListener('focus', open); input.addEventListener('click', event => { event.stopPropagation(); open(); });
+            input.addEventListener('input', () => { open(); const query = input.value.toLowerCase().trim(); legacyMenu.querySelectorAll('.profile-option').forEach(option => { option.style.display = option.textContent.toLowerCase().includes(query) ? '' : 'none'; }); });
+            legacyMenu.querySelectorAll('.profile-option').forEach(option => option.addEventListener('click', event => { event.stopPropagation(); hiddenInput.value = option.dataset.value; input.value = option.textContent.trim(); close(); }));
+            document.addEventListener('click', close);
+        }
+    }
+
+    const attendanceMenus = document.querySelectorAll('.custom-select');
+    const closeAttendanceMenus = () => attendanceMenus.forEach(select => {
+        select.querySelector('.select-menu')?.classList.add('hidden');
+        select.querySelector('.select-button')?.setAttribute('aria-expanded', 'false');
+    });
+
+    attendanceMenus.forEach(select => {
+        const input = select.querySelector('input[type="hidden"]');
+        const button = select.querySelector('.select-button');
+        const menu = select.querySelector('.select-menu');
+        if (!input || !button || !menu) return;
+
+        button.addEventListener('click', event => {
+            event.stopPropagation();
+            const wasHidden = menu.classList.contains('hidden');
+            closeAttendanceMenus();
+            if (wasHidden) {
+                menu.classList.remove('hidden');
+                button.setAttribute('aria-expanded', 'true');
+            }
+        });
+
+        select.querySelectorAll('.select-option').forEach(option => option.addEventListener('click', event => {
+            event.stopPropagation();
+            input.value = option.dataset.value;
+            button.firstChild.textContent = option.textContent;
+            closeAttendanceMenus();
+        }));
+    });
+
+    document.addEventListener('click', closeAttendanceMenus);
+</script>
+{% endblock %}

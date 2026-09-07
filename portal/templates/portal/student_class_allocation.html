@@ -1,0 +1,516 @@
+{% extends 'portal/base.html' %}
+{% load static %}
+
+{% block page_title %}Student Class Allocation{% endblock %}
+{% block main_classes %}flex-grow flex flex-col p-0 bg-slate-100{% endblock %}
+{% block container_class %}w-full flex-grow flex flex-col min-h-0 bg-slate-100 text-slate-800 relative overflow-hidden{% endblock %}
+
+{% block content %}
+<style>
+    @keyframes assembleUp {
+        0% { opacity: 0; transform: translateY(20px); }
+        100% { opacity: 1; transform: translateY(0); }
+    }
+    .animate-stage-1 { animation: assembleUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.05s forwards; opacity: 0; }
+    .animate-stage-2 { animation: assembleUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.15s forwards; opacity: 0; }
+
+    .search-result {
+        padding: 0.75rem;
+        border-bottom: 1px solid rgba(203, 213, 225, 0.5);
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .search-result:hover {
+        background-color: rgba(59, 130, 246, 0.1);
+    }
+    .search-result input[type="checkbox"] {
+        margin-right: 0.75rem;
+    }
+    .selected-students-list {
+        max-height: 200px;
+        overflow-y-auto;
+    }
+</style>
+
+<div class="flex-grow flex w-full min-h-0 bg-slate-100 font-sans relative overflow-y-auto p-6 lg:p-8">
+    <div class="flex-grow flex flex-col space-y-6 max-w-7xl mx-auto w-full">
+        
+        <!-- Header Banner -->
+        <div class="animate-stage-1 bg-gradient-to-r from-blue-900 via-blue-800 to-slate-900 text-white rounded-3xl p-8 shadow-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-black text-white tracking-tight">Student Class Allocation</h1>
+                <p class="text-xs text-blue-100 font-light mt-1">Allocate enrolled students to their respective classes based on program and level.</p>
+            </div>
+            <button onclick="openAllocationModal()" class="bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-semibold text-xs py-3 px-5 rounded-2xl shadow-md transition-all flex items-center space-x-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                <span>Allocate Student</span>
+            </button>
+        </div>
+
+        <!-- Students Directory Table -->
+        <div class="animate-stage-2 bg-white border border-slate-200 rounded-3xl p-8 shadow-sm space-y-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-900">Students Enrollment</h3>
+                    <p class="text-xs text-slate-500">All students with their current class allocation status.</p>
+                </div>
+                <div class="relative w-full sm:w-80">
+                    <input type="text" id="allocationTableSearch" placeholder="Search by name, ID..." class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 pl-10 text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:border-blue-500 transition-all">
+                    <svg class="absolute left-3 top-3 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto border border-slate-100 rounded-2xl">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 text-xs uppercase tracking-wider font-semibold">
+                            <th class="py-4 px-6 w-12">#</th>
+                            <th class="py-4 px-6">Student ID</th>
+                            <th class="py-4 px-6">Full Name</th>
+                            <th class="py-4 px-6">Program</th>
+                            <th class="py-4 px-6">Assigned Class</th>
+                            <th class="py-4 px-6">Status</th>
+                            <th class="py-4 px-6 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 text-sm text-slate-700">
+                        {% for student in students %}
+                        <tr class="allocation-student-row hover:bg-slate-50/80 transition-colors" data-student-id="{{ student.pk }}" data-search="{{ student.student_id }} {{ student.first_name }} {{ student.other_name }} {{ student.last_name }}">
+                            <td class="py-4 px-6 text-slate-400 font-medium">{{ forloop.counter }}</td>
+                            <td class="py-4 px-6 font-semibold text-blue-600">{{ student.student_id }}</td>
+                            
+                            <td class="py-4 px-6">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-10 h-12 rounded-xl bg-slate-200 overflow-hidden flex-shrink-0 shadow-inner border border-slate-200">
+                                        {% if student.passport %}
+                                            <img src="{{ student.passport.url }}" class="w-full h-full object-cover" alt="Passport">
+                                        {% else %}
+                                            <div class="w-full h-full flex items-center justify-center text-slate-400 text-xs font-bold">
+                                                {{ student.first_name|slice:":1" }}{{ student.last_name|slice:":1" }}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-slate-900">{{ student.last_name }} {{ student.first_name }} {{ student.other_name|default:"" }}</p>
+                                    </div>
+                                </div>
+                            </td>
+
+                            <td class="py-4 px-6">
+                                {% if "Kindergarten" in student.program %}KG
+                                {% elif "Nursery" in student.program %}Nursery
+                                {% elif "Primary" in student.program %}Primary
+                                {% else %}{{ student.program }}{% endif %}
+                            </td>
+
+                            <td class="py-4 px-6 font-semibold">
+                                {% if student.current_class %}
+                                    <span class="assigned-class-name bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold border border-blue-200">{{ student.current_class.name }}</span>
+                                {% else %}
+                                    <span class="assigned-class-name text-rose-500 italic text-xs">Unassigned</span>
+                                {% endif %}
+                            </td>
+                            <td class="py-4 px-6 text-right"><button type="button" onclick="openReassignModal({{ student.pk }}, '{{ student.first_name|escapejs }} {{ student.last_name|escapejs }}', '{{ student.current_class.pk|default:'' }}')" class="rounded-xl bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100">Reassign</button></td>
+                            
+                            <td class="py-4 px-6">
+                                {% if student.status == 'Student' or student.status == 'Active' or student.status == 'Present' %}
+                                    <span class="bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-emerald-200">Student</span>
+                                {% elif student.status == 'Transferred' %}
+                                    <span class="bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-amber-200">Transferred</span>
+                                {% elif student.status == 'Expelled' %}
+                                    <span class="bg-red-50 text-red-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-red-200">Expelled</span>
+                                {% elif student.status == 'Graduated' %}
+                                    <span class="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-blue-200">Graduated</span>
+                                {% elif student.status == 'Left' %}
+                                    <span class="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-slate-300">Left</span>
+                                {% else %}
+                                    <span class="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-slate-300">{{ student.status }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if not students %}
+            <div class="text-center py-12">
+                <p class="text-slate-500 text-sm">No students found.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Quick Reassignment Modal -->
+<div id="reassignModal" class="hidden fixed inset-0 z-[9999] h-screen w-screen bg-slate-900/60 backdrop-blur-sm items-center justify-center p-4">
+    <div class="w-full max-w-lg rounded-3xl bg-white p-8 shadow-2xl">
+        <div class="mb-6 flex items-center justify-between border-b border-slate-100 pb-4"><div><p class="text-xs font-bold uppercase tracking-widest text-blue-600">Class Allocation</p><h2 class="mt-1 text-xl font-bold text-slate-900">Reassign Student</h2><p id="reassignStudentName" class="mt-1 text-xs text-slate-500"></p></div><button type="button" onclick="closeReassignModal()" class="text-2xl text-slate-400 hover:text-slate-600">×</button></div>
+        <form method="post" class="space-y-5">{% csrf_token %}<input type="hidden" name="action" value="reassign_student"><input type="hidden" name="student_id" id="reassignStudentId"><div class="relative custom-select" data-name="reassign-class"><label class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600">New Class</label><div class="select-box flex h-[46px] w-full cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-800"><input type="text" id="reassignClassDisplay" class="search-input w-full cursor-pointer bg-transparent outline-none" placeholder="Search classes..." autocomplete="off" required><svg class="dropdown-icon h-4 w-4 flex-shrink-0 text-slate-400 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 9 6 6 6-6"></path></svg></div><input type="hidden" name="class_id" id="reassignClassId" required><div class="options-container absolute top-full z-50 mt-1 hidden max-h-52 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl"><ul class="options-list py-1 text-sm text-slate-700">{% for classroom in all_classes %}<li class="option-item cursor-pointer px-4 py-2.5 hover:bg-blue-50" data-value="{{ classroom.pk }}">{{ classroom.name }}</li>{% endfor %}</ul></div></div><div class="flex justify-end gap-3 border-t border-slate-100 pt-4"><button type="button" onclick="closeReassignModal()" class="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancel</button><button type="submit" class="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">Update / Save</button></div></form>
+    </div>
+</div>
+
+<!-- Allocate Student Modal -->
+<div id="allocationModal" class="hidden fixed inset-0 z-[9999] h-screen w-screen bg-black/50 flex items-center justify-center p-4 overflow-hidden">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-2xl w-full my-8">
+        <div class="sticky top-0 bg-white flex justify-between items-center p-8 border-b border-slate-200 rounded-t-3xl">
+            <h2 class="text-xl font-bold text-slate-900">Allocate Students to Class</h2>
+            <button onclick="closeAllocationModal()" class="text-slate-400 hover:text-slate-600 text-2xl font-light">×</button>
+        </div>
+
+        <form id="allocationForm" method="POST" class="p-8 space-y-6">
+            {% csrf_token %}
+
+            <!-- Search Students -->
+            <div class="space-y-2">
+                <label class="block text-sm font-bold text-slate-700 uppercase tracking-wider">1. Select Students</label>
+                <div class="relative">
+                    <input type="text" id="studentSearch" placeholder="Search students by name or ID..." class="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-blue-500 focus:bg-white transition-all">
+                    <svg class="absolute right-4 top-3.5 w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+
+                <!-- Student Search Results -->
+                <div id="searchResults" class="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden max-h-64 overflow-y-auto hidden">
+                    <!-- Results will be populated by JavaScript -->
+                </div>
+
+                <!-- Selected Students Display -->
+                <div id="selectedStudentsContainer" class="space-y-2">
+                    <div id="selectedStudents" class="selected-students-list space-y-1">
+                        <!-- Selected students will appear here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Program Selection -->
+            <div class="space-y-2">
+                <label class="block text-sm font-bold text-slate-700 uppercase tracking-wider">2. Select Program</label>
+                <div class="relative custom-select" data-name="allocation-program">
+                    <div class="select-box w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 text-slate-800 text-sm focus-within:border-blue-500 transition-all flex justify-between items-center h-[46px] cursor-pointer">
+                    <input type="text" id="programSelect" name="program" class="search-input w-full bg-transparent outline-none placeholder-slate-400 cursor-pointer" placeholder="Select Program..." autocomplete="off" required>
+                        <svg class="dropdown-icon w-4 h-4 text-slate-400 cursor-pointer transform transition-transform duration-200 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9l6 6 6-6"></path></svg>
+                    </div>
+                    <div class="options-container absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg hidden max-h-48 overflow-y-auto top-full left-0">
+                        <ul class="options-list py-1 text-sm text-slate-700"></ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Class Selection (Dependent on Program) -->
+            <div class="space-y-2">
+                <label class="block text-sm font-bold text-slate-700 uppercase tracking-wider">3. Select Class</label>
+                <div class="relative custom-select" data-name="allocation-class">
+                    <div class="select-box w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 text-slate-800 text-sm focus-within:border-blue-500 transition-all flex justify-between items-center h-[46px] cursor-pointer">
+                    <input type="text" id="classSelect" name="class" class="search-input w-full bg-transparent outline-none placeholder-slate-400 cursor-pointer" placeholder="Select Program First..." autocomplete="off" required>
+                        <svg class="dropdown-icon w-4 h-4 text-slate-400 cursor-pointer transform transition-transform duration-200 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9l6 6 6-6"></path></svg>
+                    </div>
+                    <div class="options-container absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg hidden max-h-48 overflow-y-auto top-full left-0">
+                        <ul class="options-list py-1 text-sm text-slate-700"></ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                <button type="button" onclick="closeAllocationModal()" class="px-6 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-semibold text-sm hover:bg-slate-50 transition-all">
+                    Cancel
+                </button>
+                <button type="submit" class="px-6 py-2.5 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 active:scale-95 transition-all">
+                    Save Allocation
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>@keyframes allocation-toast-in { from { opacity: 0; transform: translate3d(1rem, -0.5rem, 0) scale(0.96); } to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } }</style>
+<script>
+    // Get all students from the page
+    const allStudents = [
+        {% for student in students %}
+        {
+            id: {{ student.id }},
+            name: "{{ student.last_name }} {{ student.first_name }}",
+            student_id: "{{ student.student_id }}",
+            program: "{{ student.program }}"
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    let selectedStudentIds = [];
+
+    function openAllocationModal() {
+        document.getElementById('allocationModal').classList.remove('hidden');
+    }
+
+    function closeAllocationModal() {
+        document.getElementById('allocationModal').classList.add('hidden');
+        selectedStudentIds = [];
+        document.getElementById('selectedStudents').innerHTML = '';
+        document.getElementById('searchResults').classList.add('hidden');
+        document.getElementById('studentSearch').value = '';
+        document.getElementById('programSelect').value = '';
+        document.getElementById('classSelect').value = '';
+        populateAllocationSelect('allocation-class', [], 'Select Program First...');
+    }
+
+    // Student Search
+    document.getElementById('studentSearch').addEventListener('keyup', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        const searchResults = document.getElementById('searchResults');
+        
+        if (searchTerm.length === 0) {
+            searchResults.classList.add('hidden');
+            return;
+        }
+
+        const filtered = allStudents.filter(student =>
+            student.name.toLowerCase().includes(searchTerm) ||
+            student.student_id.toLowerCase().includes(searchTerm)
+        );
+
+        if (filtered.length === 0) {
+            searchResults.innerHTML = '<div class="p-4 text-slate-500 text-sm">No students found</div>';
+            searchResults.classList.remove('hidden');
+            return;
+        }
+
+        searchResults.innerHTML = filtered.map(student => `
+            <label class="search-result flex items-center hover:bg-blue-50">
+                <input type="checkbox" value="${student.id}" onchange="toggleStudentSelection(this, '${student.name}', ${student.id})" class="w-4 h-4">
+                <div class="flex-grow">
+                    <div class="font-medium text-slate-900">${student.name}</div>
+                    <div class="text-xs text-slate-500">${student.student_id}</div>
+                </div>
+            </label>
+        `).join('');
+        
+        searchResults.classList.remove('hidden');
+    });
+
+    function toggleStudentSelection(checkbox, name, id) {
+        const selectedContainer = document.getElementById('selectedStudents');
+        
+        if (checkbox.checked) {
+            selectedStudentIds.push(id);
+            const badge = document.createElement('div');
+            badge.id = `student-${id}`;
+            badge.className = 'bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 flex items-center justify-between text-sm';
+            badge.innerHTML = `
+                <span class="font-medium text-blue-900">${name}</span>
+                <button type="button" onclick="removeStudent(${id})" class="text-blue-500 hover:text-blue-700 font-bold ml-2">×</button>
+            `;
+            selectedContainer.appendChild(badge);
+        } else {
+            selectedStudentIds = selectedStudentIds.filter(sid => sid !== id);
+            const badge = document.getElementById(`student-${id}`);
+            if (badge) badge.remove();
+        }
+    }
+
+    function removeStudent(id) {
+        selectedStudentIds = selectedStudentIds.filter(sid => sid !== id);
+        const badge = document.getElementById(`student-${id}`);
+        if (badge) badge.remove();
+        
+        // Uncheck the checkbox
+        const checkbox = document.querySelector(`input[value="${id}"]`);
+        if (checkbox) checkbox.checked = false;
+    }
+
+    // Class options based on program
+    const classOptions = {
+        'Kindergarten': ['KG 1', 'KG 2'],
+        'Nursery': ['Nursery 1', 'Nursery 2', 'Nursery 3'],
+        'Primary': ['Primary 1', 'Primary 2', 'Primary 3', 'Primary 4', 'Primary 6']
+    };
+
+    function populateAllocationSelect(name, options, placeholder) {
+        const container = document.querySelector(`.custom-select[data-name="${name}"]`);
+        const input = container.querySelector('.search-input');
+        const list = container.querySelector('.options-list');
+        input.placeholder = placeholder;
+        list.innerHTML = '';
+
+        options.forEach(option => {
+            const item = document.createElement('li');
+            item.className = 'option-item px-4 py-2.5 hover:bg-blue-50 cursor-pointer transition-colors text-slate-700';
+            item.textContent = option.label || option;
+            item.dataset.value = option.value || option;
+            item.addEventListener('mousedown', event => {
+                event.preventDefault();
+                input.value = item.dataset.value;
+                closeAllocationSelects();
+                if (name === 'allocation-program') {
+                    updateClassOptions();
+                }
+            });
+            list.appendChild(item);
+        });
+    }
+
+    function closeAllocationSelects() {
+        document.querySelectorAll('#allocationModal .custom-select').forEach(container => {
+            container.querySelector('.options-container').classList.add('hidden');
+            container.querySelector('.dropdown-icon').classList.remove('rotate-180');
+            container.querySelector('.select-box').classList.remove('border-blue-500');
+        });
+    }
+
+    function openAllocationSelect(container) {
+        closeAllocationSelects();
+        container.querySelector('.options-container').classList.remove('hidden');
+        container.querySelector('.dropdown-icon').classList.add('rotate-180');
+        container.querySelector('.select-box').classList.add('border-blue-500');
+    }
+
+    populateAllocationSelect('allocation-program', [
+        { value: 'Kindergarten', label: 'Kindergarten (KG)' },
+        { value: 'Nursery', label: 'Nursery (NUR)' },
+        { value: 'Primary', label: 'Primary (PRY)' }
+    ], 'Select Program...');
+
+    document.querySelectorAll('#allocationModal .custom-select').forEach(container => {
+        const input = container.querySelector('.search-input');
+        const list = container.querySelector('.options-list');
+        container.querySelector('.select-box').addEventListener('click', event => {
+            event.stopPropagation();
+            const menu = container.querySelector('.options-container');
+            menu.classList.contains('hidden') ? openAllocationSelect(container) : closeAllocationSelects();
+        });
+        input.addEventListener('focus', () => openAllocationSelect(container));
+        input.addEventListener('input', () => {
+            openAllocationSelect(container);
+            const query = input.value.toLowerCase().trim();
+            list.querySelectorAll('.option-item').forEach(item => {
+                item.style.display = item.textContent.toLowerCase().includes(query) ? '' : 'none';
+            });
+        });
+    });
+
+    document.addEventListener('click', closeAllocationSelects);
+
+    document.body.appendChild(document.getElementById('allocationModal'));
+
+    function updateClassOptions() {
+        const programSelect = document.getElementById('programSelect');
+        const classSelect = document.getElementById('classSelect');
+        const selectedProgram = programSelect.value;
+
+        classSelect.value = '';
+
+        if (!selectedProgram) {
+            populateAllocationSelect('allocation-class', [], 'Select Program First...');
+            return;
+        }
+
+        populateAllocationSelect('allocation-class', classOptions[selectedProgram].map(cls => ({ value: cls, label: cls })), 'Select Class...');
+    }
+
+    // Form Submission
+    document.querySelector('#allocationForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        if (selectedStudentIds.length === 0) {
+            alert('Please select at least one student');
+            return;
+        }
+
+        const program = document.getElementById('programSelect').value;
+        const className = document.getElementById('classSelect').value;
+
+        if (!program || !className) {
+            alert('Please select both program and class');
+            return;
+        }
+
+        // Submit each student to backend
+        selectedStudentIds.forEach(studentId => {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.innerHTML = `
+                {% csrf_token %}
+                <input type="hidden" name="student_id" value="${studentId}">
+                <input type="hidden" name="program" value="${program}">
+                <input type="hidden" name="class_id" value="${className}">
+            `;
+            document.body.appendChild(form);
+            form.submit();
+            document.body.removeChild(form);
+        });
+
+        closeAllocationModal();
+    });
+
+    function openReassignModal(studentId, studentName, currentClassId) {
+        const modal = document.getElementById('reassignModal');
+        document.getElementById('reassignStudentId').value = studentId;
+        document.getElementById('reassignStudentName').textContent = studentName;
+        document.getElementById('reassignClassId').value = currentClassId || '';
+        const option = modal.querySelector(`.option-item[data-value="${currentClassId}"]`);
+        document.getElementById('reassignClassDisplay').value = option ? option.textContent.trim() : '';
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+
+    function closeReassignModal() {
+        const modal = document.getElementById('reassignModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+
+    const reassignSelect = document.querySelector('#reassignModal .custom-select');
+    const reassignInput = document.getElementById('reassignClassDisplay');
+    const reassignMenu = reassignSelect.querySelector('.options-container');
+    reassignMenu.querySelectorAll('.option-item').forEach(item => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'option-item block w-full cursor-pointer px-4 py-2.5 text-left hover:bg-blue-50';
+        button.dataset.value = item.dataset.value;
+        button.textContent = item.textContent.trim();
+        item.replaceWith(button);
+    });
+    reassignSelect.querySelector('.select-box').addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); reassignMenu.classList.toggle('hidden'); });
+    reassignInput.addEventListener('input', () => {
+        reassignMenu.classList.remove('hidden');
+        const query = reassignInput.value.toLowerCase().trim();
+        reassignMenu.querySelectorAll('.option-item').forEach(item => { item.style.display = item.textContent.toLowerCase().includes(query) ? '' : 'none'; });
+    });
+    reassignMenu.querySelectorAll('.option-item').forEach(item => item.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        document.getElementById('reassignClassId').value = item.dataset.value;
+        reassignInput.value = item.textContent.trim();
+        reassignMenu.classList.add('hidden');
+    }));
+    document.getElementById('allocationTableSearch').addEventListener('input', event => {
+        const query = event.target.value.toLowerCase().trim();
+        document.querySelectorAll('.allocation-student-row').forEach(row => { row.style.display = row.dataset.search.toLowerCase().includes(query) ? '' : 'none'; });
+    });
+    document.getElementById('reassignModal').addEventListener('click', function(event) { if (event.target === this) closeReassignModal(); });
+    document.querySelector('#reassignModal form').addEventListener('submit', async event => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const response = await fetch(window.location.href, { method: 'POST', body: new FormData(form), headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        if (!response.ok) return;
+        const result = await response.json();
+        if (!result.success) return;
+        const row = document.querySelector(`.allocation-student-row[data-student-id="${form.querySelector('[name="student_id"]').value}"]`);
+        if (row) row.querySelector('.assigned-class-name').textContent = result.class_name;
+        closeReassignModal();
+        let toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.className = 'fixed top-5 right-5 z-50 flex flex-col gap-3 pointer-events-none';
+            document.body.appendChild(toastContainer);
+        }
+        const toast = document.createElement('div');
+        toast.className = 'toast-message pointer-events-auto max-w-sm w-[320px] rounded-2xl border px-4 py-3 bg-white/75 dark:bg-slate-900/75 backdrop-blur-md border border-white/20 dark:border-slate-700/20 shadow-2xl opacity-0 translate-x-4 transition-all duration-300 ease-out active:scale-95 text-emerald-800 border-l-4 border-l-emerald-500 bg-emerald-50/80';
+        toast.innerHTML = '<div class="flex items-start gap-3"><div class="mt-0.5 flex-shrink-0"><svg class="w-5 h-5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 001.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg></div><p class="text-sm font-semibold leading-5 text-slate-800"></p></div>';
+        toast.querySelector('p').textContent = result.message;
+        toastContainer.appendChild(toast);
+        requestAnimationFrame(() => { toast.classList.remove('opacity-0', 'translate-x-4'); toast.classList.add('opacity-100', 'translate-x-0'); });
+        setTimeout(() => { toast.classList.add('opacity-0', 'translate-x-4'); setTimeout(() => toast.remove(), 300); }, 4000);
+    });
+</script>
+{% endblock %}

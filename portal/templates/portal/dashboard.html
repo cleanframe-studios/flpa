@@ -1,0 +1,149 @@
+{% extends 'portal/base.html' %}
+{% load static %}
+
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<style>
+    /* Ultra-clean Modern Custom Scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    @keyframes assembleUp {
+        0% { opacity: 0; transform: translateY(20px); }
+        100% { opacity: 1; transform: translateY(0); }
+    }
+
+    .animate-stage-1 { animation: assembleUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.05s forwards; opacity: 0; }
+    .animate-stage-2 { animation: assembleUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.15s forwards; opacity: 0; }
+    .animate-stage-3 { animation: assembleUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.25s forwards; opacity: 0; }
+</style>
+
+<div class="flex-grow flex flex-col p-8 space-y-6 max-w-7xl mx-auto w-full overflow-y-auto">
+    
+    <!-- Stage 1: Welcome Banner -->
+    <div class="animate-stage-1 bg-gradient-to-r from-blue-900 via-blue-800 to-slate-900 text-white border border-blue-900 rounded-3xl p-8 shadow-lg flex flex-col sm:flex-row justify-between items-start sm:items-center">
+        <div class="space-y-2">
+            <h2 class="text-3xl font-extrabold tracking-tight">Welcome back, {{ portal_first_name }}</h2>
+            <p class="text-sm text-blue-100 font-light">Here is the real-time operational overview for Future Leaders Private Academy.</p>
+        </div>
+        <div class="mt-4 flex items-center gap-3 sm:mt-0">
+            {% if request.user.account_profile.profile_picture %}<img src="{{ request.user.account_profile.profile_picture.url }}" alt="{{ portal_display_name }} profile picture" class="h-16 w-16 rounded-full border-4 border-white/20 object-cover shadow-sm">{% endif %}
+            <span class="bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-semibold px-4 py-2 rounded-xl inline-block shadow-inner">System Status: Active & Secured</span>
+        </div>
+    </div>
+
+    <!-- Stage 2: Stats Grid -->
+    <div class="animate-stage-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-300">
+            <div class="flex justify-between items-start mb-4">
+                <span class="text-xs uppercase tracking-wider text-slate-500 font-semibold">Total Students</span>
+                <span class="bg-blue-50 text-blue-600 px-3 py-1 rounded-lg text-xs font-bold border border-blue-100">Active</span>
+            </div>
+            <h3 class="text-3xl font-extrabold text-slate-900">{{ total_students }}</h3>
+            <p class="text-xs text-emerald-600 mt-2 font-medium">Registered in database</p>
+        </div>
+        <div class="bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-300">
+            <div class="flex justify-between items-start mb-4">
+                <span class="text-xs uppercase tracking-wider text-slate-500 font-semibold">Present Today</span>
+                <span class="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-lg text-xs font-bold border border-emerald-100">Verified</span>
+            </div>
+            <h3 class="text-3xl font-extrabold text-slate-900">{{ present_today }}</h3>
+            <p class="text-xs text-emerald-600 mt-2 font-medium">Checked in successfully</p>
+        </div>
+        <div class="bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-300">
+            <div class="flex justify-between items-start mb-4">
+                <span class="text-xs uppercase tracking-wider text-slate-500 font-semibold">Total Teachers</span>
+                <span class="bg-purple-50 text-purple-600 px-3 py-1 rounded-lg text-xs font-bold border border-purple-100">Staff</span>
+            </div>
+            <h3 class="text-3xl font-extrabold text-slate-900">{{ active_teachers }}</h3>
+            <p class="text-xs text-slate-500 mt-2 font-medium">Registered faculty</p>
+        </div>
+        <div class="bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-300">
+            <div class="flex justify-between items-start mb-4">
+                <span class="text-xs uppercase tracking-wider text-slate-500 font-semibold">Total Parents</span>
+                <span class="bg-amber-50 text-amber-600 px-3 py-1 rounded-lg text-xs font-bold border border-amber-100">Families</span>
+            </div>
+            <h3 class="text-3xl font-extrabold text-slate-900">{{ total_parents }}</h3>
+            <p class="text-xs text-amber-600 mt-2 font-medium">Registered guardians</p>
+        </div>
+    </div>
+
+    <div class="animate-stage-3 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_1.4fr]">
+        <div class="rounded-3xl border border-blue-200 bg-white p-6 shadow-sm">
+            <div class="flex items-start justify-between gap-4"><div><p class="text-xs font-bold uppercase tracking-wider text-slate-500">Daily attendance</p><h2 class="mt-1 text-xl font-black text-slate-900">{% now "l, j F Y" %}</h2><p class="mt-1 text-xs text-slate-500">{% if current_week %}Week {{ current_week.week_number }} · {{ current_week.start_date|date:'d M' }} - {{ current_week.end_date|date:'d M Y' }}{% else %}No active academic week{% endif %}</p></div><span class="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">Live</span></div>
+            <div class="mt-8 flex items-end gap-3"><span class="text-5xl font-black text-blue-700">{{ attendance_rate }}%</span><span class="mb-2 text-xs font-semibold text-slate-500">overall present rate</span></div>
+            <div class="mt-4 h-3 overflow-hidden rounded-full bg-slate-100"><div class="h-full w-[{{ attendance_rate }}%] rounded-full bg-blue-600 transition-all"></div></div>
+            <p class="mt-3 text-xs text-slate-500">{{ present_today }} of {{ total_students }} active students marked present.</p>
+        </div>
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><div class="mb-5"><h3 class="text-lg font-bold text-slate-900">Classroom breakdown</h3><p class="text-xs text-slate-500">Today's attendance by classroom.</p></div><div class="space-y-4">{% for item in classroom_attendance %}<div><div class="mb-1 flex justify-between text-xs"><span class="font-semibold text-slate-700">{{ item.classroom.name }}</span><span class="text-slate-500">{{ item.present }}/{{ item.total }} · {{ item.rate }}%</span></div><div class="h-2 overflow-hidden rounded-full bg-slate-100"><div class="h-full w-[{{ item.rate }}%] rounded-full {% if item.rate >= 80 %}bg-emerald-500{% elif item.rate >= 50 %}bg-amber-500{% else %}bg-red-500{% endif %}"></div></div></div>{% empty %}<p class="text-sm text-slate-500">No classrooms have been configured yet.</p>{% endfor %}</div></div>
+    </div>
+
+    <!-- Stage 3: Student Directory Section -->
+    <div class="animate-stage-3 bg-white border border-slate-200 rounded-3xl p-8 shadow-sm space-y-6">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+                <h3 class="text-lg font-bold text-slate-900">Student Directory & Records</h3>
+                <p class="text-xs text-slate-500">Search and manage academy student records in real time.</p>
+            </div>
+            <div class="flex items-center space-x-3 w-full sm:w-auto">
+                <div class="relative w-full sm:w-64">
+                    <input type="text" placeholder="Search records..." class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 pl-10 text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:border-blue-500 transition-all">
+                    <svg class="absolute left-3 top-3 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+                <a href="{% url 'students' %}" class="bg-blue-600 hover:bg-blue-700 active:scale-95 transition-transform duration-100 text-white font-semibold text-xs py-2.5 px-4 rounded-xl shadow flex items-center space-x-2 flex-shrink-0">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    <span>Add Student</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto border border-slate-100 rounded-2xl">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 text-xs uppercase tracking-wider font-semibold">
+                        <th class="py-4 px-6">Student ID</th>
+                        <th class="py-4 px-6">Full Name</th>
+                        <th class="py-4 px-6">Class</th>
+                        <th class="py-4 px-6">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-sm text-slate-700">
+                    {% for student in students %}
+                    <tr class="hover:bg-slate-50/80 transition-colors">
+                        <td class="py-4 px-6 font-semibold text-blue-600">{{ student.student_id }}</td>
+                        <td class="py-4 px-6 font-medium text-slate-900">{{ student.last_name }} {{ student.first_name }} {{ student.other_name|default:"" }}</td>
+                        <td class="py-4 px-6 font-semibold">
+                            {% if student.current_class %}
+                                <span class="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-blue-200">{{ student.current_class.name }}</span>
+                            {% else %}
+                                <span class="text-slate-400 italic text-xs">Unassigned</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-4 px-6">
+                            {% if student.status == 'Student' or student.status == 'Active' or student.status == 'Present' %}
+                                <span class="bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-emerald-200">Student</span>
+                            {% elif student.status == 'Transferred' %}
+                                <span class="bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-amber-200">Transferred</span>
+                            {% elif student.status == 'Expelled' %}
+                                <span class="bg-red-50 text-red-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-red-200">Expelled</span>
+                            {% elif student.status == 'Graduated' %}
+                                <span class="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-blue-200">Graduated</span>
+                            {% elif student.status == 'Left' %}
+                                <span class="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-slate-300">Left</span>
+                            {% else %}
+                                <span class="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full text-xs font-semibold">{{ student.status }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="py-8 text-center text-slate-400 text-sm">No student records found in the database yet. Click "Add Student" above to register one.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends 'portal/base.html' %}
+{% block page_title %}My Payslips{% endblock %}
+{% block content %}
+<style>
+    @media print {
+        body * { visibility: hidden !important; }
+        #payslips-print-area, #payslips-print-area * { visibility: visible !important; }
+        #payslips-print-area { position: absolute; inset: 0; width: 100%; }
+        .no-print { display: none !important; }
+    }
+</style>
+<div class="min-h-full bg-slate-100 p-6 lg:p-8">
+  <div class="mx-auto max-w-4xl space-y-6" id="payslips-print-area">
+    <header class="no-print flex flex-col justify-between gap-4 rounded-3xl bg-gradient-to-r from-slate-950 via-emerald-950 to-slate-900 p-8 text-white shadow-lg sm:flex-row sm:items-center">
+      <div>
+        <p class="text-xs font-bold uppercase tracking-[0.2em] text-emerald-200">HR &amp; Payroll</p>
+        <h1 class="mt-2 text-2xl font-black">My Payslips</h1>
+      </div>
+      {% if payslips %}<button onclick="window.print()" class="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-bold text-white transition hover:bg-white/20">Print / Download</button>{% endif %}
+    </header>
+
+    {% if not profile %}
+    <div class="rounded-3xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-800 shadow-sm">No salary profile has been set up for your account yet. Contact HR/Bursary.</div>
+    {% endif %}
+
+    {% for payslip in payslips %}
+    <div class="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+      <div class="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-4">
+        <div>
+          <p class="text-xs font-bold uppercase tracking-wider text-slate-500">Payslip</p>
+          <h2 class="mt-1 text-xl font-black text-slate-900">{{ payslip.payroll_run.get_month_display }} {{ payslip.payroll_run.year }}</h2>
+        </div>
+        <span class="rounded-lg px-3 py-1.5 text-xs font-bold {% if payslip.is_disbursed %}bg-emerald-100 text-emerald-800{% else %}bg-amber-100 text-amber-800{% endif %}">{% if payslip.is_disbursed %}Disbursed{% else %}Pending Disbursement{% endif %}</span>
+      </div>
+      <div class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div class="rounded-2xl bg-slate-50 p-4">
+          <p class="text-xs font-bold uppercase text-slate-500">Gross Pay</p>
+          <p class="mt-1 text-2xl font-black text-slate-900">₦{{ payslip.gross_pay|floatformat:0 }}</p>
+        </div>
+        <div class="rounded-2xl bg-red-50 p-4">
+          <p class="text-xs font-bold uppercase text-red-600">Total Deductions</p>
+          <p class="mt-1 text-2xl font-black text-red-700">-₦{{ payslip.total_deductions|floatformat:0 }}</p>
+        </div>
+      </div>
+      <div class="mt-4 rounded-2xl bg-emerald-50 p-5">
+        <p class="text-xs font-bold uppercase text-emerald-700">Net Pay</p>
+        <p class="mt-1 text-3xl font-black text-emerald-800">₦{{ payslip.net_pay|floatformat:0 }}</p>
+      </div>
+      {% if profile.bank_name %}<p class="mt-4 text-xs text-slate-500">Paid to {{ profile.bank_name }} · {{ profile.account_number }}</p>{% endif %}
+    </div>
+    {% empty %}
+    {% if profile %}<div class="rounded-3xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500 shadow-sm">No payslips have been generated for you yet.</div>{% endif %}
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,115 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Admission Form — {{ applicant.temp_reg_number }}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { color: #111; margin: 0; padding: 24px; background: #e2e8f0; }
+  .sheet { max-width: 800px; margin: 0 auto; background: #fff; padding: 32px; border: 1px solid #cbd5e1; }
+  .form-header { display: flex; align-items: center; justify-content: center; gap: 12px; border-bottom: 3px solid #0f172a; padding-bottom: 12px; margin-bottom: 16px; text-align: left; }
+  .school-logo { width: 52px; height: 52px; flex: 0 0 52px; object-fit: contain; }
+  .header-copy { text-align: center; }
+  .form-header h1 { margin: 0; font-size: 18px; letter-spacing: 0.05em; }
+  .form-header p { margin: 4px 0 0; font-size: 11px; color: #475569; }
+  .passport-cell { width: 130px; padding: 8px !important; text-align: center; vertical-align: middle !important; }
+  .passport-box { width: 110px; height: 130px; margin: 0 auto; border: 1px solid #94a3b8; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #94a3b8; overflow: hidden; }
+  .passport-box img { width: 100%; height: 100%; object-fit: cover; }
+  .reg-no { text-align: right; font-size: 12px; font-weight: bold; color: #0e7490; margin-bottom: 8px; }
+  .section-title { background: #0f172a; color: #fff; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em; padding: 6px 10px; margin: 18px 0 8px; }
+  table.data-grid { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.data-grid td { border: 1px solid #cbd5e1; padding: 6px 8px; vertical-align: top; }
+  table.data-grid td.label { width: 32%; font-weight: bold; background: #f8fafc; color: #334155; }
+  .status-badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: bold; }
+  .status-approved { background: #d1fae5; color: #065f46; }
+  .status-pending { background: #fef3c7; color: #92400e; }
+  .status-rejected { background: #fee2e2; color: #991b1b; }
+  .print-actions { max-width: 800px; margin: 0 auto 16px; text-align: right; }
+  .print-actions button { background: #0e7490; color: #fff; border: none; padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer; }
+  .signature-row { display: flex; justify-content: center; margin-top: 40px; font-size: 11px; }
+  .signature-block { width: 200px; text-align: center; }
+  .signature-image { display: block; width: 120px; height: 38px; margin: 0 auto 2px; object-fit: contain; }
+  .signature-line { border-top: 1px solid #334155; padding-top: 4px; }
+
+  @media print {
+    body { background: #fff; padding: 0; }
+    .print-actions { display: none; }
+    .sheet { border: none; padding: 0; max-width: none; }
+    @page { margin: 14mm; }
+  }
+</style>
+</head>
+<body>
+  <div class="print-actions"><button onclick="window.print()">Print / Save as PDF</button></div>
+  <div class="sheet">
+    <div class="form-header">
+      <img src="{% static 'portal/logo.png' %}" alt="Future Leaders Private Academy logo" class="school-logo">
+      <div class="header-copy">
+        <h1>FUTURE LEADERS PRIVATE ACADEMY</h1>
+        <p>Official Admission / Learner's Record Form</p>
+      </div>
+    </div>
+    <div class="reg-no">Registration No: {{ applicant.temp_reg_number }}</div>
+
+    <div class="section-title">Basic Applicant Data</div>
+    <table class="data-grid">
+      <tr><td class="label">Full Name</td><td>{{ applicant.first_name }} {{ applicant.last_name }}</td><td class="passport-cell" rowspan="5"><div class="passport-box">{% if applicant.passport %}<img src="{{ applicant.passport.url }}" alt="Applicant passport photograph">{% else %}No Photo{% endif %}</div></td></tr>
+      <tr><td class="label">Date of Birth</td><td>{{ applicant.date_of_birth|date:'d M Y' }}</td></tr>
+      <tr><td class="label">Gender</td><td>{{ applicant.sex }}</td></tr>
+      <tr><td class="label">Nationality</td><td>{{ applicant.nationality }}</td></tr>
+      <tr><td class="label">Religion</td><td>{{ applicant.religion|default:'—' }}</td></tr>
+      <tr><td class="label">State of Origin / LGA</td><td>{{ applicant.state_of_origin }} / {{ applicant.lga }}</td></tr>
+    </table>
+
+    <div class="section-title">Challenges &amp; Academic Background</div>
+    <table class="data-grid">
+      <tr><td class="label">Disability / Challenge</td><td>{% if applicant.has_disability %}Yes — {{ applicant.disability_details|default:'Not specified' }}{% else %}None{% endif %}</td></tr>
+      <tr><td class="label">Previous School Type</td><td>{{ applicant.get_school_type_display|default:'—' }}</td></tr>
+      <tr><td class="label">Previous School</td><td>{{ applicant.previous_school|default:'—' }}</td></tr>
+      <tr><td class="label">Present Class</td><td>{{ applicant.present_class|default:'—' }}</td></tr>
+      <tr><td class="label">Programme of Study</td><td>{{ applicant.get_programme_of_study_display|default:'—' }}</td></tr>
+      <tr><td class="label">Intended Class</td><td>{{ applicant.intended_class.name }}</td></tr>
+    </table>
+
+    <div class="section-title">Father's Information</div>
+    <table class="data-grid">
+      <tr><td class="label">Name</td><td>{{ applicant.father_name|default:'—' }}</td></tr>
+      <tr><td class="label">Occupation / Job Title</td><td>{{ applicant.father_occupation|default:'—' }} / {{ applicant.father_job_title|default:'—' }}</td></tr>
+      <tr><td class="label">Phone / Email</td><td>{{ applicant.father_phone|default:'—' }} / {{ applicant.father_email|default:'—' }}</td></tr>
+      <tr><td class="label">Home Address</td><td>{{ applicant.father_address|default:'—' }}</td></tr>
+    </table>
+
+    <div class="section-title">Mother's Information</div>
+    <table class="data-grid">
+      <tr><td class="label">Name</td><td>{{ applicant.mother_name|default:'—' }}</td></tr>
+      <tr><td class="label">Occupation / Job Title</td><td>{{ applicant.mother_occupation|default:'—' }} / {{ applicant.mother_job_title|default:'—' }}</td></tr>
+      <tr><td class="label">Phone / Email</td><td>{{ applicant.mother_phone|default:'—' }} / {{ applicant.mother_email|default:'—' }}</td></tr>
+      <tr><td class="label">Home Address</td><td>{{ applicant.mother_address|default:'—' }}</td></tr>
+    </table>
+
+    <div class="section-title">Next of Kin</div>
+    <table class="data-grid">
+      <tr><td class="label">Name / Relationship</td><td>{{ applicant.next_of_kin_name|default:'—' }} / {{ applicant.next_of_kin_relationship|default:'—' }}</td></tr>
+      <tr><td class="label">Phone</td><td>{{ applicant.next_of_kin_phone|default:'—' }}</td></tr>
+    </table>
+
+    <div class="section-title">Notification &amp; Status</div>
+    <table class="data-grid">
+      <tr><td class="label">Notification Email</td><td>{{ applicant.parent_email|default:'—' }}</td></tr>
+      <tr><td class="label">Payment Status</td><td>{{ applicant.payment_status }}</td></tr>
+      <tr><td class="label">Admission Status</td>
+        <td>
+          <span class="status-badge {% if applicant.admission_status == 'Approved' %}status-approved{% elif applicant.admission_status == 'Rejected' %}status-rejected{% else %}status-pending{% endif %}">{{ applicant.admission_status }}</span>
+          {% if applicant.enrolled_student %} — Student ID: {{ applicant.enrolled_student.student_id }}{% endif %}
+        </td>
+      </tr>
+      <tr><td class="label">Date Submitted</td><td>{{ applicant.submitted_at|date:'d M Y, H:i' }}</td></tr>
+    </table>
+
+    <div class="signature-row">
+      <div class="signature-block"><img src="{% static 'portal/sign.png' %}" alt="Proprietress Signature" class="signature-image"><div class="signature-line">Proprietress Signature</div></div>
+    </div>
+  </div>
+</body>
+</html>

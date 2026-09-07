@@ -1,0 +1,87 @@
+{% extends 'portal/base.html' %}
+{% block page_title %}General Messaging{% endblock %}
+{% block content %}
+<div class="min-h-full bg-slate-100 p-6 lg:p-8">
+  <div class="mx-auto max-w-5xl space-y-6">
+    <header class="rounded-3xl bg-gradient-to-r from-slate-950 via-blue-950 to-slate-900 p-8 text-white shadow-lg">
+      <p class="text-xs font-bold uppercase tracking-[0.2em] text-blue-200">Messaging</p>
+      <h1 class="mt-2 text-2xl font-black">General Messaging</h1>
+      <p class="mt-1 text-sm text-blue-100">Compose and broadcast messages to staff, parents, or a specific class.</p>
+    </header>
+
+    <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <form method="post" class="space-y-4">
+        {% csrf_token %}
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div>
+            {% include 'portal/result_filter_combobox.html' with field_name='audience' label='Audience' selected_value='staff' selected_label='Staff' options=audience_options %}
+          </div>
+          <div id="class-select-wrapper" class="hidden">
+            {% include 'portal/result_filter_combobox.html' with field_name='classroom' label='Class' options=classrooms %}
+          </div>
+          <div id="staff-recipient-wrapper">
+            {% include 'portal/result_filter_combobox.html' with field_name='recipient_user_staff' label='Staff recipients' options=staff_options %}
+          </div>
+          <div id="parent-recipient-wrapper" class="hidden">
+            {% include 'portal/result_filter_combobox.html' with field_name='recipient_user_parent' label='Parent recipients' options=parent_options %}
+          </div>
+          <div>
+            <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Priority</label>
+            <select name="priority" class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold">
+              {% for value, label in priority_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Subject</label>
+          <input type="text" name="subject" required class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+        </div>
+        <div>
+          <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Message</label>
+          <textarea name="body" rows="5" required class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm"></textarea>
+        </div>
+        <button type="submit" class="rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700">Broadcast Message</button>
+      </form>
+    </section>
+
+    <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <h3 class="text-lg font-bold text-slate-900">Recently Sent</h3>
+      <div class="mt-4 space-y-3">
+        {% for message in sent_messages %}
+        <div class="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+          <div class="flex items-center justify-between">
+            <p class="text-sm font-bold text-slate-900">{{ message.subject }}</p>
+            <span class="rounded-lg px-2.5 py-1 text-xs font-bold {% if message.priority == 'Urgent' %}bg-red-100 text-red-700{% elif message.priority == 'Important' %}bg-amber-100 text-amber-700{% else %}bg-slate-200 text-slate-700{% endif %}">{{ message.priority }}</span>
+          </div>
+          <p class="mt-1 text-xs text-slate-500">{{ message.timestamp|date:'d M Y, H:i' }} · {{ message.recipients.count }} recipient(s)</p>
+        </div>
+        {% empty %}
+        <p class="text-sm text-slate-500">No messages sent yet.</p>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var audienceSelect = document.querySelector('[data-field-name="audience"] input[type="hidden"]');
+    var classWrapper = document.getElementById('class-select-wrapper');
+    var staffWrapper = document.getElementById('staff-recipient-wrapper');
+    var parentWrapper = document.getElementById('parent-recipient-wrapper');
+    var staffRecipient = staffWrapper.querySelector('input[type="hidden"]');
+    var parentRecipient = parentWrapper.querySelector('input[type="hidden"]');
+    var audienceOptions = document.querySelectorAll('[data-field-name="audience"] .profile-option');
+    function toggleAudienceFields() {
+      var audience = audienceSelect.value;
+      classWrapper.classList.toggle('hidden', audience !== 'class');
+      staffWrapper.classList.toggle('hidden', audience !== 'staff');
+      parentWrapper.classList.toggle('hidden', audience !== 'parent');
+      staffRecipient.name = audience === 'staff' ? 'recipient_user' : 'recipient_user_staff';
+      parentRecipient.name = audience === 'parent' ? 'recipient_user' : 'recipient_user_parent';
+    }
+    audienceSelect.addEventListener('input', toggleAudienceFields);
+    audienceOptions.forEach(function (option) { option.addEventListener('click', toggleAudienceFields); });
+    toggleAudienceFields();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,140 @@
+{% extends 'portal/base.html' %}
+{% block page_title %}CBT Exam Instructions{% endblock %}
+{% block content %}
+<div id="exitInstructionsModal" class="fixed inset-0 z-[9999] hidden items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+  <div class="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900/80 p-6 text-white shadow-2xl shadow-black/50 backdrop-blur-xl">
+    <p class="text-[11px] font-bold uppercase tracking-[0.16em] text-amber-400">Exit Exam Setup</p>
+    <h2 class="mt-2 text-xl font-black text-white">Are you sure you want to exit the exam setup?</h2>
+    <p class="mt-3 text-sm text-slate-300">You will leave fullscreen mode and return to your dashboard without starting the exam.</p>
+    <div class="mt-6 flex justify-end gap-3">
+      <button type="button" onclick="closeExitInstructionsModal()" class="rounded-full border border-slate-600 bg-transparent px-4 py-2.5 text-sm font-bold text-slate-300 transition-all hover:bg-slate-700">Stay</button>
+      <button type="button" onclick="confirmExitInstructions()" class="rounded-full bg-amber-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-amber-600/30 transition-all hover:bg-amber-500">Exit Now</button>
+    </div>
+  </div>
+</div>
+
+<div class="min-h-full bg-slate-100 p-6 lg:p-8">
+  <div class="mx-auto grid max-w-5xl gap-6 lg:grid-cols-5">
+    <div class="space-y-4 lg:col-span-2">
+      <div class="rounded-3xl border border-slate-200 bg-white p-6 text-center shadow-sm">
+        {% if student.passport %}
+          <img src="{{ student.passport.url }}" alt="Student passport" class="mx-auto h-28 w-28 rounded-2xl object-cover ring-4 ring-blue-50">
+        {% else %}
+          <div class="mx-auto flex h-28 w-28 items-center justify-center rounded-2xl bg-slate-100 text-2xl font-black text-slate-400 ring-4 ring-blue-50">{{ student.first_name|first }}{{ student.last_name|first }}</div>
+        {% endif %}
+        <h2 class="mt-4 text-lg font-black text-slate-900">{{ student.first_name }} {{ student.last_name }}</h2>
+        <p class="text-xs font-bold uppercase tracking-[0.14em] text-blue-600">{{ student.student_id }}</p>
+        <div class="mt-4 space-y-2 rounded-2xl bg-slate-50 p-4 text-left text-sm">
+          <div class="flex items-center justify-between"><span class="text-slate-500">Class</span><span class="font-bold text-slate-800">{{ exam.classroom.name }}</span></div>
+          <div class="flex items-center justify-between"><span class="text-slate-500">Term</span><span class="font-bold text-slate-800">{{ exam.term.term_name }}</span></div>
+          <div class="flex items-center justify-between"><span class="text-slate-500">Subject</span><span class="font-bold text-slate-800">{{ exam.subject.name }}</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="space-y-6 lg:col-span-3">
+      <div class="rounded-3xl bg-gradient-to-r from-blue-900 to-slate-900 p-8 text-white shadow-xl">
+        <p class="text-xs uppercase tracking-[0.25em] text-blue-200">Before You Begin</p>
+        <h1 class="mt-3 text-2xl font-black">{{ exam.subject.name }} CBT Examination</h1>
+      </div>
+
+      <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div class="space-y-5 text-slate-700">
+          <div>
+            <h2 class="text-lg font-bold text-slate-900">Instructions, Rules &amp; Cautions</h2>
+          </div>
+          <ul class="space-y-3 text-sm leading-7">
+            <li>• Read each question carefully before selecting the best answer.</li>
+            <li>• You must complete the exam within the time limit displayed on the next screen.</li>
+            <li>• Once the exam is submitted, the score is final and cannot be edited.</li>
+            <li>• Avoid refreshing or leaving the exam page until you have completed the test.</li>
+            <li>• The exam will run in fullscreen mode for secure testing.</li>
+            <li>• Exiting the exam window mid-test may end your attempt automatically.</li>
+          </ul>
+
+          <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p class="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Exam Summary</p>
+            <div class="mt-3 grid gap-3 text-sm sm:grid-cols-3">
+              <div>
+                <p class="text-slate-500">Number of Questions</p>
+                <p class="mt-1 text-lg font-black text-slate-900">{{ exam.questions.count }}</p>
+              </div>
+              <div>
+                <p class="text-slate-500">Duration</p>
+                <p class="mt-1 text-lg font-black text-slate-900">{{ exam.duration }} mins</p>
+              </div>
+              <div>
+                <p class="text-slate-500">Starts</p>
+                <p class="mt-1 text-lg font-black text-slate-900">{{ exam.start_time|date:'M d, Y H:i' }}</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex flex-col justify-between gap-3 pt-2 sm:flex-row">
+            <button type="button" onclick="openExitInstructionsModal()" class="inline-flex items-center justify-center rounded-xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm font-bold text-amber-700 hover:bg-amber-100">Exit</button>
+            <a href="{% url 'cbt_exam' exam.pk %}" class="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-blue-700">Start Now</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function collapseInstructionsSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  if (!sidebar) return;
+  sidebar.classList.remove('w-64');
+  sidebar.classList.add('w-20');
+}
+
+function restoreInstructionsSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  if (!sidebar) return;
+  sidebar.classList.remove('w-20');
+  sidebar.classList.add('w-64');
+}
+
+function requestInstructionsFullscreen() {
+  const root = document.documentElement;
+  const candidates = [root.requestFullscreen, root.webkitRequestFullscreen, root.mozRequestFullScreen, root.msRequestFullscreen];
+  const request = candidates.find((fn) => typeof fn === 'function');
+  if (request) request.call(root).catch(() => {});
+}
+
+function exitInstructionsFullscreen() {
+  if (document.fullscreenElement && document.exitFullscreen) {
+    document.exitFullscreen().catch(() => {});
+  }
+  if (document.webkitFullscreenElement && document.webkitExitFullscreen) {
+    document.webkitExitFullscreen();
+  }
+}
+
+const exitInstructionsModal = document.getElementById('exitInstructionsModal');
+
+function openExitInstructionsModal() {
+  if (!exitInstructionsModal) return;
+  exitInstructionsModal.classList.remove('hidden');
+  exitInstructionsModal.classList.add('flex');
+}
+
+function closeExitInstructionsModal() {
+  if (!exitInstructionsModal) return;
+  exitInstructionsModal.classList.add('hidden');
+  exitInstructionsModal.classList.remove('flex');
+}
+
+function confirmExitInstructions() {
+  closeExitInstructionsModal();
+  exitInstructionsFullscreen();
+  restoreInstructionsSidebar();
+  window.location.href = '{% url "student_dashboard" %}';
+}
+
+window.addEventListener('load', () => {
+  collapseInstructionsSidebar();
+  requestInstructionsFullscreen();
+});
+</script>
+{% endblock %}

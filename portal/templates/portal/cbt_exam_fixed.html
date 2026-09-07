@@ -1,0 +1,34 @@
+{% extends 'portal/base.html' %}
+{% block page_title %}CBT Exam{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<div class="min-h-full bg-slate-100 p-6 lg:p-8">
+    <div class="mx-auto max-w-4xl">
+        <div class="mb-6 rounded-3xl bg-gradient-to-r from-blue-900 to-slate-900 p-8 text-white">
+            <h1 class="text-2xl font-black">{{ exam.subject.name }}</h1>
+            <p class="mt-1 text-sm text-blue-100">{{ exam.classroom.name }} · Ends {{ exam.end_time }}</p>
+        </div>
+        <form id="cbt-form" method="post" class="space-y-5">{% csrf_token %}{% for question in exam.questions.all %}
+            <fieldset class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <legend class="math-content font-bold text-slate-800">{{ forloop.counter }}. {{ question.question_text|safe }}</legend>{% if question.image %}<img src="{{ question.image.url }}" class="my-4 max-h-64" alt="Question diagram">{% endif %}<div class="mt-4 grid gap-2 sm:grid-cols-2"><label><input required type="radio"
+                            name="question_{{ question.pk }}" value="A"> <span class="math-content">{{ question.option_a }}</span></label><label><input
+                            type="radio" name="question_{{ question.pk }}" value="B"> <span class="math-content">{{ question.option_b }}</span></label><label><input type="radio" name="question_{{ question.pk }}" value="C"> <span class="math-content">{{ question.option_c }}</span></label><label><input type="radio" name="question_{{ question.pk }}"
+                            value="D"> <span class="math-content">{{ question.option_d }}</span></label></div>
+            </fieldset>{% endfor %}<button class="rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white">Submit
+                Exam</button></form>
+    </div>
+</div>
+<script>const endTime = new Date('{{ exam.end_time|date:"c" }}').getTime(); const form = document.getElementById('cbt-form'); const timer = window.setInterval(() => { if (Date.now() >= endTime) { window.clearInterval(timer); form.requestSubmit(); } }, 1000);</script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" onload="document.querySelectorAll('.math-content').forEach((element) => { if (!element.textContent.includes('$')) element.textContent = element.textContent.replace(/(\\(?:frac|sqrt)\{[^{}]*\}(?:\{[^{}]*\})?)/g, '$$$1$$'); renderMathInElement(element, {delimiters: [{left: '$', right: '$', display: false}], throwOnError: false}); })"></script>
+{% endblock %}We need to enforce strict eligibility filtering on the Exam Setup / CBT Manager class and subject dropdowns:
+
+1. Filter Target Class Dropdown (Primary 4 & 6 Only)
+
+The Problem: The 'Target Class' dropdown in the Exam Setup modal currently displays all school classes (Nursery, KG, Primary 1–3, etc.).
+
+The Solution: Update the backend view passing context to the Exam Setup page (classrooms queryset) so it strictly filters for classrooms whose names contain '4' or '6' (handling 'Primary 4', 'Basic 4', 'Primary 6', 'Basic 6'). Exclude all other classes completely from the CBT Target Class dropdown.
+
+2. Cascading Subject Filtering
+
+Ensure that when an admin selects either Primary 4 or Primary 6 from the filtered Target Class dropdown, the Subject dropdown dynamically populates only with the subjects assigned to that specific class.

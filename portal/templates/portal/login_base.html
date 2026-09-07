@@ -1,0 +1,32 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FUTURE LEADERS PRIVATE ACADEMY - Login</title>
+    <link rel="stylesheet" href="{% static 'portal/css/global.css' %}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: 
+                radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px),
+                linear-gradient(135deg, rgba(9, 13, 22, 0.85) 0%, rgba(30, 58, 138, 0.8) 40%, rgba(127, 29, 29, 0.8) 80%, rgba(69, 10, 10, 0.9) 100%),
+                url('{% static "portal/background.jpg" %}');
+            background-size: 24px 24px, 100% 100%, cover;
+            background-position: center;
+            background-attachment: fixed;
+            min-height: 100vh;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased flex flex-col min-h-screen justify-between">
+    <div class="flex-grow flex flex-col items-center justify-center p-4 w-full">
+        {% block content %}
+        {% endblock %}
+    </div>
+    <footer class="text-center text-white/60 text-xs sm:text-sm py-4 bg-black/20 border-t border-white/10 backdrop-blur-md font-medium tracking-wide">
+        &copy; 2026 FUTURE LEADERS PRIVATE ACADEMY. Powered by Cleanframe Software.
+    </footer>
+</body>
+</html>

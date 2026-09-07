@@ -1,0 +1,108 @@
+{% extends 'portal/base.html' %}
+{% block page_title %}Run Payroll{% endblock %}
+{% block content %}
+<div class="min-h-full bg-slate-100 p-6 lg:p-8">
+  <div class="mx-auto max-w-6xl space-y-6">
+    <header class="rounded-3xl bg-gradient-to-r from-slate-950 via-emerald-950 to-slate-900 p-8 text-white shadow-lg">
+      <p class="text-xs font-bold uppercase tracking-[0.2em] text-emerald-200">HR &amp; Payroll</p>
+      <h1 class="mt-2 text-2xl font-black">Run Payroll</h1>
+      <p class="mt-1 text-sm text-emerald-100">Select a period, review the calculated payout, then process the batch run.</p>
+    </header>
+
+    <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <form method="get" class="flex flex-wrap items-end gap-4">
+        <div>
+          <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Month</label>
+          <select name="month" onchange="this.form.submit()" class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold">
+            {% for value, label in month_choices %}<option value="{{ value }}" {% if value == selected_month %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Year</label>
+          <select name="year" onchange="this.form.submit()" class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold">
+            {% for y in years %}<option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+          </select>
+        </div>
+      </form>
+
+      <div class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div class="rounded-2xl border border-slate-100 bg-slate-50 p-4"><p class="text-xs font-bold uppercase text-slate-500">Active Staff</p><p class="mt-1 text-2xl font-black text-slate-900">{{ active_profiles|length }}</p></div>
+        <div class="rounded-2xl border border-slate-100 bg-slate-50 p-4"><p class="text-xs font-bold uppercase text-slate-500">Total Gross</p><p class="mt-1 text-2xl font-black text-slate-900">₦{{ preview_total_gross|floatformat:0 }}</p></div>
+        <div class="rounded-2xl border border-slate-100 bg-slate-50 p-4"><p class="text-xs font-bold uppercase text-slate-500">Total Net Payout</p><p class="mt-1 text-2xl font-black text-emerald-700">₦{{ preview_total_net|floatformat:0 }}</p></div>
+      </div>
+
+      {% if existing_run %}
+      <div class="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p class="text-sm font-bold text-slate-900">Payroll run already exists for this period</p>
+            <p class="text-xs text-slate-600">Status: <span class="font-bold">{{ existing_run.status }}</span> · Net: ₦{{ existing_run.total_net|floatformat:0 }}</p>
+          </div>
+          <div class="flex gap-2">
+            {% if existing_run.status == 'Draft' %}
+            <form method="post">{% csrf_token %}<input type="hidden" name="month" value="{{ selected_month }}"><input type="hidden" name="year" value="{{ selected_year }}"><input type="hidden" name="action" value="approve_run"><input type="hidden" name="run_id" value="{{ existing_run.pk }}"><button type="submit" class="rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-700">Approve Run</button></form>
+            {% if existing_run.academic_session_id and existing_run.academic_term_id %}<form method="post">{% csrf_token %}<input type="hidden" name="month" value="{{ selected_month }}"><input type="hidden" name="year" value="{{ selected_year }}"><input type="hidden" name="action" value="revert_run"><input type="hidden" name="run_id" value="{{ existing_run.pk }}"><input type="hidden" name="session_id" value="{{ existing_run.academic_session_id }}"><input type="hidden" name="term_id" value="{{ existing_run.academic_term_id }}"><button type="submit" class="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs font-bold text-red-700 hover:bg-red-100">Revert / Delete Draft</button></form>{% endif %}
+            {% elif existing_run.status == 'Approved' %}
+            <form method="post">{% csrf_token %}<input type="hidden" name="month" value="{{ selected_month }}"><input type="hidden" name="year" value="{{ selected_year }}"><input type="hidden" name="action" value="disburse_run"><input type="hidden" name="run_id" value="{{ existing_run.pk }}"><button type="submit" class="rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-700">Disburse to Staff</button></form>
+            {% else %}
+            <span class="rounded-xl bg-emerald-100 px-4 py-2.5 text-xs font-bold text-emerald-800">Disbursed</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <form method="post" id="process-payroll-form" class="mt-6">
+        {% csrf_token %}
+        <input type="hidden" name="month" value="{{ selected_month }}">
+        <input type="hidden" name="year" value="{{ selected_year }}">
+        <input type="hidden" name="action" value="process_payroll">
+        <button type="button" onclick="openPayrollConfirmation()" class="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50" {% if not active_profiles %}disabled{% endif %}>Process Payroll Run</button>
+      </form>
+      {% endif %}
+    </section>
+
+    <section class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[700px] text-left text-sm">
+          <thead class="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500"><tr><th class="p-4">Staff</th><th class="p-4">Gross Pay</th><th class="p-4">Allowances</th><th class="p-4">Deductions</th><th class="p-4">Final Net Pay</th></tr></thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for profile in active_profiles %}
+            <tr class="hover:bg-slate-50/70"><td class="p-4 font-semibold text-slate-900">{{ profile.user.get_full_name|default:profile.user.username }}</td><td class="p-4 text-slate-600">₦{{ profile.gross_pay|floatformat:0 }}</td><td class="p-4 text-emerald-700">₦{{ profile.allowances|floatformat:0 }}</td><td class="p-4 text-red-600">₦{{ profile.deductions|floatformat:0 }}</td><td class="p-4 font-bold text-emerald-700">₦{{ profile.net_salary|floatformat:0 }}</td></tr>
+            {% empty %}
+            <tr><td colspan="5" class="p-8 text-center text-sm text-slate-500">No active salary profiles configured yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+<div id="payroll-confirmation-modal" class="fixed inset-0 z-[120] hidden items-center justify-center bg-slate-950/60 p-4 backdrop-blur-md">
+  <div class="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+    <p class="text-xs font-bold uppercase tracking-wider text-emerald-600">Confirm Payroll Processing</p>
+    <h2 class="mt-2 text-xl font-black text-slate-900">Process payroll for {% for value, label in month_choices %}{% if value == selected_month %}{{ label }}{% endif %}{% endfor %} {{ selected_year }}?</h2>
+    <p class="mt-2 text-sm text-slate-600">This will generate the payroll run and payslips for review.</p>
+    <div class="mt-6 flex justify-end gap-3">
+      <button type="button" onclick="closePayrollConfirmation()" class="rounded-xl bg-slate-100 px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-200">Cancel</button>
+      <button type="submit" form="process-payroll-form" class="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-emerald-700">Confirm and Process</button>
+    </div>
+  </div>
+</div>
+<script>
+function openPayrollConfirmation() {
+  const modal = document.getElementById('payroll-confirmation-modal');
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+}
+
+function closePayrollConfirmation() {
+  const modal = document.getElementById('payroll-confirmation-modal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+}
+
+document.getElementById('payroll-confirmation-modal').addEventListener('click', function (event) {
+  if (event.target.id === 'payroll-confirmation-modal') closePayrollConfirmation();
+});
+</script>
+{% endblock %}

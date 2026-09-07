@@ -1,0 +1,145 @@
+{% extends 'portal/base.html' %}
+{% block page_title %}Result Processing{% endblock %}
+{% block content %}
+<div class="min-h-full bg-slate-100 p-6 lg:p-8"><div class="mx-auto max-w-7xl space-y-6">
+  <header class="rounded-3xl bg-gradient-to-r from-blue-900 to-slate-900 p-8 text-white"><p class="text-xs uppercase tracking-widest text-blue-200">Centralized Results</p><h1 class="mt-2 text-2xl font-black">Result Processing</h1><p class="mt-1 text-sm text-blue-100">Compile CA, exam, and CBT scores into final report-card totals.</p></header>
+
+  <script>window.resultTermsMap = {{ terms_json|default:'{}'|safe }};</script>
+  <form method="get" class="grid gap-3 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:grid-cols-4">{% include 'portal/result_filter_combobox.html' with field_name='session' label='Session' selected_value=selected_session selected_label=selected_session_obj.name options=sessions %}{% include 'portal/result_filter_combobox.html' with field_name='term' label='Term' label_field='term_name' selected_value=selected_term selected_label=selected_term_obj.term_name options=terms %}{% include 'portal/result_filter_combobox.html' with field_name='classroom' label='Class' selected_value=selected_classroom selected_label=selected_class.name options=classrooms %}<button class="rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700">Load Class</button></form>
+
+  {% if selected_class and selected_term_obj %}
+  <div class="flex flex-col sm:flex-row justify-between items-center bg-white border border-slate-200 p-6 rounded-3xl shadow-sm mb-6">
+    <!-- Status Badge -->
+    <div class="flex items-center gap-3">
+        <h2 class="text-lg font-bold text-slate-800">Publication Status:</h2>
+        {% if status.is_live %}
+            <div class="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-bold shadow-sm">
+                <span class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span></span>
+                LIVE TO PARENTS
+            </div>
+        {% elif status.scheduled_publish_date %}
+            <div class="px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl text-xs font-bold shadow-sm">
+                ⏳ SCHEDULED: {{ status.scheduled_publish_date|date:"M d, Y h:i A" }}
+            </div>
+        {% else %}
+            <div class="px-3 py-1.5 bg-slate-100 border border-slate-300 text-slate-600 rounded-xl text-xs font-bold shadow-sm">
+                UNPUBLISHED
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="flex gap-3 mt-4 sm:mt-0">
+        <button type="button" onclick="openNextTermModal()" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all">{% if selected_term_obj.next_term_begins %}Update Next Term Date{% else %}Set Next Term Date{% endif %}</button>
+        {% if not status.is_live %}
+            <button type="button" onclick="openScheduleModal()" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all">Schedule Release</button>
+            <form method="POST" action="{% url 'publish_results' %}">{% csrf_token %}<input type="hidden" name="class_id" value="{{ selected_class.id }}"><input type="hidden" name="term_id" value="{{ selected_term_obj.pk }}"><button type="submit" class="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-blue-500/25 transition-all active:scale-95">Publish Now</button></form>
+        {% else %}
+            <form method="POST" action="{% url 'unpublish_results' %}">{% csrf_token %}<input type="hidden" name="class_id" value="{{ selected_class.id }}"><input type="hidden" name="term_id" value="{{ selected_term_obj.pk }}"><button type="submit" class="px-5 py-2.5 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-bold rounded-xl shadow-lg shadow-red-500/25 transition-all active:scale-95">Unpublish</button></form>
+        {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="overflow-x-auto rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+    <table class="w-full border border-slate-200 text-left text-sm">
+        <thead class="bg-slate-50 text-slate-500">
+            <tr>
+                <th class="border-b p-4 font-semibold uppercase tracking-wider">Student Name</th>
+                <th class="border-b p-4 font-semibold uppercase tracking-wider">Computed Total</th>
+                <th class="border-b p-4 font-semibold uppercase tracking-wider">Position</th>
+                {% if selected_term_obj.term_name == 'Third Term' %}<th class="border-b p-4 font-semibold uppercase tracking-wider">Promotion Status</th>{% endif %}
+                <th class="border-b p-4 font-semibold uppercase tracking-wider text-right">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+            {% for summary in student_summaries %}
+            <tr class="hover:bg-slate-50 transition-colors">
+                <td class="p-4 font-bold text-slate-800">{{ summary.student.first_name }} {{ summary.student.last_name }}</td>
+                <td class="p-4 font-medium text-slate-600">{{ summary.total_score }}</td>
+                <td class="p-4 font-bold text-blue-600">{{ summary.position }}</td>
+                {% if selected_term_obj.term_name == 'Third Term' %}
+                <td class="p-4">
+                  <form method="post" action="{% url 'update_promotion_status' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="term_id" value="{{ selected_term_obj.pk }}">
+                    <input type="hidden" name="student_id" value="{{ summary.student.pk }}">
+                    <input type="hidden" name="classroom_id" value="{{ selected_class.pk }}">
+                    <div class="inline-flex rounded-xl border border-slate-200 bg-slate-100 p-1 shadow-inner" data-student-id="{{ summary.student.pk }}">
+                      <input type="hidden" name="promotion_status_{{ summary.student.pk }}" id="promo-input-{{ summary.student.pk }}" value="{{ summary.promotion_status }}">
+                      <button type="button" onclick="updatePromotionStatus('{{ summary.student.pk }}', 'Promoted', this)" class="promo-btn-{{ summary.student.pk }} rounded-lg px-3 py-1.5 text-xs font-bold transition-all {% if summary.promotion_status == 'Promoted' %}bg-emerald-600 text-white shadow-md{% else %}text-slate-600 hover:text-slate-900{% endif %}">Promoted</button>
+                      <button type="button" onclick="updatePromotionStatus('{{ summary.student.pk }}', 'Repeated', this)" class="promo-btn-{{ summary.student.pk }} rounded-lg px-3 py-1.5 text-xs font-bold transition-all {% if summary.promotion_status == 'Repeated' %}bg-red-600 text-white shadow-md{% else %}text-slate-600 hover:text-slate-900{% endif %}">Repeated</button>
+                    </div>
+                  </form>
+                </td>
+                {% endif %}
+                <td class="p-4 text-right">
+                    <a href="{% url 'preview_report_card' student_id=summary.student.id session_id=selected_term_obj.session_id term_id=selected_term_obj.id %}" target="_blank" class="px-4 py-2 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg text-xs font-bold transition-colors inline-block">
+                        Preview Report Card
+                    </a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="{% if selected_term_obj.term_name == 'Third Term' %}5{% else %}4{% endif %}" class="p-8 text-center text-slate-500">Load a class to view student summaries.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+  </div>
+</div></div>
+
+<div id="schedule-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 p-4">
+  <div class="w-full max-w-md transform rounded-3xl bg-white p-6 shadow-2xl transition-all animate-smooth">
+    <div class="mb-5 flex items-center justify-between">
+      <h2 class="text-lg font-bold text-slate-800">Schedule Release</h2>
+      <button type="button" onclick="closeScheduleModal()" class="text-2xl text-slate-400">&times;</button>
+    </div>
+    <form method="POST" action="{% url 'schedule_results' %}" class="space-y-4">
+      {% csrf_token %}
+      <input type="hidden" name="class_id" value="{{ selected_class.id }}">
+      <input type="hidden" name="term_id" value="{{ selected_term_obj.pk }}">
+      <label class="block text-xs font-bold uppercase tracking-wider text-slate-500">Publish Date &amp; Time</label>
+      <input type="datetime-local" name="scheduled_publish_date" required class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 focus:bg-white focus:ring-2 focus:ring-blue-500">
+      <div class="flex justify-end gap-3 pt-2">
+        <button type="button" onclick="closeScheduleModal()" class="rounded-xl bg-slate-100 px-5 py-2.5 font-bold text-slate-700 transition-all hover:bg-slate-200">Cancel</button>
+        <button type="submit" class="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-2.5 font-bold text-white shadow-lg shadow-blue-500/25 transition-all active:scale-95 hover:from-blue-700 hover:to-indigo-700">Save Schedule</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="next-term-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 p-4">
+  <div class="w-full max-w-md transform rounded-3xl bg-white p-6 shadow-2xl transition-all animate-smooth">
+    <div class="mb-5 flex items-center justify-between">
+      <h2 class="text-lg font-bold text-slate-800">Set Next Term Date</h2>
+      <button type="button" onclick="closeNextTermModal()" class="text-2xl text-slate-400">&times;</button>
+    </div>
+    <form method="POST" action="{% url 'update_next_term' %}" class="space-y-4">
+      {% csrf_token %}
+      <input type="hidden" name="term_id" value="{{ selected_term_obj.pk }}">
+      <input type="hidden" name="classroom_id" value="{{ selected_class.id }}">
+      <label class="block text-xs font-bold uppercase tracking-wider text-slate-500">Next Term Begins</label>
+      <input type="text" name="next_term_date" required value="{{ selected_term_obj.next_term_begins|date:'Y-m-d' }}" class="global-date-picker w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-700 focus:bg-white focus:ring-2 focus:ring-blue-500">
+      <div class="flex justify-end gap-3 pt-2">
+        <button type="button" onclick="closeNextTermModal()" class="rounded-xl bg-slate-100 px-5 py-2.5 font-bold text-slate-700 transition-all hover:bg-slate-200">Cancel</button>
+        <button type="submit" class="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-2.5 font-bold text-white shadow-lg shadow-blue-500/25 transition-all active:scale-95 hover:from-blue-700 hover:to-indigo-700">Save Date</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+function openScheduleModal() { const modal = document.getElementById('schedule-modal'); modal.classList.remove('hidden'); modal.classList.add('flex'); }
+function closeScheduleModal() { const modal = document.getElementById('schedule-modal'); modal.classList.add('hidden'); modal.classList.remove('flex'); }
+function openNextTermModal() { const modal = document.getElementById('next-term-modal'); modal.classList.remove('hidden'); modal.classList.add('flex'); }
+function closeNextTermModal() { const modal = document.getElementById('next-term-modal'); modal.classList.add('hidden'); modal.classList.remove('flex'); }
+function updatePromotionStatus(studentId, status, clickedBtn) {
+  document.getElementById('promo-input-' + studentId).value = status;
+  document.querySelectorAll('.promo-btn-' + studentId).forEach(function (button) {
+    button.className = 'promo-btn-' + studentId + ' rounded-lg px-3 py-1.5 text-xs font-bold transition-all text-slate-600 hover:text-slate-900';
+  });
+  clickedBtn.className = 'promo-btn-' + studentId + ' rounded-lg px-3 py-1.5 text-xs font-bold transition-all ' + (status === 'Promoted' ? 'bg-emerald-600 text-white shadow-md' : 'bg-red-600 text-white shadow-md');
+  clickedBtn.closest('form').submit();
+}
+</script>
+{% endblock %}
+
+

@@ -1,0 +1,44 @@
+{% extends 'portal/base.html' %}
+{% block page_title %}Payroll History{% endblock %}
+{% block content %}
+<div class="min-h-full bg-slate-100 p-6 lg:p-8">
+  <div class="mx-auto max-w-6xl space-y-6">
+    <header class="rounded-3xl bg-gradient-to-r from-blue-900 to-blue-700 p-8 text-white shadow-lg">
+      <p class="text-xs font-bold uppercase tracking-[0.2em] text-blue-200">HR &amp; Payroll</p>
+      <h1 class="mt-2 text-2xl font-black">Payroll History</h1>
+      <p class="mt-1 text-sm text-blue-100">Audit trail of past payroll runs and disbursements.</p>
+    </header>
+    <script>window.resultTermsMap = {{ terms_json|default:'{}'|safe }};</script>
+    <form method="get" class="grid gap-3 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:grid-cols-3 items-end">{% include 'portal/result_filter_combobox.html' with field_name='session' label='Session' selected_value=selected_session.pk selected_label=selected_session.name options=sessions %}{% include 'portal/result_filter_combobox.html' with field_name='term' label='Term' selected_value=selected_term.pk selected_label=selected_term.term_name options=terms %}<button type="submit" class="w-full rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700">Filter Payroll</button></form>
+
+    <section class="max-h-[700px] space-y-4 overflow-y-auto pr-1">
+      {% for run in runs %}
+      <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p class="text-sm font-bold text-slate-900">{{ run.get_month_display }} {{ run.year }}</p>
+            <p class="text-xs text-slate-500">Processed by {{ run.processed_by.get_full_name|default:run.processed_by.username|default:'System' }} on {{ run.timestamp|date:'d M Y, H:i' }}</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="rounded-lg px-2.5 py-1 text-xs font-bold {% if run.status == 'Disbursed' %}bg-emerald-100 text-emerald-800{% elif run.status == 'Approved' %}bg-blue-100 text-blue-800{% else %}bg-slate-100 text-slate-700{% endif %}">{{ run.status }}</span>
+            <span class="text-sm font-bold text-slate-900">₦{{ run.total_net|floatformat:0 }} net</span>
+          </div>
+        </div>
+        <div class="mt-4 overflow-x-auto rounded-2xl border border-slate-100">
+          <table class="w-full text-left text-sm">
+            <thead class="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500"><tr><th class="p-3">Staff</th><th class="p-3">Gross Pay</th><th class="p-3">Allowances</th><th class="p-3">Deductions</th><th class="p-3">Final Net Pay</th><th class="p-3">Disbursed</th></tr></thead>
+            <tbody class="divide-y divide-slate-100">
+              {% for payslip in run.payslips.all %}
+              <tr><td class="p-3 font-semibold text-slate-800">{{ payslip.salary_profile.user.get_full_name|default:payslip.salary_profile.user.username }}</td><td class="p-3 text-slate-600">₦{{ payslip.gross_pay|floatformat:0 }}</td><td class="p-3 text-emerald-700">₦{{ payslip.salary_profile.allowances|floatformat:0 }}</td><td class="p-3 text-red-600">₦{{ payslip.total_deductions|floatformat:0 }}</td><td class="p-3 font-bold text-slate-900">₦{{ payslip.net_pay|floatformat:0 }}</td><td class="p-3">{% if payslip.is_disbursed %}<span class="text-emerald-600">Yes</span>{% else %}<span class="text-slate-400">No</span>{% endif %}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% empty %}
+      <div class="rounded-3xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500 shadow-sm">No payroll runs have been processed yet.</div>
+      {% endfor %}
+    </section>
+  </div>
+</div>
+{% endblock %}

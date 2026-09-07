@@ -1,0 +1,29 @@
+{% extends 'portal/base.html' %}
+{% block page_title %}Report Card Hub{% endblock %}
+{% block content %}
+<div class="min-h-full bg-slate-100 p-6 lg:p-8"><div class="mx-auto w-full max-w-7xl space-y-6">
+  <header class="rounded-3xl bg-gradient-to-r from-blue-950 via-blue-900 to-slate-900 p-8 text-white shadow-lg"><p class="text-xs font-bold uppercase tracking-[0.2em] text-blue-200">Academic Records</p><h1 class="mt-2 text-2xl font-black">Report Card Hub</h1><p class="mt-1 text-sm text-blue-100">Choose an academic session and term to access published results.</p></header>
+  <script>window.resultTermsMap = {{ terms_json|default:'{}'|safe }};</script>
+  <form method="get" class="grid gap-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:grid-cols-3">
+    {% include 'portal/result_filter_combobox.html' with field_name='session' label='Academic Session' selected_value=selected_session_id selected_label=selected_session.name options=sessions %}
+    {% include 'portal/result_filter_combobox.html' with field_name='term' label='Academic Term' label_field='term_name' selected_value=selected_term_id selected_label=selected_term.term_name options=terms %}
+    <button type="submit" class="self-end rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700">Load Results</button>
+  </form>
+
+  {% if not selected_term %}
+  <section class="rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm"><p class="text-sm font-semibold text-slate-600">Please select an academic session and term above to view results.</p></section>
+  {% else %}
+  {% for card in report_cards %}
+    {% if selected_term and not card.is_published %}
+    <section class="rounded-3xl border border-amber-200 bg-amber-50 p-6 shadow-sm"><p class="font-bold text-amber-900">This report card has not been published yet.</p></section>
+    {% elif selected_term and not card.is_cleared %}
+    <section class="rounded-3xl border border-rose-200 bg-rose-50 p-6 shadow-sm"><p class="font-bold text-rose-900">Report card locked due to an outstanding balance of ₦{{ card.outstanding_balance|floatformat:'2g' }}. Please clear all current and previous term fees with the bursary before viewing results.</p></section>
+    {% elif selected_term and card.is_published and not card.results %}
+    <section class="rounded-3xl border border-blue-200 bg-blue-50 p-6 shadow-sm"><p class="font-bold text-blue-900">No academic records were found for {{ card.student.first_name }} in this term.</p></section>
+    {% elif selected_term and card.is_published and card.results %}
+    <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 class="text-lg font-black text-slate-900">{{ card.student.first_name }} {{ card.student.last_name }}</h2><p class="mt-1 text-xs text-slate-500">{{ card.student.student_id }} · {{ card.results|length }} subject{{ card.results|length|pluralize }} recorded</p></div><div class="flex gap-2"><a href="{% url 'report_card' card.student.pk %}?session={{ selected_session.pk }}&amp;term={{ selected_term.pk }}" target="_blank" class="rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-blue-700">View Report Card</a><a href="{% url 'report_card' card.student.pk %}?session={{ selected_session.pk }}&amp;term={{ selected_term.pk }}#print" target="_blank" class="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-700 transition hover:bg-slate-50">Print</a></div></div></section>
+    {% endif %}
+  {% endfor %}
+  {% endif %}
+</div></div>
+{% endblock %}

@@ -1,0 +1,174 @@
+{% extends 'portal/base.html' %}
+{% block page_title %}Academic Calendar{% endblock %}
+{% block content %}
+<style>
+    @keyframes assembleUp {
+        0% { opacity: 0; transform: translateY(20px); }
+        100% { opacity: 1; transform: translateY(0); }
+    }
+    .animate-stage-1 { animation: assembleUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.05s forwards; opacity: 0; }
+    .animate-stage-2 { animation: assembleUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.15s forwards; opacity: 0; }
+    .calendar-popup{box-shadow:0 20px 40px rgba(15,23,42,.18)}
+    .select-menu{display:none}.select-menu:not(.hidden){display:block}
+    .calendar-title-wrap{position:relative}
+</style>
+<div class="animate-stage-1 p-6 lg:p-8 bg-slate-100 min-h-full"><div class="animate-stage-2 max-w-7xl mx-auto space-y-6">
+<div class="bg-gradient-to-r from-blue-900 via-blue-800 to-slate-900 text-white rounded-3xl p-8 shadow-lg"><h1 class="text-2xl font-black">Academic Calendar & Term Enrollment</h1><p class="text-xs text-blue-100 mt-1">Manage sessions, terms, holidays, and 15-week academic calendars.</p></div>
+<div class="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm">
+    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+            <h2 class="text-lg font-bold text-slate-900">Quick Actions</h2>
+            <p class="text-xs text-slate-500">Create new academic records without leaving the calendar dashboard.</p>
+        </div>
+        <div class="flex flex-wrap gap-3">
+            <button type="button" onclick="openModal('sessionModal')" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 active:scale-95 transition-all duration-100 ease-out">+ New Session</button>
+            <button type="button" onclick="openModal('termModal')" class="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 active:scale-95 transition-all duration-100 ease-out">+ New Term</button>
+            <button type="button" onclick="openModal('weeksModal')" class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 active:scale-95 transition-all duration-100 ease-out">Generate Weeks</button>
+            <button type="button" onclick="openModal('holidayModal')" class="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-amber-600 active:scale-95 transition-all duration-100 ease-out">+ Add Holiday</button>
+        </div>
+    </div>
+</div>
+
+{% if selected_term %}
+<div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+        <div>
+            <h2 class="font-bold text-slate-900">Generated 15-Week Plan</h2>
+            <p class="text-xs text-slate-500">{{ selected_term }}</p>
+        </div>
+        <button type="button" onclick="openModal('deleteWeeksModal')" class="inline-flex items-center rounded-xl bg-red-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-red-700 active:scale-95">Delete Weeks</button>
+    </div>
+    <div class="max-h-96 overflow-y-auto border border-slate-200 rounded-2xl">
+        <table class="w-full text-left text-sm border-collapse">
+            <thead class="sticky top-0 z-10 bg-slate-50">
+                <tr class="text-xs uppercase tracking-wider text-slate-600">
+                    <th class="p-3 text-left">Week</th>
+                    <th class="p-3 text-left">Start Date</th>
+                    <th class="p-3 text-left">End Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for week in weeks %}
+                <tr class="border-t border-slate-200">
+                    <td class="p-3 font-semibold text-slate-800">Week {{ week.week_number }}</td>
+                    <td class="p-3">{{ week.start_date|date:"d M Y" }}</td>
+                    <td class="p-3">{{ week.end_date|date:"d M Y" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="3" class="p-6 text-center text-slate-500">No generated weeks yet for this term.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-6"><div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm"><h2 class="font-bold text-slate-900 mb-4">Academic Sessions</h2><table class="w-full text-left text-sm"><thead><tr class="bg-slate-50 text-xs uppercase"><th class="p-3">Session</th><th class="p-3">Status</th><th class="p-3 text-right">Action</th></tr></thead><tbody>{% for item in sessions %}<tr class="border-t"><td class="p-3 font-semibold">{{ item.name }}</td><td class="p-3">{% if item.is_active %}Active{% else %}Inactive{% endif %}</td><td class="p-3 text-right"><form method="post">{% csrf_token %}<input type="hidden" name="action" value="set_session_active"><input type="hidden" name="session" value="{{ item.pk }}"><input type="hidden" name="value" value="{% if item.is_active %}0{% else %}1{% endif %}"><button class="action-button">{% if item.is_active %}Set Inactive{% else %}Set Active{% endif %}</button></form></td></tr>{% empty %}<tr><td colspan="3" class="p-4 text-center">No sessions created.</td></tr>{% endfor %}</tbody></table></div><div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm"><h2 class="font-bold text-slate-900 mb-4">Academic Terms</h2><table class="w-full text-left text-sm"><thead><tr class="bg-slate-50 text-xs uppercase"><th class="p-3">Term</th><th class="p-3">Session</th><th class="p-3">Status</th><th class="p-3 text-right">Action</th></tr></thead><tbody>{% for item in terms %}<tr class="border-t"><td class="p-3 font-semibold">{{ item.term_name }}</td><td class="p-3">{{ item.session.name }}</td><td class="p-3">{% if item.is_active %}Active{% else %}Inactive{% endif %}</td><td class="p-3 text-right"><form method="post">{% csrf_token %}<input type="hidden" name="action" value="set_term_active"><input type="hidden" name="term" value="{{ item.pk }}"><input type="hidden" name="value" value="{% if item.is_active %}0{% else %}1{% endif %}"><button class="action-button">{% if item.is_active %}Set Inactive{% else %}Set Active{% endif %}</button></form></td></tr>{% empty %}<tr><td colspan="4" class="p-4 text-center">{% if active_session %}No terms created for {{ active_session.name }} yet. Click 'Create Term' to set them up.{% else %}No terms created because there is no active session.{% endif %}</td></tr>{% endfor %}</tbody></table></div></div>
+</div></div>
+
+<div id="sessionModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 opacity-0 pointer-events-none transition-all duration-300 flex items-center justify-center p-4">
+    <div class="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+        <div class="mb-5 flex items-center justify-between">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-blue-600">Session</p>
+                <h3 class="text-xl font-bold text-slate-900">Create Academic Session</h3>
+            </div>
+            <button type="button" onclick="closeModal('sessionModal')" class="close-modal rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700">✕</button>
+        </div>
+        <form method="post" class="space-y-4">{% csrf_token %}<input type="hidden" name="action" value="create_session"><div class="custom-select"><input type="hidden" name="name" required><button type="button" class="select-button">Select session <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9l6 6 6-6"></path></svg></button><div class="select-menu hidden">{% for name in session_choices %}<button type="button" data-value="{{ name }}">{{ name }}</button>{% endfor %}</div></div><div class="flex justify-end"><button type="submit" class="button">Create Session</button></div></form>
+    </div>
+</div>
+
+<div id="termModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 opacity-0 pointer-events-none transition-all duration-300 flex items-center justify-center p-4">
+    <div class="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+        <div class="mb-5 flex items-center justify-between">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">Term</p>
+                <h3 class="text-xl font-bold text-slate-900">Create Academic Term</h3>
+            </div>
+            <button type="button" onclick="closeModal('termModal')" class="close-modal rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700">✕</button>
+        </div>
+        <form method="post" class="space-y-4">{% csrf_token %}<input type="hidden" name="action" value="create_term"><div class="custom-select"><input type="hidden" name="session" value="{% if active_session %}{{ active_session.pk }}{% endif %}" required><button type="button" class="select-button">{% if active_session %}{{ active_session.name }}{% else %}No active session{% endif %}<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 9l6 6 6-6"></path></svg></button><div class="select-menu hidden">{% for item in sessions %}{% if item.is_active %}<button type="button" data-value="{{ item.pk }}">{{ item.name }}</button>{% endif %}{% endfor %}</div></div><div class="custom-select"><input type="hidden" name="term_name" required><button type="button" class="select-button">Select term <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 9l6 6 6-6"></path></svg></button><div class="select-menu hidden"><button type="button" data-value="First Term">First Term</button><button type="button" data-value="Second Term">Second Term</button><button type="button" data-value="Third Term">Third Term</button></div></div><div class="flex justify-end"><button type="submit" class="button">Create Term</button></div></form>
+    </div>
+</div>
+
+<div id="weeksModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 opacity-0 pointer-events-none transition-all duration-300 flex items-center justify-center p-4">
+    <div class="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+        <div class="mb-5 flex items-center justify-between">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600">Calendar</p>
+                <h3 class="text-xl font-bold text-slate-900">Generate 15 Academic Weeks</h3>
+            </div>
+            <button type="button" onclick="closeModal('weeksModal')" class="close-modal rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700">✕</button>
+        </div>
+        <form method="post" class="space-y-4">{% csrf_token %}<input type="hidden" name="action" value="generate_weeks"><div class="custom-select"><input type="hidden" name="term" required><button type="button" class="select-button">Select active term <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 9l6 6 6-6"></path></svg></button><div class="select-menu hidden">{% for item in active_terms %}<button type="button" data-value="{{ item.pk }}">{{ item }}</button>{% endfor %}</div></div><div class="date-picker"><input type="hidden" name="start_date" required><button type="button" class="date-button">Starting Monday</button><div class="calendar-popup hidden"></div></div><div class="flex justify-end"><button type="submit" class="button">Generate 15 Weeks</button></div></form>
+    </div>
+</div>
+
+<div id="holidayModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 opacity-0 pointer-events-none transition-all duration-300 flex items-center justify-center p-4">
+    <div class="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+        <div class="mb-5 flex items-center justify-between">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-amber-600">Holiday</p>
+                <h3 class="text-xl font-bold text-slate-900">Add Holiday</h3>
+            </div>
+            <button type="button" onclick="closeModal('holidayModal')" class="close-modal rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700">✕</button>
+        </div>
+        <form method="post" class="space-y-4">{% csrf_token %}<input type="hidden" name="action" value="create_holiday"><div class="custom-select"><input type="hidden" name="term" required><button type="button" class="select-button">Select term <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 9l6 6 6-6"></path></svg></button><div class="select-menu hidden">{% for item in terms %}<button type="button" data-value="{{ item.pk }}">{{ item }}</button>{% endfor %}</div></div><div class="date-picker"><input type="hidden" name="date" required><button type="button" class="date-button">Holiday date</button><div class="calendar-popup hidden"></div></div><input name="description" required placeholder="Holiday description" class="w-full field"><div class="flex justify-end"><button type="submit" class="button">Save Holiday</button></div></form>
+    </div>
+</div>
+
+<div id="deleteWeeksModal" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 opacity-0 pointer-events-none transition-all duration-300 flex items-center justify-center p-4">
+    <div class="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900/80 p-6 text-white shadow-2xl shadow-black/50 backdrop-blur-xl">
+        <div class="mb-5 flex items-start justify-between gap-4">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-red-400">Destructive action</p>
+                <h3 class="mt-1 text-xl font-bold text-white">Delete generated weeks?</h3>
+            </div>
+            <button type="button" onclick="closeModal('deleteWeeksModal')" class="close-modal rounded-full p-2 text-slate-400 hover:bg-white/10 hover:text-white">✕</button>
+        </div>
+        <p class="text-sm leading-6 text-slate-300">Are you sure you want to delete all generated weeks for this term? This action cannot be undone.</p>
+        <form method="post" class="mt-6 flex justify-end gap-3">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="delete_weeks">
+            <input type="hidden" name="term" value="{{ selected_term.pk }}">
+            <button type="button" onclick="closeModal('deleteWeeksModal')" class="rounded-full border border-slate-600 bg-transparent px-4 py-2.5 text-xs font-bold text-slate-300 transition-all hover:bg-slate-700">Cancel</button>
+            <button type="submit" class="rounded-full bg-red-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-red-600/30 transition-all hover:bg-red-500">Delete Weeks</button>
+        </form>
+    </div>
+</div>
+
+<script>
+function openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.classList.remove('opacity-0', 'pointer-events-none');
+        modal.classList.add('opacity-100', 'pointer-events-auto');
+    } else {
+        console.error("Could not find modal with ID:", modalId);
+    }
+}
+
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.classList.remove('opacity-100', 'pointer-events-auto');
+        modal.classList.add('opacity-0', 'pointer-events-none');
+    }
+}
+</script>
+<script>
+const closeMenus=()=>document.querySelectorAll('.select-menu,.calendar-popup,.year-menu').forEach(m=>m.classList.add('hidden'));
+document.querySelectorAll('.custom-select').forEach(box=>{const input=box.querySelector('input[type=hidden]'),btn=box.querySelector('.select-button'),menu=box.querySelector('.select-menu');if(!input||!btn||!menu)return;menu.classList.add('hidden');btn.addEventListener('click',e=>{e.stopPropagation();closeMenus();menu.classList.toggle('hidden')});menu.querySelectorAll('button').forEach(option=>option.addEventListener('click',e=>{e.stopPropagation();input.value=option.dataset.value;btn.firstChild.textContent=option.textContent+' ';menu.classList.add('hidden')}))});
+function renderCalendar(picker){const popup=picker.querySelector('.calendar-popup'),input=picker.querySelector('input'),button=picker.querySelector('.date-button');if(!popup||!input||!button)return;popup.classList.add('hidden');let cursor=new Date();cursor.setDate(1);const draw=()=>{const y=cursor.getFullYear(),m=cursor.getMonth(),first=new Date(y,m,1).getDay()||7,last=new Date(y,m+1,0).getDate();const monthName=cursor.toLocaleString('default',{month:'long'});const years=Array.from({length:41},(_,index)=>new Date().getFullYear()-20+index);popup.innerHTML=`<div class="calendar-head"><button type="button" data-prev aria-label="Previous month"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button><div class="calendar-title-wrap"><button type="button" class="calendar-title" data-year>${monthName} ${y}</button><div class="year-menu hidden">${years.map(year=>`<button type="button" data-year-value="${year}">${year}</button>`).join('')}</div></div><button type="button" data-next aria-label="Next month"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></button></div><div class="calendar-weekdays">${['M','T','W','T','F','S','S'].map(d=>`<span>${d}</span>`).join('')}</div><div class="calendar-days">${Array(first-1).fill('<span></span>').join('')}${Array.from({length:last},(_,i)=>`<button type="button" data-day="${i+1}">${i+1}</button>`).join('')}</div>`;popup.querySelector('[data-prev]').addEventListener('click',e=>{e.stopPropagation();cursor.setMonth(cursor.getMonth()-1);draw()});popup.querySelector('[data-next]').addEventListener('click',e=>{e.stopPropagation();cursor.setMonth(cursor.getMonth()+1);draw()});popup.querySelector('[data-year]').addEventListener('click',e=>{e.stopPropagation();popup.querySelector('.year-menu').classList.toggle('hidden')});popup.querySelectorAll('[data-year-value]').forEach(year=>year.addEventListener('click',e=>{e.stopPropagation();cursor.setFullYear(Number(year.dataset.yearValue));popup.querySelector('.year-menu').classList.add('hidden');draw()}));popup.querySelectorAll('[data-day]').forEach(day=>day.addEventListener('click',e=>{e.stopPropagation();const date=`${y}-${String(m+1).padStart(2,'0')}-${String(day.dataset.day).padStart(2,'0')}`;input.value=date;button.textContent=new Date(`${date}T00:00:00`).toLocaleDateString();popup.classList.add('hidden')}))};button.addEventListener('click',e=>{e.stopPropagation();closeMenus();popup.classList.toggle('hidden');draw()});popup.addEventListener('click',e=>e.stopPropagation());document.addEventListener('click',closeMenus)}document.querySelectorAll('.date-picker').forEach(renderCalendar);
+</script><style>.field,.date-button,.select-button{width:100%;background:#f8fafc;border:1px solid #e2e8f0;border-radius:.75rem;padding:.75rem .875rem;text-align:left;font-size:.875rem}.select-button{display:flex;align-items:center;justify-content:space-between}.button{background:#2563eb;color:white;border-radius:.75rem;padding:.7rem 1rem;font-size:.75rem;font-weight:700}.action-button{background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:.65rem;padding:.45rem .7rem;font-size:.7rem;font-weight:700}.select-menu,.calendar-popup{position:absolute;z-index:50;margin-top:.25rem;width:100%;max-width:18rem;max-height:15rem;overflow-y:auto;border:1px solid #e2e8f0;background:white;border-radius:.75rem;padding:.25rem;box-shadow:0 20px 40px rgba(15,23,42,.16)}.select-menu button{display:block;width:100%;text-align:left;padding:.6rem .75rem;border-radius:.5rem;font-size:.75rem}.select-menu button:hover{background:#eff6ff}.calendar-head{display:flex;align-items:center;justify-content:space-between;padding:.4rem}.calendar-head button{border:0;background:transparent}.calendar-head svg{width:1rem;height:1rem;fill:none;stroke:#475569;stroke-width:2}.calendar-title{font-weight:700;color:#0f172a}.calendar-weekdays,.calendar-days{display:grid;grid-template-columns:repeat(7,1fr);gap:.25rem;padding:.4rem;text-align:center;font-size:.7rem}.calendar-days button{padding:.45rem;border-radius:.5rem}.calendar-days button:hover{background:#eff6ff}.year-menu{display:none;position:absolute;top:calc(100% + .25rem);left:50%;transform:translateX(-50%);grid-template-columns:repeat(3,1fr);gap:.25rem;padding:.5rem;max-height:9rem;overflow-y:auto;width:11rem;background:#fff;border:1px solid #e2e8f0;border-radius:.75rem;box-shadow:0 20px 40px rgba(15,23,42,.16)}.year-menu:not(.hidden){display:grid}.year-menu button{border:0;background:#f8fafc;border-radius:.5rem;padding:.4rem;font-size:.7rem}.year-menu button:hover{background:#dbeafe}.custom-select,.date-picker{position:relative}.badge-active{display:inline-block;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:9999px;padding:.3rem .65rem;font-size:.7rem;font-weight:700}.badge-inactive{display:inline-block;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:9999px;padding:.3rem .65rem;font-size:.7rem;font-weight:700}</style>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+	document.querySelectorAll('table tbody tr').forEach(row => row.querySelectorAll('td').forEach(cell => {
+		const value = cell.textContent.trim();
+		if (value === 'Active' || value === 'Inactive') {
+			cell.innerHTML = `<span class="${value === 'Active' ? 'badge-active' : 'badge-inactive'}">${value}</span>`;
+		}
+	}));
+});
+</script>
+{% endblock %}

@@ -1,0 +1,685 @@
+{% extends 'portal/base.html' %}
+{% block page_title %}Question Bank{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="https://cdn.quilljs.com/1.3.6/quill.snow.css">
+<style>
+  .question-editor .ql-container { min-height: 10rem; border: 0; font-family: inherit; font-size: .875rem; }
+  .question-editor .ql-editor { min-height: 10rem; }
+  .question-editor .ql-editor.ql-blank::before { color: #94a3b8; font-style: normal; }
+</style>
+<div class="min-h-full bg-slate-100 p-6 lg:p-8">
+  <div class="mx-auto max-w-6xl space-y-6">
+    <div class="rounded-3xl bg-gradient-to-r from-blue-900 to-slate-900 p-8 text-white flex justify-between items-start">
+      <div>
+        <p class="text-xs uppercase tracking-widest text-blue-200">CBT Manager</p>
+        <h1 class="mt-2 text-2xl font-black">Question Bank</h1>
+        <p class="mt-1 text-sm text-blue-100">Manage questions and diagrams for CBT exams.</p>
+      </div>
+    </div>
+
+    <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div class="space-y-2">
+          <label class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Session</label>
+          <div class="relative profile-select-wrap" data-filter-key="session">
+            <input type="text" placeholder="Filter by session" autocomplete="off" value="{% for session in sessions %}{% if selected_session == session.pk|stringformat:'s' %}{{ session.name }}{% endif %}{% endfor %}" class="profile-search-input w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700 outline-none focus:border-blue-500">
+            <div class="profile-menu absolute z-30 mt-1 hidden max-h-60 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl">
+              <button type="button" data-filter-value="" class="profile-option block w-full rounded-lg px-3 py-2 text-left text-xs text-slate-700 hover:bg-blue-50">All sessions</button>
+              {% for session in sessions %}<button type="button" data-filter-value="{{ session.pk }}" class="profile-option block w-full rounded-lg px-3 py-2 text-left text-xs text-slate-700 hover:bg-blue-50">{{ session.name }}</button>{% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <label class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Term</label>
+          <div class="relative profile-select-wrap" data-filter-key="term">
+            <input type="text" placeholder="Filter by term" autocomplete="off" value="{% for term in terms %}{% if selected_term == term.pk|stringformat:'s' %}{{ term.term_name }} ({{ term.session.name }}){% endif %}{% endfor %}" class="profile-search-input w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700 outline-none focus:border-blue-500">
+            <div class="profile-menu absolute z-30 mt-1 hidden max-h-60 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl">
+              <button type="button" data-filter-value="" class="profile-option block w-full rounded-lg px-3 py-2 text-left text-xs text-slate-700 hover:bg-blue-50">All terms</button>
+              {% for term in terms %}<button type="button" data-filter-value="{{ term.pk }}" class="profile-option block w-full rounded-lg px-3 py-2 text-left text-xs text-slate-700 hover:bg-blue-50">{{ term.term_name }} ({{ term.session.name }})</button>{% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <label class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Class</label>
+          <div class="relative profile-select-wrap" data-filter-key="class">
+            <input type="text" placeholder="Filter by class" autocomplete="off" value="{% for classroom in classrooms %}{% if selected_class == classroom.pk|stringformat:'s' %}{{ classroom.name }}{% endif %}{% endfor %}" class="profile-search-input w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700 outline-none focus:border-blue-500">
+            <div class="profile-menu absolute z-30 mt-1 hidden max-h-60 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl">
+              <button type="button" data-filter-value="" class="profile-option block w-full rounded-lg px-3 py-2 text-left text-xs text-slate-700 hover:bg-blue-50">All classes</button>
+              {% for classroom in classrooms %}<button type="button" data-filter-value="{{ classroom.pk }}" class="profile-option block w-full rounded-lg px-3 py-2 text-left text-xs text-slate-700 hover:bg-blue-50">{{ classroom.name }}</button>{% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <label class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Subject</label>
+          <div class="relative profile-select-wrap" data-filter-key="subject">
+            <input type="text" placeholder="Filter by subject" autocomplete="off" value="{{ selected_subject|default:'' }}" class="profile-search-input w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700 outline-none focus:border-blue-500">
+            <div class="profile-menu absolute z-30 mt-1 hidden max-h-60 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl">
+              <button type="button" data-filter-value="" class="profile-option block w-full rounded-lg px-3 py-2 text-left text-xs text-slate-700 hover:bg-blue-50">All subjects</button>
+              {% for subject in subjects %}<button type="button" data-filter-value="{{ subject.name|lower }}" class="profile-option block w-full rounded-lg px-3 py-2 text-left text-xs text-slate-700 hover:bg-blue-50">{{ subject.name }}</button>{% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div class="mb-4 flex items-center justify-between gap-3">
+        <h2 class="text-lg font-bold text-slate-900">Questions by Exam</h2>
+        <span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">{{ exams|length }} exam{{ exams|pluralize }}</span>
+      </div>
+
+      <div id="examCardList" class="space-y-3">
+        {% for exam in exams %}
+          <div class="exam-card rounded-2xl border border-slate-200 bg-slate-50/60 p-4 shadow-sm transition-all duration-200 hover:border-blue-300 hover:bg-blue-50/60"
+               data-session="{{ exam.term.session_id }}"
+               data-term="{{ exam.term_id }}"
+               data-class="{{ exam.classroom_id }}"
+            data-subject="{{ exam.subject.name|lower }}"
+            data-start-ms="{{ exam.start_time|date:'U' }}000"
+            data-end-ms="{{ exam.end_time|date:'U' }}000">
+            <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <h3 class="truncate text-base font-bold text-slate-800">{{ exam.subject.name }}</h3>
+                  <span class="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-600">{{ exam.classroom.name }}</span>
+                </div>
+                <div class="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                  <span class="font-medium text-slate-600">{{ exam.term.term_name }}</span>
+                  <span>•</span>
+                  <span>{{ exam.term.session.name }}</span>
+                  <span>•</span>
+                  <span>{{ exam.start_time|date:'M d, Y' }} {{ exam.start_time|time:'h:i A' }} - {{ exam.end_time|date:'M d, Y' }} {{ exam.end_time|time:'h:i A' }}</span>
+                </div>
+              </div>
+
+              <div class="flex flex-wrap items-center gap-3 lg:justify-end">
+                <span class="exam-status-badge inline-flex items-center rounded-full border px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em]" data-start-ms="{{ exam.start_time|date:'U' }}000" data-end-ms="{{ exam.end_time|date:'U' }}000">
+                  Upcoming
+                </span>
+                <span class="rounded-full bg-slate-200 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-600">{{ exam.questions.count }} Qs</span>
+                <button type="button" onclick="handleManageQuestions(event, this)" class="manage-questions-btn rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none"
+                  data-exam-id="{{ exam.pk }}"
+                  data-exam-name="{{ exam.subject.name }} - {{ exam.classroom.name }}"
+                  data-start-ms="{{ exam.start_time|date:'U' }}000"
+                  data-end-ms="{{ exam.end_time|date:'U' }}000">
+                  Manage Questions
+                </button>
+              </div>
+            </div>
+          </div>
+        {% empty %}
+          <div class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500">
+            No exams match the selected filters. Create an exam in Exam Setup first.
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="questionModal" class="fixed inset-0 z-[9999] hidden bg-slate-900/60 backdrop-blur-sm p-4">
+  <div class="mx-auto flex h-full max-w-4xl items-center justify-center">
+    <div class="max-h-[90vh] w-full overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+        <div>
+          <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-600">Question Bank</p>
+          <h2 id="modalExamLabel" class="mt-1 text-xl font-bold text-slate-900">Manage Questions</h2>
+        </div>
+        <button type="button" onclick="closeQuestionModal()" class="text-2xl font-light text-slate-400 transition hover:text-slate-600">×</button>
+      </div>
+
+      <div class="max-h-[calc(90vh-80px)] overflow-y-auto p-6">
+        <form id="questionForm" method="post" enctype="multipart/form-data" class="space-y-6">
+          {% csrf_token %}
+          <input type="hidden" name="exam" id="modalExamInput" required>
+          <input type="hidden" name="question_id" id="questionIdInput">
+
+          <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+            <div class="mb-4">
+              <h3 class="text-base font-bold text-slate-900">Add New Question</h3>
+            </div>
+
+            <div class="space-y-4">
+              <div>
+                <label class="mb-2 block text-xs font-bold uppercase tracking-[0.14em] text-slate-600">Question Text</label>
+                <div class="mb-2 flex flex-wrap items-center gap-1 rounded-xl border border-slate-200 bg-white p-2" aria-label="Math formatting toolbar">
+                  <button type="button" data-math-insert="x²" title="Insert superscript" class="rounded-lg bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-blue-50">x²</button>
+                  <button type="button" data-math-insert="x₁" title="Insert subscript" class="rounded-lg bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-blue-50">x₁</button>
+                  <button type="button" data-math-action="fraction" title="Insert stacked fraction" aria-label="Insert stacked fraction" class="rounded-lg bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-blue-50"><span class="inline-flex flex-col items-center align-middle leading-none"><span class="border-b border-slate-700 px-1">a</span><span class="px-1">b</span></span></button>
+                  <button type="button" data-math-insert="√(x)" title="Insert square root template" class="rounded-lg bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-blue-50">√</button>
+                  <button type="button" data-math-insert="×" title="Insert multiplication symbol" class="rounded-lg bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-blue-50">×</button>
+                  <button type="button" data-math-insert="÷" title="Insert division symbol" class="rounded-lg bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-blue-50">÷</button>
+                  <button type="button" data-math-insert="≤" title="Insert less-than-or-equal symbol" class="rounded-lg bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-blue-50">≤</button>
+                  <button type="button" data-math-insert="≥" title="Insert greater-than-or-equal symbol" class="rounded-lg bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-blue-50">≥</button>
+                  <button type="button" data-math-insert="π" title="Insert pi symbol" class="rounded-lg bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-blue-50">π</button>
+                  <button type="button" data-math-insert="±" title="Insert plus-or-minus symbol" class="rounded-lg bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-blue-50">±</button>
+                </div>
+                <div id="questionEditor" class="question-editor rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-700" aria-label="Question text editor"></div>
+                <input type="hidden" name="question_text" id="hiddenQuestionText" required>
+              </div>
+
+              <div class="grid gap-4 md:grid-cols-2">
+                {% for label in 'abcd'|make_list %}
+                  <div>
+                    <label class="mb-2 block text-xs font-bold uppercase tracking-[0.14em] text-slate-600">Option {{ label|upper }}</label>
+                    <input name="option_{{ label }}" required class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-500" placeholder="Option {{ label|upper }}" />
+                  </div>
+                {% endfor %}
+              </div>
+
+              <div class="rounded-xl border border-slate-200 bg-white p-3">
+                <label class="mb-2 block text-xs font-bold uppercase tracking-[0.14em] text-slate-600">Correct Answer</label>
+                <div class="flex flex-wrap gap-3">
+                  {% for label in 'abcd'|make_list %}
+                    <label class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                      <input type="radio" name="correct_answer" value="{{ label|upper }}" required class="h-4 w-4 accent-blue-600">
+                      <span class="font-semibold">{{ label|upper }}</span>
+                    </label>
+                  {% endfor %}
+                </div>
+              </div>
+
+              <div>
+                <label class="mb-2 block text-xs font-bold uppercase tracking-[0.14em] text-slate-600">Diagram / Image (Optional)</label>
+                <input type="file" name="image" accept="image/*" class="block w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 file:mr-3 file:rounded-full file:border-0 file:bg-blue-600 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white" />
+              </div>
+
+              <div class="flex justify-end">
+                <button type="submit" class="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700">Add Question</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="rounded-2xl border border-slate-200 bg-white p-5">
+            <div class="mb-4 flex items-center justify-between gap-2">
+              <h3 class="text-base font-bold text-slate-900">Existing Questions</h3>
+              <span id="questionFeedCount" class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-600">0</span>
+            </div>
+            <div id="questionFeed" class="space-y-3 max-h-[26rem] overflow-y-auto pr-1"></div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="fractionModal" class="fixed inset-0 z-[10000] hidden items-center justify-center bg-slate-900/50 p-4">
+  <div class="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <p class="text-[11px] font-bold uppercase tracking-[0.16em] text-blue-600">Math Builder</p>
+        <h2 class="mt-1 text-lg font-bold text-slate-900">Insert Fraction</h2>
+      </div>
+      <button type="button" id="cancelFraction" aria-label="Close fraction builder" class="rounded-lg p-1 text-xl leading-none text-slate-400 hover:bg-slate-100 hover:text-slate-700">×</button>
+    </div>
+    <div class="mt-5 space-y-3">
+      <label class="block text-xs font-bold uppercase tracking-[0.12em] text-slate-600">Numerator
+        <input id="fractionNumerator" type="text" autocomplete="off" class="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-500" placeholder="Top number or variable">
+      </label>
+      <label class="block text-xs font-bold uppercase tracking-[0.12em] text-slate-600">Denominator
+        <input id="fractionDenominator" type="text" autocomplete="off" class="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-500" placeholder="Bottom number or variable">
+      </label>
+    </div>
+    <div class="mt-6 flex justify-end gap-3">
+      <button type="button" id="cancelFractionButton" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancel</button>
+      <button type="button" id="insertFractionButton" class="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">Insert Fraction</button>
+    </div>
+  </div>
+</div>
+
+<div id="deleteQuestionModal" class="fixed inset-0 z-[10001] hidden items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+  <div class="w-full max-w-sm rounded-3xl border border-white/10 bg-slate-900/80 p-6 text-white shadow-2xl shadow-black/50 backdrop-blur-xl">
+    <p class="text-[11px] font-bold uppercase tracking-[0.16em] text-red-400">Delete Question</p>
+    <h2 class="mt-1 text-lg font-bold text-white">Remove this question?</h2>
+    <p class="mt-2 text-sm leading-6 text-slate-300">This question will be removed from the exam question bank.</p>
+    <div class="mt-6 flex justify-end gap-3">
+      <button type="button" id="cancelDeleteQuestion" class="rounded-full border border-slate-600 bg-transparent px-4 py-2.5 text-sm font-semibold text-slate-300 transition-all hover:bg-slate-700">Cancel</button>
+      <button type="button" id="confirmDeleteQuestion" class="rounded-full bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-red-600/30 transition-all hover:bg-red-500">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+<script>
+const examQuestionFeed = {{ exam_question_feed|safe }};
+const isCbtAdmin = {{ is_cbt_admin|yesno:'true,false' }};
+
+function updateStatusBadges() {
+  document.querySelectorAll('.exam-status-badge').forEach((badge) => { 
+    const startMs = Number(badge.dataset.startMs || 0);
+    const endMs = Number(badge.dataset.endMs || 0);
+    const now = Date.now();
+    let state = 'Upcoming';
+    let classes = 'border-amber-200 bg-amber-50 text-amber-700';
+
+    if (now >= startMs && now <= endMs) {
+      state = 'Live';
+      classes = 'border-emerald-200 bg-emerald-50 text-emerald-700';
+    } else if (now > endMs) {
+      state = 'Completed';
+      classes = 'border-slate-200 bg-slate-100 text-slate-700';
+    }
+
+    badge.textContent = state;
+    badge.className = 'exam-status-badge inline-flex items-center rounded-full border px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] ' + classes;
+  });
+  updateQuestionActionState();
+}
+
+function updateQuestionActionState() {
+  const now = Date.now();
+  document.querySelectorAll('.exam-card').forEach((card) => {
+    const locked = now >= Number(card.dataset.startMs || 0);
+    card.querySelectorAll('[data-question-action]').forEach((button) => {
+      button.disabled = locked;
+      button.classList.toggle('cursor-not-allowed', locked);
+      button.classList.toggle('opacity-50', locked);
+      button.title = locked ? 'Questions cannot be modified while this exam is live or completed.' : '';
+    });
+  });
+}
+
+function handleManageQuestions(event, button) {
+  event.preventDefault();
+  const now = Date.now();
+  const startMs = Number(button.dataset.startMs || 0);
+  if (now >= startMs) {
+    showToast(
+      isCbtAdmin
+        ? 'Exam is live or completed. Please update the schedule to upcoming in Exam Setup first.'
+        : 'This exam is live or completed. Please contact the administrator.',
+      'delete'
+    );
+    return;
+  }
+  openQuestionModal(button.dataset.examId, button.dataset.examName);
+}
+
+function renderQuestionFeed(examId) {
+  const feed = document.getElementById('questionFeed');
+  const count = document.getElementById('questionFeedCount');
+  const questions = examQuestionFeed[String(examId)] || [];
+  const examCard = Array.from(document.querySelectorAll('.exam-card')).find((card) => card.querySelector(`[data-exam-id="${examId}"]`));
+  const locked = examCard ? Date.now() >= Number(examCard.dataset.startMs || 0) : false;
+  const actionClass = locked ? 'cursor-not-allowed opacity-50' : '';
+  const actionTitle = locked ? 'Questions cannot be modified while this exam is live or completed.' : '';
+
+  count.textContent = questions.length;
+  if (!questions.length) {
+    feed.innerHTML = '<div class="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-500">No questions have been added for this exam yet.</div>';
+    return;
+  }
+
+  feed.innerHTML = questions.map((question, index) => `
+    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div class="mb-2 flex items-center justify-between gap-3">
+        <p class="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Question ${index + 1}</p>
+        <div class="flex items-center gap-2">
+          <button type="button" data-question-action onclick="editQuestion(${question.id})" class="rounded-lg bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 ${actionClass}" ${locked ? 'disabled' : ''} title="${actionTitle}">Edit</button>
+          <button type="button" data-question-action onclick="deleteQuestion(${question.id})" class="rounded-lg bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 ${actionClass}" ${locked ? 'disabled' : ''} title="${actionTitle}">Delete</button>
+        </div>
+      </div>
+      <div class="rich-question math-content text-sm font-medium text-slate-800" data-rich-question="${encodeURIComponent(question.question_text)}"></div>
+      <div class="mt-3 grid gap-2 sm:grid-cols-2 text-sm">
+        <div class="math-content rounded-xl bg-white p-2.5 text-slate-700">A: ${escapeHtml(question.option_a)}</div>
+        <div class="math-content rounded-xl bg-white p-2.5 text-slate-700">B: ${escapeHtml(question.option_b)}</div>
+        <div class="math-content rounded-xl bg-white p-2.5 text-slate-700">C: ${escapeHtml(question.option_c)}</div>
+        <div class="math-content rounded-xl bg-white p-2.5 text-slate-700">D: ${escapeHtml(question.option_d)}</div>
+      </div>
+      <div class="mt-3 text-sm font-semibold text-emerald-700">Correct Answer: ${question.correct_answer}</div>
+      ${question.image_url ? `<img src="${question.image_url}" alt="Question diagram" class="mt-3 max-h-40 rounded-xl border border-slate-200 object-cover" />` : ''}
+    </div>
+  `).join('');
+  document.querySelectorAll('#questionFeed .rich-question').forEach((element) => {
+    const source = decodeURIComponent(element.dataset.richQuestion || '');
+    const sanitized = sanitizeRichHtml(source);
+    element.innerHTML = sanitized || escapeHtml(source.replace(/<[^>]*>/g, ''));
+  });
+  feed.querySelectorAll('.ql-formula').forEach((formula) => {
+    if (window.katex && formula.dataset.value) {
+      formula.replaceChildren();
+      katex.render(formula.dataset.value, formula, {throwOnError: false});
+    }
+  });
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>'"]/g, (character) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[character]));
+}
+
+function sanitizeRichHtml(value) {
+  if (!value) return '';
+  try {
+    const parsed = new DOMParser().parseFromString('<div>' + value + '</div>', 'text/html');
+    if (!parsed.body || !parsed.body.firstElementChild) return String(value);
+    const allowedTags = new Set(['BR', 'EM', 'LI', 'OL', 'P', 'S', 'SPAN', 'STRONG', 'U', 'UL']);
+    parsed.body.querySelectorAll('*').forEach((element) => {
+      if (!allowedTags.has(element.tagName)) {
+        element.replaceWith(...element.childNodes);
+        return;
+      }
+      Array.from(element.attributes).forEach((attribute) => {
+        const allowed = (attribute.name === 'class' && attribute.value === 'ql-formula') || attribute.name === 'data-value';
+        if (!allowed) element.removeAttribute(attribute.name);
+      });
+    });
+    return parsed.body.firstElementChild.innerHTML || String(value);
+  } catch (e) {
+    console.error('Sanitization fallback triggered:', e);
+    return String(value);
+  }
+}
+
+let quill = null;
+let activeExamId = null;
+
+function initializeQuestionEditor() {
+  const editor = document.getElementById('questionEditor');
+  if (!editor || quill) return; // Already initialized or missing
+  
+  if (typeof Quill === 'undefined') {
+    console.warn("Quill library is not loaded yet.");
+    return;
+  }
+  
+  quill = new Quill(editor, {
+    theme: 'snow',
+    placeholder: 'Enter question text here. Use the math buttons or type normally.',
+    modules: { formula: true, toolbar: false },
+  });
+  quill.on('text-change', syncQuillValue);
+  syncQuillValue();
+}
+
+function syncQuillValue() {
+  if (!quill) return;
+  document.getElementById('hiddenQuestionText').value = quill.root.innerHTML;
+}
+
+function insertAtCursor(value) {
+  if (!quill) return;
+  const range = quill.getSelection(true) || { index: quill.getLength(), length: 0 };
+  quill.insertText(range.index, value, 'user');
+  quill.setSelection(range.index + value.length, 0, 'user');
+  syncQuillValue();
+}
+
+let fractionRange = null;
+
+function insertFraction() {
+  if (!quill) return;
+  fractionRange = quill.getSelection(true) || { index: quill.getLength() - 1, length: 0 };
+  const fractionModal = document.getElementById('fractionModal');
+  fractionModal.classList.remove('hidden');
+  fractionModal.classList.add('flex');
+  document.getElementById('fractionNumerator').focus();
+}
+
+function closeFractionModal() {
+  const fractionModal = document.getElementById('fractionModal');
+  fractionModal.classList.add('hidden');
+  fractionModal.classList.remove('flex');
+  document.getElementById('fractionNumerator').value = '';
+  document.getElementById('fractionDenominator').value = '';
+  fractionRange = null;
+}
+
+function insertBuiltFraction() {
+  if (!quill) return;
+  const numerator = document.getElementById('fractionNumerator').value.trim();
+  const denominator = document.getElementById('fractionDenominator').value.trim();
+  if (!numerator || !denominator) return;
+  const range = fractionRange || quill.getSelection(true) || { index: quill.getLength() - 1, length: 0 };
+  const formula = '\\frac{' + numerator + '}{' + denominator + '}';
+  quill.insertEmbed(range.index, 'formula', formula, 'user');
+  quill.setSelection(range.index + 1, 0, 'user');
+  syncQuillValue();
+  closeFractionModal();
+}
+
+function openQuestionModal(examId, examName) {
+  try {
+    const modal = document.getElementById('questionModal');
+    
+    // 1. Set text and open the modal IMMEDIATELY
+    document.getElementById('modalExamInput').value = examId;
+    activeExamId = String(examId);
+    document.getElementById('modalExamLabel').textContent = 'Manage Questions: ' + examName;
+    modal.classList.remove('hidden');
+
+    // 2. Safely initialize Editor
+    try {
+      initializeQuestionEditor();
+    } catch (err) {
+      console.error("Quill Initialization Error:", err);
+    }
+
+    // 3. Safely render the feed
+    try {
+      renderQuestionFeed(examId);
+    } catch (err) {
+      console.error("Feed Render Error:", err);
+    }
+  } catch (error) {
+    console.error("Fatal Modal Error:", error);
+  }
+}
+
+function closeQuestionModal() {
+  const modal = document.getElementById('questionModal');
+  modal.classList.add('hidden');
+  closeFractionModal();
+  document.getElementById('questionForm').reset();
+  document.getElementById('questionIdInput').value = '';
+  document.querySelector('#questionForm button[type="submit"]').textContent = 'Add Question';
+  if (quill) {
+    quill.setContents([]);
+  }
+  syncQuillValue();
+}
+
+function editQuestion(questionId) {
+  const questions = examQuestionFeed[activeExamId] || [];
+  const question = questions.find((item) => String(item.id) === String(questionId));
+  if (!question || !quill) return;
+  document.getElementById('questionIdInput').value = question.id;
+  quill.setContents([]);
+  quill.clipboard.dangerouslyPasteHTML(sanitizeRichHtml(question.question_text), 'api');
+  ['a', 'b', 'c', 'd'].forEach((option) => {
+    document.querySelector(`[name="option_${option}"]`).value = question[`option_${option}`] || '';
+  });
+  const correctAnswer = document.querySelector(`[name="correct_answer"][value="${question.correct_answer}"]`);
+  if (correctAnswer) correctAnswer.checked = true;
+  document.querySelector('#questionForm button[type="submit"]').textContent = 'Update Question';
+  syncQuillValue();
+  document.getElementById('questionEditor').scrollIntoView({behavior: 'smooth', block: 'center'});
+}
+
+let pendingDeleteQuestionId = null;
+
+function deleteQuestion(questionId) {
+  pendingDeleteQuestionId = questionId;
+  const modal = document.getElementById('deleteQuestionModal');
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+}
+
+function closeDeleteQuestionModal() {
+  pendingDeleteQuestionId = null;
+  const modal = document.getElementById('deleteQuestionModal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+}
+
+function confirmDeleteQuestion() {
+  if (!pendingDeleteQuestionId) return;
+  const body = new URLSearchParams({
+    action: 'delete_question',
+    question_id: pendingDeleteQuestionId,
+    csrfmiddlewaretoken: document.querySelector('[name="csrfmiddlewaretoken"]').value,
+  });
+  fetch(window.location.href, {
+    method: 'POST',
+    body,
+    headers: {'X-Requested-With': 'XMLHttpRequest'},
+    credentials: 'same-origin',
+  }).then((response) => {
+    if (!response.ok) throw new Error('Could not delete the question.');
+    return response.json();
+  }).then(() => {
+    examQuestionFeed[activeExamId] = (examQuestionFeed[activeExamId] || []).filter((question) => String(question.id) !== String(pendingDeleteQuestionId));
+    closeDeleteQuestionModal();
+    renderQuestionFeed(activeExamId);
+    showToast('Question deleted successfully.', 'delete');
+  }).catch((error) => alert(error.message));
+}
+
+function applyFilters() {
+  const filters = {};
+  document.querySelectorAll('.profile-select-wrap').forEach((wrapper) => {
+    const input = wrapper.querySelector('.profile-search-input');
+    filters[wrapper.dataset.filterKey] = wrapper.dataset.filterValue || input.value.trim().toLowerCase();
+  });
+
+  document.querySelectorAll('.exam-card').forEach((card) => {
+    const matches = (!filters.session || card.dataset.session === filters.session)
+      && (!filters.term || card.dataset.term === filters.term)
+      && (!filters.class || card.dataset.class === filters.class)
+      && (!filters.subject || card.dataset.subject.includes(filters.subject));
+    card.style.display = matches ? '' : 'none';
+  });
+}
+
+function closeQuestionBankMenus(exceptMenu) {
+  document.querySelectorAll('.profile-menu').forEach((menu) => {
+    if (menu !== exceptMenu) menu.classList.add('hidden');
+  });
+}
+
+document.querySelectorAll('.profile-select-wrap').forEach((wrapper) => {
+  const input = wrapper.querySelector('.profile-search-input');
+  const menu = wrapper.querySelector('.profile-menu');
+  const options = wrapper.querySelectorAll('.profile-option');
+  const initialValue = input.value.trim().toLowerCase();
+  
+  const initialOption = Array.from(options).find((option) => option.textContent.trim().toLowerCase() === initialValue);
+  wrapper.dataset.filterValue = initialOption?.dataset.filterValue || '';
+
+  input.addEventListener('focus', () => {
+    closeQuestionBankMenus(menu);
+    menu.classList.remove('hidden');
+  });
+  input.addEventListener('click', (event) => {
+    event.stopPropagation();
+    closeQuestionBankMenus(menu);
+    menu.classList.remove('hidden');
+  });
+  input.addEventListener('input', () => {
+    wrapper.dataset.filterValue = '';
+    closeQuestionBankMenus(menu);
+    menu.classList.remove('hidden');
+    const query = input.value.toLowerCase().trim();
+    options.forEach((option) => {
+      option.style.display = option.textContent.toLowerCase().includes(query) ? '' : 'none';
+    });
+    applyFilters();
+  });
+  options.forEach((option) => option.addEventListener('click', (event) => {
+    event.stopPropagation();
+    input.value = option.textContent.trim();
+    wrapper.dataset.filterValue = option.dataset.filterValue || '';
+    menu.classList.add('hidden');
+    applyFilters();
+  }));
+});
+
+document.addEventListener('click', (event) => {
+  if (!event.target.closest('.profile-select-wrap')) {
+    document.querySelectorAll('.profile-menu').forEach((menu) => menu.classList.add('hidden'));
+  }
+});
+
+function buildQuestionPayload(formData) {
+  const payload = {};
+  for (const [key, value] of formData.entries()) {
+    if (key === 'csrfmiddlewaretoken') continue;
+    payload[key] = value;
+  }
+  return payload;
+}
+
+document.getElementById('questionForm').addEventListener('submit', function (event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  syncQuillValue();
+  const formData = new FormData(form);
+  const examId = formData.get('exam');
+  const isUpdate = Boolean(formData.get('question_id'));
+
+  fetch(window.location.href, {
+    method: 'POST',
+    body: formData,
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest',
+      'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+    },
+    credentials: 'same-origin',
+  })
+    .then(async (response) => {
+      const contentType = response.headers.get('content-type');
+      let data = null;
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      }
+      if (!response.ok) {
+        const errorMessage = data?.message || (data?.errors ? JSON.stringify(data.errors) : '') || 'Could not save the question.';
+        throw new Error(errorMessage);
+      }
+      return data;
+    })
+    .then((data) => {
+      if (!data.question) return;
+      const key = String(examId);
+      if (!examQuestionFeed[key]) examQuestionFeed[key] = [];
+      const questionIndex = examQuestionFeed[key].findIndex((question) => String(question.id) === String(data.question.id));
+      if (questionIndex >= 0) {
+        examQuestionFeed[key][questionIndex] = data.question;
+      } else {
+        examQuestionFeed[key].push(data.question);
+      }
+      renderQuestionFeed(examId);
+      form.reset();
+      document.getElementById('questionIdInput').value = '';
+      form.querySelector('button[type="submit"]').textContent = 'Add Question';
+      quill.setContents([]);
+      syncQuillValue();
+      showToast(isUpdate ? 'Question updated successfully.' : 'Question created successfully.', 'success');
+    })
+    .catch((error) => {
+      console.error('Submission Error:', error);
+      alert('Failed to save: ' + (error.message || 'Could not save the question.'));
+    });
+});
+
+document.querySelectorAll('[data-math-insert]').forEach((button) => {
+  button.addEventListener('click', () => insertAtCursor(button.dataset.mathInsert));
+});
+document.querySelectorAll('[data-math-action="fraction"]').forEach((button) => {
+  button.addEventListener('click', insertFraction);
+});
+document.getElementById('cancelFraction').addEventListener('click', closeFractionModal);
+document.getElementById('cancelFractionButton').addEventListener('click', closeFractionModal);
+document.getElementById('insertFractionButton').addEventListener('click', insertBuiltFraction);
+document.getElementById('cancelDeleteQuestion').addEventListener('click', closeDeleteQuestionModal);
+document.getElementById('confirmDeleteQuestion').addEventListener('click', confirmDeleteQuestion);
+
+updateStatusBadges();
+setInterval(updateStatusBadges, 30000);
+</script>
+{% endblock %}

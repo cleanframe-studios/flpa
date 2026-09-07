@@ -1,0 +1,622 @@
+{% extends 'portal/base.html' %}
+{% load static %}
+
+{% block page_title %}Student Profile{% endblock %}
+
+{% block main_classes %}flex-grow flex flex-col p-0 bg-slate-100{% endblock %}
+{% block container_class %}w-full flex-grow flex flex-col min-h-0 bg-slate-100 text-slate-800 relative overflow-hidden{% endblock %}
+
+{% block content %}
+<style>
+    @media print {
+        @page { size: A4 portrait; margin: 10mm; }
+        body, html { margin: 0 !important; padding: 0 !important; width: 100% !important; background: #fff !important; }
+        body * { visibility: hidden !important; }
+        body.print-details-mode #printable-document-view, body.print-details-mode #printable-document-view * { visibility: visible !important; }
+        body.print-id-mode #id-card-print-container, body.print-id-mode #id-card-print-container * { visibility: visible !important; }
+        body.print-details-mode #printable-document-view { display: block !important; position: absolute; inset: 0; width: 100%; background: #fff; color: #000; }
+        #id-card-print-container, #id-card-print-container * { visibility: visible !important; }
+        #id-card-print-container { position: absolute !important; top: 10mm !important; left: 50% !important; transform: translateX(-50%) !important; width: 180mm !important; margin: 0 !important; padding: 0 !important; display: block !important; background: #fff !important; box-shadow: none !important; }
+        #id-card-print-wrapper { display: flex !important; flex-direction: row !important; justify-content: space-between !important; align-items: flex-start !important; width: 100% !important; gap: 8mm !important; page-break-inside: avoid !important; break-inside: avoid !important; }
+        #id-card-print-wrapper > div { flex: 0 0 85.6mm !important; width: 85.6mm !important; height: 54mm !important; box-sizing: border-box !important; overflow: hidden !important; page-break-inside: avoid !important; }
+        .id-card-face { box-shadow: none !important; border: 1px solid #cbd5e1 !important; }
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+</style>
+
+<div class="flex-grow flex w-full min-h-0 bg-slate-100 font-sans relative overflow-y-auto">
+    <div class="flex-grow flex flex-col p-8 space-y-8 max-w-7xl mx-auto w-full">
+        
+        <!-- Top Navigation -->
+        <div class="flex justify-between items-center">
+            <a href="{% url 'students' %}" class="inline-flex items-center space-x-2 text-xs font-semibold text-slate-600 hover:text-blue-600 bg-white border border-slate-200 py-2.5 px-4 rounded-xl shadow-sm transition-all">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                <span>Back to Directory</span>
+            </a>
+            <div class="flex items-center space-x-3">
+                {% if request.user.is_staff or request.user.is_superuser or request.user.account_profile.role == 'registrar' %}<button onclick="printDetails()" class="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold py-2.5 px-4 rounded-xl shadow transition-all active:scale-95">Print Details</button>
+                <span class="text-xs px-3 py-1.5 rounded-full font-bold 
+                    {% if student.status == 'Student' or student.status == 'Active' %} bg-emerald-100 text-emerald-800
+                    {% elif student.status == 'Transferred' %} bg-amber-100 text-amber-800
+                    {% elif student.status == 'Expelled' %} bg-red-100 text-red-800
+                    {% else %} bg-slate-200 text-slate-700 {% endif %}">
+                    Status: {{ student.status }}
+                </span>
+                <button onclick="printIdCard()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-2.5 px-4 rounded-xl shadow transition-all flex items-center space-x-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                    <span>Print ID Card</span>
+                </button>{% endif %}
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- Column 1: Professional Printable ID Card Preview (Front & Back) & Status Manager -->
+            <div class="space-y-6">
+                
+                <!-- Printable ID Card Container (Front & Back Previews) -->
+                <div id="id-card-print-container" class="flex flex-col sm:flex-row lg:flex-col gap-4 items-center justify-center">
+                    <div id="id-card-print-wrapper">
+                    
+                    <!-- FRONT OF ID CARD -->
+                    <div class="id-card-face w-[300px] h-[460px] bg-white text-slate-900 rounded-2xl shadow-xl border border-slate-200 p-5 flex flex-col justify-between relative overflow-hidden">
+                        <!-- Watermark School Logo Background -->
+                        <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <img src="{% static 'portal/logo.png' %}" class="w-52 h-52 object-contain opacity-[0.05]" alt="Watermark Logo">
+                        </div>
+
+                        <!-- Card Header -->
+                        <div class="flex items-center justify-between border-b-2 border-blue-600 pb-2 relative z-10">
+                            <div class="flex items-center space-x-2.5">
+                                <img src="{% static 'portal/logo.png' %}" class="w-8 h-8 object-contain" alt="Logo">
+                                <div>
+                                    <h4 class="text-[10px] font-black uppercase tracking-tight text-blue-950 leading-tight">Future Leaders Private Academy</h4>
+                                    <p class="text-[9px] text-slate-500 font-medium">Official Student Identity Card</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Student Photo & Core Info -->
+                        <div class="flex flex-col items-center text-center relative z-10 my-auto">
+                            <div class="w-28 h-36 rounded-xl bg-slate-100 border-2 border-slate-300 overflow-hidden shadow-md mb-3 flex items-center justify-center">
+                                {% if student.passport %}
+                                    <img src="{{ student.passport.url }}" class="w-full h-full object-cover" alt="Student Passport">
+                                {% else %}
+                                    <svg class="w-12 h-12 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                                {% endif %}
+                            </div>
+
+                            <h3 class="text-base font-extrabold text-slate-900 tracking-tight leading-snug">{{ student.last_name }} {{ student.first_name }}</h3>
+                            <p class="text-xs text-slate-600 font-medium">{{ student.other_name|default:"" }}</p>
+                        </div>
+
+                        <!-- Details Grid & Student ID Footer -->
+                        <div class="space-y-2 relative z-10">
+                            <div class="grid grid-cols-2 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-xs">
+                                <div>
+                                    <span class="text-[10px] text-slate-400 font-semibold uppercase block">Class:</span>
+                                    <span class="font-bold text-blue-900">{% if student.current_class %}{{ student.current_class.name }}{% else %}Unassigned{% endif %}</span>
+                                </div>
+                                <div>
+                                    <span class="text-[10px] text-slate-400 font-semibold uppercase block">Gender:</span>
+                                    <span class="font-bold text-slate-700">{{ student.sex }}</span>
+                                </div>
+                            </div>
+
+                            <div class="bg-blue-950 text-white rounded-xl py-2 px-3 flex justify-between items-center shadow-inner">
+                                <span class="text-[10px] uppercase tracking-widest text-blue-300 font-semibold">ID No:</span>
+                                <span class="font-mono font-bold text-amber-300 text-sm tracking-wider">{{ student.student_id }}</span>
+                            </div>
+                            <div class="bg-blue-950 text-white rounded-xl py-2 px-3 flex justify-between items-center shadow-inner">
+                                <span class="text-[10px] uppercase tracking-widest text-blue-300 font-semibold">LIN:</span>
+                                <span class="font-mono font-bold text-amber-300 text-sm tracking-wider">{% if student.is_lin_visible %}{{ student.lin|default:'Not set' }}{% else %}<a href="#lin-access-restricted" onclick="openLinAccessModal(event)" class="underline decoration-amber-300/60 underline-offset-2">LIN-***-LOCKED</a>{% endif %}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BACK OF ID CARD -->
+                    <div class="id-card-face w-[300px] h-[460px] bg-white text-slate-900 rounded-2xl shadow-xl border border-slate-200 p-5 flex flex-col justify-between relative overflow-hidden">
+                        <!-- Header Bar -->
+                        <div class="border-b border-slate-200 pb-2 text-center">
+                            <p class="text-[10px] font-bold uppercase tracking-widest text-blue-900">Important Information</p>
+                        </div>
+
+                        <!-- Card Body Details -->
+                        <div class="space-y-3 text-[11px] text-slate-600 relative z-10">
+                            <p class="leading-relaxed">This card is the property of <strong class="text-slate-900">Future Leaders Private Academy</strong>. If found, please return to the school administration or nearest police station.</p>
+                            
+                            <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 space-y-1 text-[10px]">
+                                <p><strong class="text-slate-800">Address:</strong> 7 Afolayan Street, Ijeun Lukosi, Okemosan, Abeokuta, Ogun State, Nigeria</p>
+                                <p><strong class="text-slate-800">Phone:</strong> +2347063747789</p>
+                                <p><strong class="text-slate-800">Email:</strong> futureleadersacademy@gmail.com</p>
+                            </div>
+                        </div>
+
+                        <!-- Signature & Barcode Footer -->
+                        <div class="space-y-3 border-t border-slate-200 pt-3">
+                            <div class="flex justify-between items-end">
+                                <div class="text-center">
+                                    <div class="w-28 h-10 flex items-end justify-center mb-0.5">
+                                        <img src="{% static 'portal/sign.png' %}" class="max-h-9 object-contain" alt="Signature">
+                                    </div>
+                                    <div class="w-28 border-b border-slate-400 mb-1"></div>
+                                    <span class="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Authorized Signature</span>
+                                </div>
+                                <div class="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center p-1 border border-blue-100">
+                                    <img src="{% static 'portal/logo.png' %}" class="w-full h-full object-contain" alt="Logo">
+                                </div>
+                            </div>
+
+                            <!-- Mock Barcode -->
+                            <div class="bg-slate-100 h-8 rounded-lg flex items-center justify-center font-mono text-slate-400 text-xs tracking-widest border border-slate-200">
+                                ||| | |||| || | || |||
+                            </div>
+                        </div>
+                    </div>
+                    </div>
+
+                </div>
+
+                <!-- Status Management Panel -->
+                {% if request.user.is_staff or request.user.is_superuser or request.user.account_profile.role == 'registrar' %}<div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
+                    <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Enrollment Status</h3>
+                    <p class="text-xs text-slate-500">Update student enrollment standing in the academy.</p>
+                    
+                    <form method="POST" class="space-y-3">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="update_status">
+                        <!-- Custom Combobox for Status -->
+                        <div class="relative custom-select" data-name="status">
+                            <div class="select-box w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 text-slate-800 text-xs font-semibold focus-within:border-blue-500 transition-all flex justify-between items-center h-[42px]">
+                                <input type="text" name="status" id="status" value="{{ student.status }}" class="search-input w-full bg-transparent outline-none placeholder-slate-400" autocomplete="off" required>
+                                <svg class="dropdown-icon w-4 h-4 text-slate-400 cursor-pointer transform transition-transform duration-200 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                            <div class="options-container absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg hidden max-h-48 overflow-y-auto top-full left-0">
+                                <ul class="options-list py-1 text-xs text-slate-700"></ul>
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 active:scale-95 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition-all">Update Status</button>
+                    </form>
+
+                    <div class="pt-4 border-t border-slate-100">
+                        <form id="reset-form" method="POST">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="reset_credentials">
+                            <button type="button" onclick="openResetModal()" class="w-full bg-amber-50 hover:bg-amber-100 text-amber-800 font-semibold py-2.5 px-4 rounded-xl text-xs border border-amber-200 transition-all">Reset Portal Credentials</button>
+                        </form>
+                    </div>
+                </div>{% endif %}
+            </div>
+
+            <!-- Column 2 & 3: Editable Student Details Form -->
+            <div class="lg:col-span-2 bg-white border border-slate-200 rounded-3xl p-8 shadow-sm space-y-6">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-900">Student Bio & Academic Records</h3>
+                    <p class=\"text-xs text-slate-500\">{% if request.user.is_staff or request.user.is_superuser or request.user.account_profile.role == 'registrar' %}Modify profile records.{% else %}View-only profile.{% endif %}</p>
+                </div>
+
+                {% if not request.user.is_staff and not request.user.is_superuser and request.user.account_profile.role != 'registrar' %}
+                <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-xs text-blue-700">You are viewing in read-only mode. Contact an admin to edit.</div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-3"><p class="text-xs font-bold text-slate-600 uppercase mb-1">Student ID</p><p class="text-sm font-mono font-bold text-blue-600">{{ student.student_id }}</p></div>
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-3"><p class="text-xs font-bold text-slate-600 uppercase mb-1">Class</p><p class="text-sm font-semibold">{% if student.current_class %}{{ student.current_class.name }}{% else %}Unassigned{% endif %}</p></div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-3"><p class="text-xs font-bold text-slate-600 uppercase mb-1">LIN</p><p class="text-sm font-mono font-bold text-blue-600">{% if student.is_lin_visible %}{{ student.lin|default:'Not set' }}{% else %}<a href="#lin-access-restricted" onclick="openLinAccessModal(event)" class="underline decoration-blue-600/40 underline-offset-2">LIN-***-LOCKED</a>{% endif %}</p></div>
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-3"><p class="text-xs font-bold text-slate-600 uppercase mb-1">First Name</p><p class="text-sm font-semibold">{{ student.first_name }}</p></div>
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-3"><p class="text-xs font-bold text-slate-600 uppercase mb-1">Surname</p><p class="text-sm font-semibold">{{ student.last_name }}</p></div>
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-3"><p class="text-xs font-bold text-slate-600 uppercase mb-1">DOB</p><p class="text-sm font-semibold">{{ student.date_of_birth|date:"d M Y" }}</p></div>
+                </div>
+                {% else %}
+                {% if request.user.is_staff or request.user.is_superuser or request.user.account_profile.role == 'registrar' %}<form method="POST" enctype="multipart/form-data" class="space-y-6">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="update_details">
+
+                    <!-- Immutable ID Display -->
+                    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex justify-between items-center">
+                        <div>
+                            <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Student ID (Immutable)</span>
+                            <span class="text-sm font-mono font-bold text-blue-600">{{ student.student_id }}</span>
+                        </div>
+                        <span class="text-xs text-slate-500 italic">Enrolled on {{ student.date_enrolled }}</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5">LIN (Learner's Identification Number) *</label>
+                            <input type="text" name="lin" value="{{ student.lin|default:'' }}" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500" required>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5">Surname *</label>
+                            <input type="text" name="last_name" value="{{ student.last_name }}" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500" required>
+                        </div>
+                        <div>
+                            <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5">First Name *</label>
+                            <input type="text" name="first_name" value="{{ student.first_name }}" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500" required>
+                        </div>
+                        <div>
+                            <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5">Other Name *</label>
+                            <input type="text" name="other_name" value="{{ student.other_name|default:'' }}" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500" required>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5">Sex *</label>
+                            <div class="relative custom-select" data-name="sex">
+                                <div class="select-box w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 text-slate-800 text-sm focus-within:border-blue-500 transition-all flex justify-between items-center h-[42px]">
+                                    <input type="text" name="sex" id="sex" value="{{ student.sex }}" class="search-input w-full bg-transparent outline-none placeholder-slate-400" autocomplete="off" required>
+                                    <svg class="dropdown-icon w-4 h-4 text-slate-400 cursor-pointer transform transition-transform duration-200 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </div>
+                                <div class="options-container absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg hidden max-h-48 overflow-y-auto top-full left-0">
+                                    <ul class="options-list py-1 text-sm text-slate-700"></ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5">Date of Birth *</label>
+                            <input type="text" name="date_of_birth" value="{{ student.date_of_birth|date:'Y-m-d' }}" class="global-date-picker w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500" required>
+                        </div>
+                    </div>
+
+                    <!-- Origin & Location -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5">State of Origin *</label>
+                            <div class="relative custom-select" data-name="state_of_origin">
+                                <div class="select-box w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 text-slate-800 text-sm focus-within:border-blue-500 transition-all flex justify-between items-center h-[42px]">
+                                    <input type="text" name="state_of_origin" id="state_of_origin" value="{{ student.state_of_origin }}" class="search-input w-full bg-transparent outline-none placeholder-slate-400" autocomplete="off" required>
+                                    <svg class="dropdown-icon w-4 h-4 text-slate-400 cursor-pointer transform transition-transform duration-200 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </div>
+                                <div class="options-container absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg hidden max-h-48 overflow-y-auto top-full left-0">
+                                    <ul class="options-list py-1 text-sm text-slate-700"></ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5">LGA of Origin *</label>
+                            <div class="relative custom-select" data-name="lga_of_origin">
+                                <div class="select-box w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 text-slate-800 text-sm focus-within:border-blue-500 transition-all flex justify-between items-center h-[42px]">
+                                    <input type="text" name="lga_of_origin" id="lga_of_origin" value="{{ student.lga_of_origin }}" class="search-input w-full bg-transparent outline-none placeholder-slate-400" autocomplete="off" required>
+                                    <svg class="dropdown-icon w-4 h-4 text-slate-400 cursor-pointer transform transition-transform duration-200 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </div>
+                                <div class="options-container absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg hidden max-h-48 overflow-y-auto top-full left-0">
+                                    <ul class="options-list py-1 text-sm text-slate-700"></ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Academic Structure -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5">Program *</label>
+                            <div class="bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-800 text-sm">
+                                <div class="text-xs text-slate-500 font-semibold uppercase mb-1">Registered Program</div>
+                                <span class="bg-blue-100 text-blue-900 px-3 py-1 rounded-lg text-sm font-semibold border border-blue-300 inline-block">{{ student.program }}</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5">Class *</label>
+                            <div class="bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-800 text-sm">
+                                <div class="text-xs text-slate-500 font-semibold uppercase mb-1">Current Assignment</div>
+                                {% if student.current_class %}
+                                    <span class="bg-blue-100 text-blue-900 px-3 py-1 rounded-lg text-sm font-semibold border border-blue-300 inline-block">{{ student.current_class.name }}</span>
+                                {% else %}
+                                    <span class="text-slate-500 italic text-sm">Unassigned</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5">Phone Number</label>
+                            <input type="text" name="phone_number" value="{{ student.phone_number|default:'' }}" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5">Religion</label>
+                            <div class="relative custom-select" data-name="religion">
+                                <div class="select-box w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 text-slate-800 text-sm focus-within:border-blue-500 transition-all flex justify-between items-center h-[42px]">
+                                    <input type="text" name="religion" id="religion" value="{{ student.religion|default:'' }}" class="search-input w-full bg-transparent outline-none placeholder-slate-400" autocomplete="off">
+                                    <svg class="dropdown-icon w-4 h-4 text-slate-400 cursor-pointer transform transition-transform duration-200 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </div>
+                                <div class="options-container absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg hidden max-h-48 overflow-y-auto top-full left-0">
+                                    <ul class="options-list py-1 text-sm text-slate-700"></ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5">Email Address</label>
+                            <input type="email" name="email" value="{{ student.email|default:'' }}" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5">Update Passport Photo (Optional)</label>
+                        <input type="file" name="passport" accept="image/*" class="crop-enabled block w-full text-sm text-slate-500 file:mr-4 file:cursor-pointer file:rounded-xl file:border-0 file:bg-blue-50 file:px-5 file:py-2.5 file:text-sm file:font-bold file:text-blue-700 transition hover:file:bg-blue-100">
+                    </div>
+
+                    <div class="flex justify-end pt-4 border-t border-slate-100">
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-semibold py-3 px-6 rounded-xl text-sm shadow-md transition-all">Save Changes</button>
+                    </div>
+                </form>{% endif %}{% endif %}
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Custom Confirmation Modal Card with Smooth Fade & Scale Animation -->
+<div id="reset-modal" class="fixed inset-0 z-[9999] h-screen w-screen bg-slate-950/60 backdrop-blur-sm opacity-0 pointer-events-none transition-all duration-300 flex items-center justify-center p-4 overflow-hidden">
+    <div id="reset-modal-card" class="bg-slate-900/80 rounded-3xl max-h-[90vh] max-w-sm w-full overflow-y-auto p-6 shadow-2xl shadow-black/50 backdrop-blur-xl border border-white/10 text-center space-y-4 transform scale-95 transition-all duration-300">
+        <div class="w-12 h-12 rounded-full bg-amber-500/20 text-amber-300 flex items-center justify-center mx-auto shadow-inner">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        </div>
+        <h4 class="text-base font-bold text-white">Are you sure?</h4>
+        <p class="text-xs text-slate-300 leading-relaxed">Are you sure you want to reset portal credentials for this student?</p>
+        <div class="flex space-x-3 pt-2">
+            <button type="button" onclick="closeResetModal()" class="w-1/2 rounded-full border border-slate-600 bg-transparent hover:bg-slate-700 active:scale-95 text-slate-300 font-semibold py-2.5 px-4 text-xs transition-all">Cancel</button>
+            <button type="button" onclick="document.getElementById('reset-form').submit()" class="w-1/2 rounded-full bg-amber-600 hover:bg-amber-500 active:scale-95 text-white font-semibold py-2.5 px-4 text-xs shadow-lg shadow-amber-600/30 transition-all">Yes, Reset</button>
+        </div>
+    </div>
+</div>
+{% if request.user.is_staff or request.user.is_superuser %}
+<!-- Danger Zone: Delete Student Card -->
+<div class="bg-white border border-red-200 rounded-3xl p-6 shadow-sm flex justify-between items-center mt-6">
+    <div>
+        <h4 class="text-sm font-bold text-red-600">Delete Student Record</h4>
+        <p class="text-xs text-slate-500 mt-0.5">Once deleted, this student profile and academic credentials cannot be recovered.</p>
+    </div>
+    <form method="POST" action="{% url 'delete_student' student.pk %}" onsubmit="event.preventDefault(); openDeleteModal(this, '{{ student.first_name }} {{ student.last_name }}');">
+        {% csrf_token %}
+        <button type="submit" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-2.5 px-5 rounded-xl transition-all shadow-sm">Delete Student</button>
+    </form>
+</div>
+{% endif %}
+
+<div id="printable-document-view" class="hidden bg-white p-8 text-black">
+    <header class="mb-8 border-b-2 border-slate-900 pb-4 text-center"><h1 class="text-xl font-bold uppercase">Future Leaders Private Academy</h1><h2 class="mt-2 text-lg font-semibold">Student Details</h2><p class="mt-1 text-xs">Date Generated: {% now "F j, Y" %}</p></header>
+    <table class="w-full border-collapse border border-slate-300 text-sm"><tbody><tr><th class="w-1/3 border border-slate-300 p-3 text-left font-semibold">Student ID</th><td class="border border-slate-300 p-3">{{ student.student_id }}</td></tr><tr><th class="border border-slate-300 p-3 text-left font-semibold">Full Name</th><td class="border border-slate-300 p-3">{{ student.first_name }} {{ student.other_name|default:'' }} {{ student.last_name }}</td></tr><tr><th class="border border-slate-300 p-3 text-left font-semibold">Sex</th><td class="border border-slate-300 p-3">{{ student.sex }}</td></tr><tr><th class="border border-slate-300 p-3 text-left font-semibold">Date of Birth</th><td class="border border-slate-300 p-3">{{ student.date_of_birth }}</td></tr><tr><th class="border border-slate-300 p-3 text-left font-semibold">Program</th><td class="border border-slate-300 p-3">{{ student.program }}</td></tr><tr><th class="border border-slate-300 p-3 text-left font-semibold">Class</th><td class="border border-slate-300 p-3">{% if student.current_class %}{{ student.current_class.name }}{% else %}Unassigned{% endif %}</td></tr><tr><th class="border border-slate-300 p-3 text-left font-semibold">State / LGA</th><td class="border border-slate-300 p-3">{{ student.state_of_origin }}, {{ student.lga_of_origin }}</td></tr><tr><th class="border border-slate-300 p-3 text-left font-semibold">Phone</th><td class="border border-slate-300 p-3">{{ student.phone_number|default:'Not provided' }}</td></tr><tr><th class="border border-slate-300 p-3 text-left font-semibold">Email</th><td class="border border-slate-300 p-3">{{ student.email|default:'Not provided' }}</td></tr></tbody></table>
+</div>
+
+<!-- CUSTOM DELETE CONFIRMATION MODAL CARD -->
+<div id="deleteModal" class="fixed inset-0 z-[9999] h-screen w-screen bg-slate-950/60 backdrop-blur-sm flex items-center justify-center hidden transition-opacity p-4 overflow-hidden">
+    <div class="bg-slate-900/80 border border-white/10 rounded-3xl p-6 max-h-[90vh] max-w-sm w-full overflow-y-auto shadow-2xl shadow-black/50 backdrop-blur-xl space-y-4 transform transition-all scale-95 opacity-0 duration-200" id="modalCard">
+        <div class="w-12 h-12 rounded-2xl bg-red-500/20 text-red-300 flex items-center justify-center font-bold text-xl mx-auto shadow-inner">
+            ⚠️
+        </div>
+        <div class="text-center space-y-1">
+            <h3 class="text-base font-bold text-white" id="modalTitle">Are you sure?</h3>
+            <p class="text-xs text-slate-300 leading-relaxed" id="modalDesc">This action cannot be undone. All records associated with this profile will be permanently removed.</p>
+        </div>
+        <div class="flex space-x-3 pt-2">
+            <button type="button" onclick="closeDeleteModal()" class="flex-1 rounded-full border border-slate-600 bg-transparent hover:bg-slate-700 text-slate-300 font-semibold py-2.5 text-xs transition-all">Cancel</button>
+            <button type="button" id="confirmDeleteBtn" class="flex-1 rounded-full bg-red-600 hover:bg-red-500 text-white font-semibold py-2.5 text-xs transition-all shadow-lg shadow-red-600/30">Yes, Delete</button>
+        </div>
+    </div>
+</div>
+
+
+
+
+<!-- JavaScript for Custom Delete Modal -->
+<script>
+function printDetails(){document.body.classList.remove('print-id-mode');document.body.classList.add('print-details-mode');window.print();}
+function printIdCard(){document.body.classList.remove('print-details-mode');document.body.classList.add('print-id-mode');window.print();}
+window.addEventListener('afterprint',()=>document.body.classList.remove('print-details-mode','print-id-mode'));
+    let targetForm = null;
+
+    function openDeleteModal(formElement, name) {
+        targetForm = formElement;
+        document.getElementById('modalTitle').textContent = `Delete ${name}?`;
+        document.getElementById('modalDesc').textContent = `Are you sure you want to delete ${name}'s profile? This action cannot be undone and will permanently remove all associated student records.`;
+        
+        const modal = document.getElementById('deleteModal');
+        const card = document.getElementById('modalCard');
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            card.classList.remove('scale-95', 'opacity-0');
+            card.classList.add('scale-100', 'opacity-100');
+        }, 10);
+    }
+
+    function closeDeleteModal() {
+        const modal = document.getElementById('deleteModal');
+        const card = document.getElementById('modalCard');
+        card.classList.remove('scale-100', 'opacity-100');
+        card.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            targetForm = null;
+        }, 200);
+    }
+
+    document.getElementById('confirmDeleteBtn').addEventListener('click', () => {
+        if (targetForm) {
+            targetForm.submit();
+        }
+    });
+
+    document.getElementById('confirmDeleteBtn').addEventListener('click', () => {
+        if (targetForm) {
+            targetForm.submit();
+        }
+    });
+    const locationData = {
+        "Abia": ["Aba North", "Aba South", "Arochukwu", "Bende", "Ikwuano", "Isiala Ngwa North", "Isiala Ngwa South", "Isuikwuato", "Obi Ngwa", "Ohafia", "Osisioma", "Ugwunagbo", "Ukwa East", "Ukwa West", "Umuahia North", "Umuahia South", "Umu Nneochi"],
+        "Adamawa": ["Demsa", "Fufure", "Ganye", "Gayuk", "Gombi", "Grie", "Hong", "Jada", "Larmurde", "Madagali", "Maiha", "Mayo Belwa", "Michika", "Mubi North", "Mubi South", "Numan", "Shelleng", "Song", "Toungo", "Yola North", "Yola South"],
+        "Akwa Ibom": ["Abak", "Eastern Obolo", "Eket", "Esit Eket", "Essien Udim", "Etim Ekpo", "Etinan", "Ibeno", "Ibesikpo Asutan", "Ibiono-Ibom", "Ika", "Ikono", "Ikot Abasi", "Ikot Ekpene", "Ini", "Itu", "Mbo", "Mkpat-Enin", "Nsit-Atai", "Nsit-Ibom", "Nsit-Ubium", "Obot Akara", "Okobo", "Onna", "Oron", "Oruk Anam", "Udung-Uko", "Ukanafun", "Uruan", "Urue-Offong/Oruko", "Uyo"],
+        "Anambra": ["Aguata", "Anambra East", "Anambra West", "Anaocha", "Awka North", "Awka South", "Ayamelum", "Dunukofia", "Ekwusigo", "Idemili North", "Idemili South", "Ihiala", "Njikoka", "Nnewi North", "Nnewi South", "Ogbaru", "Onitsha North", "Onitsha South", "Orumba North", "Orumba South", "Oyi"],
+        "Bauchi": ["Alkaleri", "Bauchi", "Bogoro", "Damban", "Darazo", "Dass", "Gamawa", "Ganjuwa", "Giade", "Itas/Gadau", "Jama'are", "Katagum", "Kirfi", "Misau", "Ningi", "Shira", "Tafawa Balewa", "Toro", "Warji", "Zaki"],
+        "Bayelsa": ["Brass", "Ekeremor", "Kolokuma/Opokuma", "Nembe", "Ogbia", "Sagbama", "Southern Ijaw", "Yenagoa"],
+        "Benue": ["Ado", "Agatu", "Apa", "Buruku", "Gboko", "Guma", "Gwer East", "Gwer West", "Katsina-Ala", "Konshisha", "Kwande", "Logo", "Makurdi", "Obi", "Ogbadibo", "Ohimini", "Oju", "Okpokwu", "Otukpo", "Tarka", "Ukum", "Ushongo", "Vandeikya"],
+        "Borno": ["Abadam", "Askira/Uba", "Bama", "Bayo", "Biu", "Chibok", "Damboa", "Dikwa", "Gubio", "Guzamala", "Gwoza", "Hawul", "Jere", "Kaga", "Kala/Balge", "Konduga", "Kukawa", "Kwaya Kusar", "Mafa", "Magumeri", "Maiduguri", "Marte", "Mobbar", "Monguno", "Ngala", "Nganzai", "Shani"],
+        "Cross River": ["Abi", "Akamkpa", "Akpabuyo", "Bakassi", "Bekwarra", "Biase", "Boki", "Calabar Municipal", "Calabar South", "Etung", "Ikom", "Obanliku", "Obubra", "Obudu", "Odukpani", "Ogoja", "Yakuur", "Yala"],
+        "Delta": ["Aniocha North", "Aniocha South", "Bomadi", "Burutu", "Ethiope East", "Ethiope West", "Ika North East", "Ika South", "Isoko North", "Isoko South", "Ndokwa East", "Ndokwa West", "Okpe", "Oshimili North", "Oshimili South", "Patani", "Sapele", "Udu", "Ughelli North", "Ughelli South", "Ukwuani", "Uvwie", "Warri North", "Warri South", "Warri South West"],
+        "Ebonyi": ["Abakaliki", "Afikpo North", "Afikpo South", "Ebonyi", "Ezza North", "Ezza South", "Ikwo", "Ishielu", "Ivo", "Izzi", "Ohaozara", "Ohaukwu", "Onicha"],
+        "Edo": ["Akoko-Edo", "Egor", "Esan Central", "Esan North-East", "Esan South-East", "Esan West", "Etsako Central", "Etsako East", "Etsako West", "Igueben", "Ikpoba Okha", "Orhionmwon", "Oredo", "Ovia North-East", "Ovia South-West", "Owan East", "Owan West", "Uhunmwonde"],
+        "Ekiti": ["Ado Ekiti", "Efon", "Ekiti East", "Ekiti South-West", "Ekiti West", "Emure", "Gbonyin", "Ido Osi", "Ijero", "Ikere", "Ikole", "Ilejemeje", "Irepodun/Ifelodun", "Ise/Orun", "Moba", "Oye"],
+        "Enugu": ["Aninri", "Awgu", "Enugu East", "Enugu North", "Enugu South", "Ezeagu", "Igbo Etiti", "Igbo Eze North", "Igbo Eze South", "Isi Uzo", "Nkanu East", "Nkanu West", "Nsukka", "Oji River", "Udenu", "Udi", "Uzo Uwani"],
+        "FCT": ["Abaji", "Bwari", "Gwagwalada", "Kuje", "Kwali", "Municipal Area Council"],
+        "Gombe": ["Akko", "Balanga", "Billiri", "Dukku", "Funakaye", "Gombe", "Kaltungo", "Kwami", "Nafada", "Shongom", "Yamaltu/Deba"],
+        "Imo": ["Aboh Mbaise", "Ahiazu Mbaise", "Ehime Mbano", "Ezinihitte", "Ideato North", "Ideato South", "Ihitte/Uboma", "Ikeduru", "Isiala Mbano", "Isu", "Mbaitoli", "Ngor Okpala", "Njaba", "Nkwerre", "Nwangele", "Obowo", "Oguta", "Ohaji/Egbema", "Okigwe", "Orlu", "Orsu", "Oru East", "Oru West", "Owerri Municipal", "Owerri North", "Owerri West", "Unuimo"],
+        "Jigawa": ["Auyo", "Babura", "Biriniwa", "Birnin Kudu", "Buji", "Dutse", "Gagarawa", "Garki", "Gumel", "Guri", "Gwaram", "Gwiwa", "Hadejia", "Jahun", "Kafin Hausa", "Kaugama", "Kazaure", "Kiri Kasama", "Kiyawa", "Maigatari", "Malam Madori", "Miga", "Ringim", "Roni", "Sule Tankarkar", "Taura", "Yankwashi"],
+        "Kaduna": ["Birnin Gwari", "Chikun", "Giwa", "Igabi", "Ikara", "Jaba", "Jema'a", "Kachia", "Kaduna North", "Kaduna South", "Kagarko", "Kajuru", "Kaura", "Kauru", "Kubau", "Kudan", "Lere", "Makarfi", "Sabon Gari", "Sanga", "Soba", "Zangon Kataf", "Zaria"],
+        "Kano": ["Ajingi", "Albasu", "Bagwai", "Bebeji", "Bichi", "Bunkure", "Dala", "Dambatta", "Dawakin Kudu", "Dawakin Tofa", "Doguwa", "Fagge", "Gabasawa", "Garko", "Garun Mallam", "Gaya", "Gezawa", "Gwale", "Gwarzo", "Kabo", "Kano Municipal", "Karaye", "Kibiya", "Kiru", "Kumbotso", "Kunchi", "Kura", "Madobi", "Makoda", "Minjibir", "Nasarawa", "Rano", "Rimin Gado", "Rogo", "Shanono", "Sumaila", "Takai", "Tarauni", "Tofa", "Tsanyawa", "Tudun Wada", "Ungogo", "Warawa", "Wudil"],
+        "Katsina": ["Bakori", "Batagarawa", "Batsari", "Baure", "Bindawa", "Charanchi", "Dandume", "Danja", "Dan Musa", "Daura", "Dutsi", "Dutsin Ma", "Faskari", "Funtua", "Ingawa", "Jibia", "Kafur", "Kaita", "Kankara", "Kankia", "Katsina", "Kurfi", "Kusada", "Mai'Adua", "Malumfashi", "Mani", "Mashi", "Matazu", "Musawa", "Rimi", "Sabuwa", "Safana", "Sandamu", "Zango"],
+        "Kebbi": ["Aleiro", "Arewa Dandi", "Argungu", "Augie", "Bagudo", "Birnin Kebbi", "Bunza", "Dandi", "Fakai", "Gwandu", "Jega", "Kalgo", "Koko/Besse", "Maiyama", "Ngaski", "Sakaba", "Shanga", "Suru", "Wasagu/Danko", "Yauri", "Zuru"],
+        "Kogi": ["Adavi", "Ajaokuta", "Ankpa", "Bassa", "Dekina", "Ibaji", "Idah", "Igalamela Odolu", "Ijumu", "Kabba/Bunu", "Kogi", "Lokoja", "Mopa Muro", "Ofu", "Ogori/Magongo", "Okehi", "Okene", "Olamaboro", "Omala", "Yagba East", "Yagba West"],
+        "Kwara": ["Asa", "Baruten", "Edu", "Ekiti", "Ifelodun", "Ilorin East", "Ilorin South", "Ilorin West", "Irepodun", "Isin", "Kaiama", "Moro", "Offa", "Oke Ero", "Oyun", "Pategi"],
+        "Lagos": ["Agege", "Ajeromi-Ifelodun", "Alimosho", "Amuwo-Odofin", "Apapa", "Badagry", "Epe", "Eti Osa", "Ibeju-Lekki", "Ifako-Ijaiye", "Ikeja", "Ikorodu", "Kosofe", "Lagos Island", "Lagos Mainland", "Mushin", "Ojo", "Oshodi-Isolo", "Shomolu", "Surulere"],
+        "Nasarawa": ["Akwanga", "Awe", "Doma", "Karu", "Keana", "Keffi", "Kokona", "Lafia", "Nasarawa", "Nasarawa Egon", "Obi", "Toto", "Wamba"],
+        "Niger": ["Agaie", "Agwara", "Bida", "Borgu", "Bosso", "Chanchaga", "Edati", "Gbako", "Gurara", "Katcha", "Kontagora", "Lapai", "Lavun", "Magama", "Mariga", "Mashegu", "Mokwa", "Muya", "Pailoro", "Rafi", "Rijau", "Shiroro", "Suleja", "Tafa", "Wushishi"],
+        "Ogun": ["Abeokuta North", "Abeokuta South", "Ado-Odo/Ota", "Egbado North", "Egbado South", "Ewekoro", "Ifo", "Ijebu East", "Ijebu North", "Ijebu North East", "Ijebu Ode", "Ikenne", "Imeko Afon", "Ipokia", "Obafemi Owode", "Odeda", "Odogbolu", "Ogun Waterside", "Remo North", "Shagamu"],
+        "Ondo": ["Akoko North-East", "Akoko North-West", "Akoko South-East", "Akoko South-West", "Akure North", "Akure South", "Ese Odo", "Idanre", "Ifedore", "Ilaje", "Ile Oluji/Okeigbo", "Irele", "Odigbo", "Okitipupa", "Ondo East", "Ondo West", "Ose", "Owo"],
+        "Osun": ["Atakumosa East", "Atakumosa West", "Aiyedaade", "Aiyedire", "Boluwaduro", "Boripe", "Ede North", "Ede South", "Ife Central", "Ife East", "Ife North", "Ife South", "Egbedore", "Ejigbo", "Ifedayo", "Ifelodun", "Ila", "Ilesa East", "Ilesa West", "Irepodun", "Irewole", "Isokan", "Iwo", "Obokun", "Odo Otin", "Ola Oluwa", "Olorunda", "Oriade", "Orolu", "Osogbo"],
+        "Oyo": ["Afijio", "Akinyele", "Atiba", "Atisbo", "Egbeda", "Ibadan North", "Ibadan North-East", "Ibadan North-West", "Ibadan South-East", "Ibadan South-West", "Ibarapa Central", "Ibarapa East", "Ibarapa North", "Ido", "Irepo", "Iseyin", "Itesiwaju", "Iwajowa", "Kajola", "Lagelu", "Ogbomosho North", "Ogbomosho South", "Ogo Oluwa", "Olorunsogo", "Oluyole", "Ona Ara", "Orelope", "Ori Ire", "Oyo East", "Oyo West", "Saki East", "Saki West", "Surulere"],
+        "Plateau": ["Bokkos", "Barkin Ladi", "Bassa", "Jos East", "Jos North", "Jos South", "Kanam", "Kanke", "Langtang North", "Langtang South", "Mangu", "Mikang", "Pankshin", "Qua'an Pan", "Riyom", "Shendam", "Wase"],
+        "Rivers": ["Abua/Odual", "Ahoada East", "Ahoada West", "Akuku-Toru", "Andoni", "Asari-Toru", "Bonny", "Degema", "Eleme", "Emuoha", "Etche", "Gokana", "Ikwerre", "Khana", "Obio/Akpor", "Ogba/Egbema/Ndoni", "Ogu/Bolo", "Okrika", "Omuma", "Opobo/Nkoro", "Oyigbo", "Port Harcourt", "Tai"],
+        "Sokoto": ["Binji", "Bodinga", "Dange Shuni", "Gada", "Goronyo", "Gudu", "Gwadabawa", "Illela", "Isa", "Kebbe", "Kware", "Rabah", "Sabon Birni", "Shagari", "Silame", "Sokoto North", "Sokoto South", "Tambuwal", "Tangaza", "Tureta", "Wamako", "Wurno", "Yabo"],
+        "Taraba": ["Ardo Kola", "Bali", "Donga", "Gashaka", "Gassol", "Ibi", "Jalingo", "Karim Lamido", "Kurmi", "Lau", "Sardauna", "Takum", "Ussa", "Wukari", "Yorro", "Zing"],
+        "Yobe": ["Bade", "Bursari", "Damaturu", "Fika", "Fune", "Geidam", "Gujba", "Gulani", "Jakusko", "Karasuwa", "Machina", "Nangere", "Nguru", "Potiskum", "Tarmua", "Yunusari", "Yusufari"],
+        "Zamfara": ["Anka", "Bakura", "Birnin Magaji/Kiyaw", "Bukkuyum", "Bungudu", "Gummi", "Gusau", "Kaura Namoda", "Maradun", "Maru", "Shinkafi", "Talata Mafara", "Chafe", "Zurmi"]
+    };
+
+    const statusOptions = ["Student", "Transferred", "Expelled", "Graduated"];
+
+    function populateCustomSelect(name, options, placeholder) {
+        const container = document.querySelector(`.custom-select[data-name="${name}"]`);
+        if(!container) return;
+        
+        const input = container.querySelector('.search-input');
+        const ul = container.querySelector('.options-list');
+        
+        input.placeholder = placeholder;
+        ul.innerHTML = '';
+        
+        if (options.length === 0) {
+            const li = document.createElement('li');
+            li.className = 'px-4 py-2.5 text-slate-400 italic cursor-default text-xs';
+            li.textContent = 'No options available';
+            ul.appendChild(li);
+            return;
+        }
+
+        options.forEach(opt => {
+            const li = document.createElement('li');
+            li.className = 'option-item px-4 py-2.5 hover:bg-blue-50 cursor-pointer transition-colors text-slate-700';
+            li.textContent = opt;
+            
+            li.addEventListener('mousedown', (e) => { 
+                e.preventDefault(); 
+                input.value = opt;
+                closeAllSelects();
+                input.dispatchEvent(new Event('change', { bubbles: true })); 
+            });
+            ul.appendChild(li);
+        });
+    }
+
+    function openSelect(container) {
+        container.querySelectorAll('.option-item').forEach(item => item.style.display = '');
+        container.querySelector('.options-container').classList.remove('hidden');
+        container.querySelector('.dropdown-icon').classList.add('rotate-180');
+        container.querySelector('.select-box').classList.add('border-blue-500');
+    }
+
+    function closeAllSelects() {
+        document.querySelectorAll('.custom-select').forEach(container => {
+            container.querySelector('.options-container').classList.add('hidden');
+            container.querySelector('.dropdown-icon').classList.remove('rotate-180');
+            container.querySelector('.select-box').classList.remove('border-blue-500');
+        });
+    }
+
+    function openResetModal() {
+        const modal = document.getElementById('reset-modal');
+        const card = document.getElementById('reset-modal-card');
+        modal.classList.remove('opacity-0', 'pointer-events-none');
+        modal.classList.add('opacity-100', 'pointer-events-auto');
+        card.classList.remove('scale-95');
+        card.classList.add('scale-100');
+    }
+
+    function closeResetModal() {
+        const modal = document.getElementById('reset-modal');
+        const card = document.getElementById('reset-modal-card');
+        modal.classList.remove('opacity-100', 'pointer-events-auto');
+        modal.classList.add('opacity-0', 'pointer-events-none');
+        card.classList.remove('scale-100');
+        card.classList.add('scale-95');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        populateCustomSelect('sex', ["Male", "Female"], "Select Sex...");
+        populateCustomSelect('religion', ["Christianity", "Islam", "Other"], "Select Religion...");
+        populateCustomSelect('status', statusOptions, "Select Status...");
+        
+        const stateOptions = Object.keys(locationData).sort();
+        populateCustomSelect('state_of_origin', stateOptions, "Select State...");
+        
+        const currentState = document.getElementById('state_of_origin').value;
+        if (currentState && locationData[currentState]) {
+            populateCustomSelect('lga_of_origin', locationData[currentState].sort(), "Select LGA...");
+        } else {
+            populateCustomSelect('lga_of_origin', [], "Select State First...");
+        }
+
+        document.querySelectorAll('input[name="state_of_origin"]').forEach(input => {
+            input.addEventListener('change', (e) => {
+                const state = e.target.value;
+                const lgas = locationData[state] ? locationData[state].sort() : [];
+                populateCustomSelect('lga_of_origin', lgas, "Select LGA...");
+            });
+        });
+
+        document.querySelectorAll('.custom-select').forEach(container => {
+            const input = container.querySelector('.search-input');
+            const ul = container.querySelector('.options-list');
+            const icon = container.querySelector('.dropdown-icon');
+
+            input.addEventListener('focus', () => {
+                closeAllSelects();
+                openSelect(container);
+            });
+
+            input.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openSelect(container);
+            });
+
+            input.addEventListener('input', () => {
+                openSelect(container);
+                const filter = input.value.toLowerCase();
+                ul.querySelectorAll('.option-item').forEach(item => {
+                    item.style.display = item.textContent.toLowerCase().includes(filter) ? '' : 'none';
+                });
+            });
+
+            icon.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (container.querySelector('.options-container').classList.contains('hidden')) {
+                    closeAllSelects();
+                    openSelect(container);
+                    input.focus();
+                } else {
+                    closeAllSelects();
+                }
+            });
+        });
+
+        document.addEventListener('click', closeAllSelects);
+    });
+</script>
+<script>
+document.querySelectorAll('#reset-modal, #deleteModal').forEach(modal => document.body.appendChild(modal));
+</script>
+{% endblock %}

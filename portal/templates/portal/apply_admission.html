@@ -1,0 +1,729 @@
+{% extends 'portal/base_public.html' %}
+{% load static %}
+{% block content %}
+<div class="relative min-h-full overflow-hidden bg-gradient-to-br from-cyan-950 via-slate-900 to-indigo-950 px-4 py-10">
+  <div class="pointer-events-none absolute -top-32 -left-32 h-96 w-96 rounded-full bg-cyan-400/20 blur-3xl"></div>
+  <div class="pointer-events-none absolute -bottom-24 -right-24 h-96 w-96 rounded-full bg-emerald-400/20 blur-3xl"></div>
+
+  <div class="relative mx-auto max-w-3xl">
+    <!-- Draft recovery banner -->
+    <div id="draft-banner" class="mb-4 hidden items-center justify-between gap-4 rounded-2xl border border-amber-300/30 bg-amber-400/10 p-4 text-sm text-amber-100 shadow-lg backdrop-blur-xl">
+      <span>We found a saved draft of your application. Would you like to restore it?</span>
+      <div class="flex shrink-0 gap-2">
+        <button type="button" id="draft-restore" class="rounded-lg bg-amber-400/90 px-3 py-1.5 text-xs font-bold text-slate-900 hover:bg-amber-300">Restore</button>
+        <button type="button" id="draft-discard" class="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/20">Discard</button>
+      </div>
+    </div>
+
+    <!-- Liquid glass card -->
+    <div class="rounded-3xl border border-white/20 bg-white/10 p-6 sm:p-8 shadow-2xl shadow-black/40 backdrop-blur-2xl">
+      <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-300">New Application</p>
+      <h2 class="mt-1 text-2xl font-black text-white">{{ campaign.campaign_name }}</h2>
+      <p class="mt-1 text-xs text-slate-300">Applying for {{ campaign.target_session.name }} · {{ campaign.target_term.term_name }}. Application fee: ₦{{ campaign.application_fee|floatformat:0 }}.</p>
+
+      <!-- Progress bar -->
+      <div class="mt-6">
+        <div class="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-300">
+          <span data-step-label="1" class="step-label text-emerald-300">1. Basic Data</span>
+          <span data-step-label="2" class="step-label">2. Academic</span>
+          <span data-step-label="3" class="step-label">3. Parent Info</span>
+          <span data-step-label="4" class="step-label">4. Review</span>
+          <span data-step-label="5" class="step-label">5. Payment</span>
+        </div>
+        <div class="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+          <div id="progress-fill" class="h-full w-1/5 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 transition-all duration-300"></div>
+        </div>
+      </div>
+
+      <form method="POST" enctype="multipart/form-data" id="admission-form" class="mt-6 space-y-5">
+        {% csrf_token %}
+
+        <!-- STEP 1: Basic Applicant Data -->
+        <div class="form-step space-y-4" data-step="1">
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div>
+              <label class="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-300">Surname *</label>
+              <input type="text" name="last_name" required value="{{ form_data.last_name|default:'' }}" class="glass-input">
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-300">First Name *</label>
+              <input type="text" name="first_name" required value="{{ form_data.first_name|default:'' }}" class="glass-input">
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-300">Other Name *</label>
+              <input type="text" name="other_name" required value="{{ form_data.other_name|default:'' }}" class="glass-input">
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-300">Date of Birth *</label>
+              <input type="text" name="date_of_birth" placeholder="YYYY-MM-DD" required value="{{ form_data.date_of_birth|default:'' }}" class="glass-input global-date-picker">
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-300">Gender *</label>
+              <div class="relative custom-select" data-name="sex">
+                <div class="select-box glass-input flex h-[46px] items-center justify-between !py-0 focus-within:border-white/50">
+                  <input type="text" name="sex" id="sex" value="{{ form_data.sex|default:'' }}" class="search-input w-full bg-transparent outline-none placeholder-white/40" autocomplete="off" required>
+                  <svg class="dropdown-icon h-4 w-4 shrink-0 cursor-pointer text-white/60 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+                <div class="options-container absolute left-0 top-full z-50 mt-1 hidden max-h-48 w-full overflow-y-auto rounded-xl border border-white/20 bg-slate-950/95 shadow-lg shadow-black/40 backdrop-blur-xl"><ul class="options-list py-1 text-sm text-white"></ul></div>
+              </div>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label class="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-300">Nationality <span class="text-slate-300">*</span></label>
+              <div class="relative custom-select" data-name="nationality">
+                <div class="select-box glass-input flex h-[46px] items-center justify-between !py-0 focus-within:border-white/50">
+                  <input type="text" name="nationality" id="nationality" value="{{ form_data.nationality|default:'Nigerian' }}" class="search-input w-full bg-transparent outline-none placeholder-white/40" autocomplete="off" required>
+                  <svg class="dropdown-icon h-4 w-4 shrink-0 cursor-pointer text-white/60 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+                <div class="options-container absolute left-0 top-full z-50 mt-1 hidden max-h-48 w-full overflow-y-auto rounded-xl border border-white/20 bg-slate-950/95 shadow-lg shadow-black/40 backdrop-blur-xl">
+                  <ul class="options-list py-1 text-sm text-white"></ul>
+                </div>
+              </div>
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-300">Religion</label>
+              <div class="relative custom-select" data-name="religion">
+                <div class="select-box glass-input flex h-[46px] items-center justify-between !py-0 focus-within:border-white/50">
+                  <input type="text" name="religion" id="religion" value="{{ form_data.religion|default:'' }}" class="search-input w-full bg-transparent outline-none placeholder-white/40" autocomplete="off">
+                  <svg class="dropdown-icon h-4 w-4 shrink-0 cursor-pointer text-white/60 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+                <div class="options-container absolute left-0 top-full z-50 mt-1 hidden max-h-48 w-full overflow-y-auto rounded-xl border border-white/20 bg-slate-950/95 shadow-lg shadow-black/40 backdrop-blur-xl"><ul class="options-list py-1 text-sm text-white"></ul></div>
+              </div>
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-300">State of Origin <span class="text-slate-300">*</span></label>
+              <div class="relative custom-select" data-name="state_of_origin">
+                <div class="select-box glass-input flex h-[46px] items-center justify-between !py-0 focus-within:border-white/50">
+                  <input type="text" name="state_of_origin" id="state_of_origin" value="{{ form_data.state_of_origin|default:'' }}" class="search-input w-full bg-transparent outline-none placeholder-white/40" autocomplete="off" required>
+                  <svg class="dropdown-icon h-4 w-4 shrink-0 cursor-pointer text-white/60 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+                <div class="options-container absolute left-0 top-full z-50 mt-1 hidden max-h-48 w-full overflow-y-auto rounded-xl border border-white/20 bg-slate-950/95 shadow-lg shadow-black/40 backdrop-blur-xl">
+                  <ul class="options-list py-1 text-sm text-white"></ul>
+                </div>
+              </div>
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-300">LGA <span class="text-slate-300">*</span></label>
+              <div class="relative custom-select" data-name="lga">
+                <div class="select-box glass-input flex h-[46px] items-center justify-between !py-0 focus-within:border-white/50">
+                  <input type="text" name="lga" id="lga" value="{{ form_data.lga|default:'' }}" class="search-input w-full bg-transparent outline-none placeholder-white/40" autocomplete="off" required>
+                  <svg class="dropdown-icon h-4 w-4 shrink-0 cursor-pointer text-white/60 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+                <div class="options-container absolute left-0 top-full z-50 mt-1 hidden max-h-48 w-full overflow-y-auto rounded-xl border border-white/20 bg-slate-950/95 shadow-lg shadow-black/40 backdrop-blur-xl">
+                  <ul class="options-list py-1 text-sm text-white"></ul>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <label class="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-300">Passport Photograph</label>
+            <input type="file" name="passport" accept="image/*" id="passport-input" class="glass-input file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-500 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-white">
+            <img id="passport-preview" class="mt-3 hidden h-24 w-24 rounded-xl border border-white/20 object-cover">
+          </div>
+          <div class="flex justify-end pt-2">
+            <button type="button" class="step-next rounded-full bg-emerald-600 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/30 hover:bg-emerald-500">Next</button>
+          </div>
+        </div>
+
+        <!-- STEP 2: Challenges & Academic Background -->
+        <div class="form-step hidden space-y-4" data-step="2">
+          <div>
+            <label class="flex items-center gap-3 text-sm font-semibold text-slate-100">
+              <input type="checkbox" name="has_disability" id="has-disability" value="1" class="h-4 w-4 rounded border-white/30 bg-white/10">
+              Applicant has a disability or learning challenge
+            </label>
+            <textarea name="disability_details" id="disability-details" rows="2" placeholder="Please describe (optional)" class="glass-input mt-2 hidden">{{ form_data.disability_details|default:'' }}</textarea>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-300">Previous School Type <span class="text-slate-300">*</span></label>
+              <div class="relative custom-select" data-name="school_type">
+                <input type="hidden" name="school_type" id="school_type" value="{{ form_data.school_type|default:'' }}">
+                <div class="select-box glass-input flex h-[46px] items-center justify-between !py-0 focus-within:border-white/50">
+                  <input type="text" id="school_type_display" class="search-input w-full bg-transparent outline-none placeholder-white/40" autocomplete="off" required>
+                  <svg class="dropdown-icon h-4 w-4 shrink-0 cursor-pointer text-white/60 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+                <div class="options-container absolute left-0 top-full z-50 mt-1 hidden max-h-48 w-full overflow-y-auto rounded-xl border border-white/20 bg-slate-950/95 shadow-lg shadow-black/40 backdrop-blur-xl"><ul class="options-list py-1 text-sm text-white"></ul></div>
+              </div>
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-300">Previous School Name <span id="previous-school-required-marker" class="text-slate-300">*</span></label>
+              <input type="text" name="previous_school" id="previous_school" required value="{{ form_data.previous_school|default:'' }}" class="glass-input transition-all duration-200">
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-300">Present Class <span id="present-class-required-marker" class="text-slate-300">*</span></label>
+              <div class="relative custom-select" data-name="present_class">
+                <div class="select-box glass-input flex h-[46px] items-center justify-between !py-0 focus-within:border-white/50">
+                  <input type="text" name="present_class" id="present_class" value="{{ form_data.present_class|default:'' }}" class="search-input w-full bg-transparent outline-none placeholder-white/40" autocomplete="off" required>
+                  <svg class="dropdown-icon h-4 w-4 shrink-0 cursor-pointer text-white/60 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+                <div class="options-container absolute left-0 top-full z-50 mt-1 hidden max-h-48 w-full overflow-y-auto rounded-xl border border-white/20 bg-slate-950/95 shadow-lg shadow-black/40 backdrop-blur-xl"><ul class="options-list py-1 text-sm text-white"></ul></div>
+              </div>
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-300">Programme of Study <span class="text-slate-300">*</span></label>
+              <div class="relative custom-select" data-name="programme_of_study">
+                <input type="hidden" name="programme_of_study" id="programme_of_study" value="{{ form_data.programme_of_study|default:'' }}">
+                <div class="select-box glass-input flex h-[46px] items-center justify-between !py-0 focus-within:border-white/50">
+                  <input type="text" id="programme_of_study_display" class="search-input w-full bg-transparent outline-none placeholder-white/40" autocomplete="off" required>
+                  <svg class="dropdown-icon h-4 w-4 shrink-0 cursor-pointer text-white/60 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+                <div class="options-container absolute left-0 top-full z-50 mt-1 hidden max-h-48 w-full overflow-y-auto rounded-xl border border-white/20 bg-slate-950/95 shadow-lg shadow-black/40 backdrop-blur-xl"><ul class="options-list py-1 text-sm text-white"></ul></div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <label class="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-300">Intended Class *</label>
+            <div class="relative custom-select" data-name="intended_class">
+              <input type="hidden" name="intended_class" id="intended_class" value="{{ form_data.intended_class|default:'' }}">
+              <div class="select-box glass-input flex h-[46px] items-center justify-between !py-0 focus-within:border-white/50">
+                <input type="text" id="intended_class_display" class="search-input w-full bg-transparent outline-none placeholder-white/40" autocomplete="off" required>
+                <svg class="dropdown-icon h-4 w-4 shrink-0 cursor-pointer text-white/60 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+              </div>
+              <div class="options-container absolute left-0 top-full z-50 mt-1 hidden max-h-48 w-full overflow-y-auto rounded-xl border border-white/20 bg-slate-950/95 shadow-lg shadow-black/40 backdrop-blur-xl"><ul class="options-list py-1 text-sm text-white"></ul></div>
+            </div>
+          </div>
+          <div class="flex justify-between pt-2">
+            <button type="button" class="step-back rounded-full bg-white/10 px-6 py-2.5 text-sm font-bold text-white hover:bg-white/20">Back</button>
+            <button type="button" class="step-next rounded-full bg-emerald-600 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/30 hover:bg-emerald-500">Next</button>
+          </div>
+        </div>
+
+        <!-- STEP 3: Parent/Guardian Information -->
+        <div class="form-step hidden space-y-4" data-step="3">
+          <div class="rounded-2xl border border-emerald-300/30 bg-emerald-400/10 p-3 text-xs font-semibold text-emerald-100">
+            Provide a valid, active email address. Your unique Registration Number and approval credentials will be sent here.
+          </div>
+          <div>
+            <label class="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-300">Notification Email *</label>
+            <input type="email" name="parent_email" id="parent-email" required
+                   pattern="^[a-zA-Z0-9.!#$%&amp;'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$"
+                   title="Enter a valid email address, e.g. name@example.com"
+                   value="{{ form_data.parent_email|default:'' }}" class="glass-input">
+            <p id="parent-email-error" class="mt-1 hidden text-xs font-semibold text-red-300">Please enter a valid, active email address.</p>
+          </div>
+
+          <p class="pt-2 text-xs font-bold uppercase tracking-wider text-cyan-300">Father's Information</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <input type="text" name="father_name" required placeholder="Father's Full Name" value="{{ form_data.father_name|default:'' }}" class="glass-input">
+            <input type="text" name="father_phone" required placeholder="Father's Phone" value="{{ form_data.father_phone|default:'' }}" class="glass-input">
+            <input type="text" name="father_occupation" required placeholder="Occupation" value="{{ form_data.father_occupation|default:'' }}" class="glass-input">
+            <input type="text" name="father_job_title" required placeholder="Job Title" value="{{ form_data.father_job_title|default:'' }}" class="glass-input">
+            <input type="email" name="father_email" required placeholder="Father's Email" value="{{ form_data.father_email|default:'' }}" class="glass-input">
+            <input type="text" name="father_address" required placeholder="Home Address" value="{{ form_data.father_address|default:'' }}" class="glass-input">
+          </div>
+
+          <p class="pt-2 text-xs font-bold uppercase tracking-wider text-cyan-300">Mother's Information</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <input type="text" name="mother_name" required placeholder="Mother's Full Name" value="{{ form_data.mother_name|default:'' }}" class="glass-input">
+            <input type="text" name="mother_phone" required placeholder="Mother's Phone" value="{{ form_data.mother_phone|default:'' }}" class="glass-input">
+            <input type="text" name="mother_occupation" required placeholder="Occupation" value="{{ form_data.mother_occupation|default:'' }}" class="glass-input">
+            <input type="text" name="mother_job_title" required placeholder="Job Title" value="{{ form_data.mother_job_title|default:'' }}" class="glass-input">
+            <input type="email" name="mother_email" required placeholder="Mother's Email" value="{{ form_data.mother_email|default:'' }}" class="glass-input">
+            <input type="text" name="mother_address" required placeholder="Home Address" value="{{ form_data.mother_address|default:'' }}" class="glass-input">
+          </div>
+
+          <p class="pt-2 text-xs font-bold uppercase tracking-wider text-cyan-300">Next of Kin</p>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <input type="text" name="next_of_kin_name" required placeholder="Full Name" value="{{ form_data.next_of_kin_name|default:'' }}" class="glass-input">
+            <input type="text" name="next_of_kin_relationship" required placeholder="Relationship" value="{{ form_data.next_of_kin_relationship|default:'' }}" class="glass-input">
+            <input type="text" name="next_of_kin_phone" required placeholder="Phone Number" value="{{ form_data.next_of_kin_phone|default:'' }}" class="glass-input">
+          </div>
+
+          <div class="flex justify-between pt-2">
+            <button type="button" class="step-back rounded-full bg-white/10 px-6 py-2.5 text-sm font-bold text-white hover:bg-white/20">Back</button>
+            <button type="button" class="step-next rounded-full bg-emerald-600 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/30 hover:bg-emerald-500">Next</button>
+          </div>
+        </div>
+
+        <!-- STEP 4: Review & Final Submission -->
+        <div class="form-step hidden space-y-4" data-step="4">
+          <p class="text-sm font-semibold text-white">Review Your Application</p>
+          <div id="review-summary" class="space-y-2 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs text-slate-200"></div>
+          <label class="flex items-start gap-3 text-xs text-slate-300">
+            <input type="checkbox" id="confirm-accuracy" required class="mt-0.5 h-4 w-4 rounded border-white/30 bg-white/10">
+            I confirm that all information provided is accurate to the best of my knowledge.
+          </label>
+          <div class="flex justify-between pt-2">
+            <button type="button" class="step-back rounded-full bg-white/10 px-6 py-2.5 text-sm font-bold text-white hover:bg-white/20">Back</button>
+            <button type="button" class="step-next rounded-full bg-emerald-600 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/30 hover:bg-emerald-500">Proceed to Payment</button>
+          </div>
+        </div>
+
+        <!-- STEP 5: Application Fee Payment -->
+        <div class="form-step hidden space-y-4" data-step="5">
+          <p class="text-sm font-semibold text-white">Application Fee Payment</p>
+          <section class="rounded-2xl border border-emerald-300/30 bg-emerald-400/10 p-5 shadow-lg shadow-emerald-950/20">
+            <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-200">Application fee payment</p>
+            <div class="mt-4 flex items-center justify-between gap-4 rounded-xl border border-white/15 bg-slate-950/30 p-4">
+              <div>
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{% if payment_account %}{{ payment_account.bank_name }} account number{% else %}Payment account{% endif %}</p>
+                <p id="bank-account-number" class="mt-1 font-mono text-xl font-black tracking-wider text-white">{% if payment_account %}{{ payment_account.account_number }}{% else %}Contact the school bursary{% endif %}</p>
+                <p class="mt-1 text-xs font-semibold text-slate-300">{% if payment_account %}{{ payment_account.account_name }}{% endif %}</p>
+              </div>
+              {% if payment_account %}<button type="button" id="copy-account-number" class="shrink-0 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/20">Copy Account Number</button>{% endif %}
+            </div>
+            <div class="mt-3 flex items-center justify-between text-sm">
+              <span class="text-slate-300">Amount due</span>
+              <strong class="text-lg text-emerald-200">₦{{ campaign.application_fee|floatformat:0 }}</strong>
+            </div>
+            <p class="mt-4 text-xs leading-5 text-slate-200">Please make a transfer to the account above and forward your payment receipt to our verification line: <strong class="text-white">07063747789</strong>.</p>
+            <p id="payment-notice" class="mt-4 hidden rounded-xl border border-emerald-300/30 bg-emerald-400/10 p-3 text-xs font-semibold leading-5 text-emerald-100"></p>
+            <button type="button" id="payment-complete-button" class="mt-4 w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-600/30 transition hover:bg-emerald-500 disabled:cursor-wait disabled:opacity-70">I have paid</button>
+          </section>
+          <div class="flex justify-between pt-2">
+            <button type="button" class="step-back rounded-full bg-white/10 px-6 py-2.5 text-sm font-bold text-white hover:bg-white/20">Back</button>
+          </div>
+        </div>
+      </form>
+      <a href="{% url 'login' %}" class="mt-4 block text-center text-xs text-slate-400 hover:text-white">Back to login</a>
+    </div>
+  </div>
+</div>
+
+<div id="submission-loader" class="fixed inset-0 z-[110] hidden items-center justify-center bg-slate-950/75 p-4 opacity-0 backdrop-blur-xl transition-opacity duration-300" role="status" aria-live="polite">
+  <div class="w-full max-w-sm rounded-3xl border border-white/20 bg-white/10 p-8 text-center text-white shadow-2xl shadow-black/50 backdrop-blur-2xl">
+    <div class="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-white/20 border-t-emerald-300"></div>
+    <p id="submission-loader-message" class="mt-5 text-sm font-bold transition-opacity duration-200">Encrypting data...</p>
+  </div>
+</div>
+
+<!-- Confirmation modal for uneditable fields -->
+<div id="confirm-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-950/70 p-4 backdrop-blur-md">
+  <div class="w-full max-w-md rounded-3xl border border-white/20 bg-white/10 p-6 text-white shadow-2xl backdrop-blur-2xl">
+    <h3 class="text-lg font-black">Confirm Applicant Details</h3>
+    <p class="mt-2 text-sm text-slate-200">Legal name and date of birth cannot be changed after submission. Please confirm these are correct:</p>
+    <div id="confirm-modal-details" class="mt-3 space-y-1 rounded-xl bg-white/10 p-4 text-sm"></div>
+    <div class="mt-5 flex justify-end gap-3">
+      <button type="button" id="confirm-cancel" class="rounded-xl bg-white/10 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/20">Go Back</button>
+      <button type="button" id="confirm-proceed" class="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-500">Confirm &amp; Submit</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .glass-input {
+    width: 100%;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.08);
+    padding: 0.75rem;
+    font-size: 0.875rem;
+    color: #fff;
+    backdrop-filter: blur(6px);
+  }
+  .glass-input::placeholder { color: rgba(255,255,255,0.4); }
+  .glass-input:focus { outline: none; border-color: rgba(255,255,255,0.5); }
+  .step-label.step-active { color: #6ee7b7; }
+</style>
+
+<script>
+(function () {
+  const form = document.getElementById('admission-form');
+  const steps = Array.from(form.querySelectorAll('.form-step'));
+  const stepLabels = Array.from(document.querySelectorAll('.step-label'));
+  const progressFill = document.getElementById('progress-fill');
+  const submissionLoader = document.getElementById('submission-loader');
+  const submissionLoaderMessage = document.getElementById('submission-loader-message');
+  const paymentCompleteButton = document.getElementById('payment-complete-button');
+  const paymentNotice = document.getElementById('payment-notice');
+  let currentStep = 1;
+
+  function showStep(step) {
+    const currentStepElement = steps.find(function (el) { return Number(el.dataset.step) === currentStep; });
+    const nextStepElement = steps.find(function (el) { return Number(el.dataset.step) === step; });
+    if (currentStepElement && nextStepElement && currentStepElement !== nextStepElement) {
+      currentStepElement.classList.add('opacity-0');
+      setTimeout(function () {
+        currentStepElement.classList.add('hidden');
+        nextStepElement.classList.remove('hidden');
+        nextStepElement.classList.add('opacity-0', 'transition-opacity', 'duration-200');
+        requestAnimationFrame(function () { nextStepElement.classList.remove('opacity-0'); });
+      }, 200);
+    } else if (nextStepElement) {
+      nextStepElement.classList.remove('hidden', 'opacity-0');
+    }
+    stepLabels.forEach(function (el) { el.classList.toggle('step-active', Number(el.dataset.stepLabel) <= step); });
+    progressFill.style.width = (step / steps.length * 100) + '%';
+    currentStep = step;
+    if (step === 4) renderReviewSummary();
+  }
+
+  function validateStep(step) {
+    const stepEl = steps.find(function (el) { return Number(el.dataset.step) === step; });
+    stepEl.querySelectorAll('.border-red-300, .ring-2, .ring-red-300\\/40').forEach(function (element) {
+      element.classList.remove('border-red-300', 'ring-2', 'ring-red-300/40');
+    });
+    const inputs = stepEl.querySelectorAll('input[required]:not(.search-input), select[required], textarea[required]');
+    for (const input of inputs) {
+      if (!input.checkValidity()) {
+        input.classList.add('border-red-300', 'ring-2', 'ring-red-300/40');
+        input.reportValidity();
+        return false;
+      }
+    }
+    const customInputs = stepEl.querySelectorAll('.custom-select .search-input[required]');
+    for (const input of customInputs) {
+      const container = input.closest('.custom-select');
+      const hiddenInput = container.querySelector('input[type="hidden"]');
+      const requiresOptionSelection = input.id === 'present_class';
+      if (!input.value.trim() || (hiddenInput && !hiddenInput.value) || (requiresOptionSelection && input.dataset.selectedValue !== input.value)) {
+        container.querySelector('.select-box').classList.add('border-red-300', 'ring-2', 'ring-red-300/40');
+        input.setCustomValidity('Please select an option from the list.');
+        input.reportValidity();
+        input.setCustomValidity('');
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function setButtonLoading(button, message) {
+    if (button.dataset.busy === 'true') return false;
+    button.dataset.busy = 'true';
+    button.dataset.originalContent = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<span class="inline-flex items-center gap-2"><span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white"></span>' + message + '</span>';
+    return true;
+  }
+
+  function clearButtonLoading(button) {
+    button.disabled = false;
+    button.innerHTML = button.dataset.originalContent;
+    delete button.dataset.busy;
+    delete button.dataset.originalContent;
+  }
+
+  function transitionStep(button, nextStep, message, shouldValidate) {
+    if (shouldValidate && !validateStep(currentStep)) return;
+    if (!setButtonLoading(button, message)) return;
+    saveDraft();
+    setTimeout(function () {
+      showStep(nextStep);
+      clearButtonLoading(button);
+    }, 600);
+  }
+
+  form.querySelectorAll('.step-next').forEach(function (btn) {
+    btn.addEventListener('click', function () { transitionStep(btn, currentStep + 1, 'Validating step...', true); });
+  });
+  form.querySelectorAll('.step-back').forEach(function (btn) {
+    btn.addEventListener('click', function () { transitionStep(btn, currentStep - 1, 'Saving progress...', false); });
+  });
+
+  function renderReviewSummary() {
+    const data = new FormData(form);
+    const summary = document.getElementById('review-summary');
+    const rows = [
+      ['Name', (data.get('first_name') || '') + ' ' + (data.get('last_name') || '')],
+      ['Date of Birth', data.get('date_of_birth') || ''],
+      ['Gender', data.get('sex') || ''],
+      ['Intended Class', form.querySelector('#intended_class_display').value],
+      ['Notification Email', data.get('parent_email') || ''],
+      ['Father', data.get('father_name') || 'Not provided'],
+      ['Mother', data.get('mother_name') || 'Not provided'],
+      ['Next of Kin', data.get('next_of_kin_name') || 'Not provided'],
+    ];
+    summary.innerHTML = rows.map(function (row) {
+      return '<div class="flex justify-between gap-3"><span class="text-slate-400">' + row[0] + '</span><span class="font-semibold text-white">' + (row[1] || '—') + '</span></div>';
+    }).join('');
+  }
+
+  // Email validation feedback
+  const emailInput = document.getElementById('parent-email');
+  const emailError = document.getElementById('parent-email-error');
+  emailInput.addEventListener('input', function () {
+    emailError.classList.toggle('hidden', emailInput.checkValidity());
+  });
+
+  // Disability details toggle
+  const disabilityCheckbox = document.getElementById('has-disability');
+  const disabilityDetails = document.getElementById('disability-details');
+  disabilityCheckbox.addEventListener('change', function () {
+    disabilityDetails.classList.toggle('hidden', !disabilityCheckbox.checked);
+  });
+
+  // Passport preview
+  const passportInput = document.getElementById('passport-input');
+  const passportPreview = document.getElementById('passport-preview');
+  passportInput.addEventListener('change', function () {
+    const file = passportInput.files[0];
+    if (!file) { passportPreview.classList.add('hidden'); return; }
+    const reader = new FileReader();
+    reader.onload = function (e) { passportPreview.src = e.target.result; passportPreview.classList.remove('hidden'); };
+    reader.readAsDataURL(file);
+  });
+
+  // ---- localStorage autosave & draft recovery ----
+  const DRAFT_KEY = 'flaAdmissionDraft';
+  const banner = document.getElementById('draft-banner');
+
+  function collectDraft() {
+    const draft = {};
+    form.querySelectorAll('input, select, textarea').forEach(function (field) {
+      if (field.type === 'file' || field.type === 'hidden' || field.name === 'csrfmiddlewaretoken') return;
+      if (field.type === 'checkbox') { draft[field.name] = field.checked; return; }
+      draft[field.name] = field.value;
+    });
+    return draft;
+  }
+
+  function saveDraft() {
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(collectDraft())); } catch (e) { /* storage unavailable */ }
+  }
+
+  function applyDraft(draft) {
+    Object.keys(draft).forEach(function (name) {
+      const field = form.querySelector('[name="' + name + '"]');
+      if (!field || field.value) return;
+      if (field.type === 'checkbox') { field.checked = draft[name]; field.dispatchEvent(new Event('change')); return; }
+      field.value = draft[name];
+    });
+  }
+
+  let existingDraft = null;
+  try { existingDraft = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); } catch (e) { existingDraft = null; }
+  if (existingDraft && Object.values(existingDraft).some(function (v) { return v; })) {
+    banner.classList.remove('hidden');
+    banner.classList.add('flex');
+  }
+  document.getElementById('draft-restore').addEventListener('click', function () {
+    if (existingDraft) applyDraft(existingDraft);
+    banner.classList.add('hidden');
+  });
+  document.getElementById('draft-discard').addEventListener('click', function () {
+    localStorage.removeItem(DRAFT_KEY);
+    banner.classList.add('hidden');
+  });
+
+  form.addEventListener('input', saveDraft);
+  form.addEventListener('change', saveDraft);
+
+  const copyAccountNumberButton = document.getElementById('copy-account-number');
+  const accountNumber = document.getElementById('bank-account-number').textContent.trim();
+  if (copyAccountNumberButton) copyAccountNumberButton.addEventListener('click', function () {
+    const originalText = copyAccountNumberButton.textContent;
+    const copied = function () {
+      copyAccountNumberButton.textContent = 'Copied!';
+      setTimeout(function () { copyAccountNumberButton.textContent = originalText; }, 1600);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(accountNumber).then(copied).catch(function () { window.prompt('Copy account number:', accountNumber); });
+    } else {
+      window.prompt('Copy account number:', accountNumber);
+    }
+  });
+
+  paymentCompleteButton.addEventListener('click', function () {
+    saveDraft();
+    paymentCompleteButton.disabled = true;
+    paymentCompleteButton.textContent = 'Logging payment notice...';
+    paymentNotice.textContent = 'Payment notice logged. Once our administration verifies your transfer receipt, a confirmation email containing your admission status and portal credentials will be dispatched to your inbox.';
+    paymentNotice.classList.remove('hidden');
+    setTimeout(function () {
+      confirmed = true;
+      startFinalSubmission();
+    }, 900);
+  });
+
+  // ---- Confirmation modal for uneditable fields ----
+  const confirmModal = document.getElementById('confirm-modal');
+  const confirmDetails = document.getElementById('confirm-modal-details');
+  let confirmed = false;
+
+  function startFinalSubmission() {
+    const messages = ['Encrypting data...', 'Generating registration number...', 'Dispatching confirmation email...'];
+    let messageIndex = 0;
+    saveDraft();
+    submissionLoaderMessage.textContent = messages[messageIndex];
+    submissionLoader.classList.remove('hidden');
+    submissionLoader.classList.add('flex');
+    requestAnimationFrame(function () { submissionLoader.classList.remove('opacity-0'); });
+    const messageTimer = setInterval(function () {
+      messageIndex += 1;
+      if (messageIndex >= messages.length) { clearInterval(messageTimer); return; }
+      submissionLoaderMessage.classList.add('opacity-0');
+      setTimeout(function () {
+        submissionLoaderMessage.textContent = messages[messageIndex];
+        submissionLoaderMessage.classList.remove('opacity-0');
+      }, 200);
+    }, 350);
+    setTimeout(function () { form.requestSubmit(); }, 1100);
+  }
+
+  form.addEventListener('submit', function (event) {
+    if (confirmed) return;
+    event.preventDefault();
+    if (!validateStep(5)) return;
+    const firstName = form.querySelector('[name="first_name"]').value;
+    const lastName = form.querySelector('[name="last_name"]').value;
+    const dob = form.querySelector('[name="date_of_birth"]').value;
+    confirmDetails.innerHTML =
+      '<p><span class="text-slate-400">Full Name:</span> <span class="font-bold">' + firstName + ' ' + lastName + '</span></p>' +
+      '<p><span class="text-slate-400">Date of Birth:</span> <span class="font-bold">' + dob + '</span></p>';
+    confirmModal.classList.remove('hidden');
+    confirmModal.classList.add('flex');
+  });
+
+  document.getElementById('confirm-cancel').addEventListener('click', function () {
+    confirmModal.classList.add('hidden');
+    confirmModal.classList.remove('flex');
+  });
+  document.getElementById('confirm-proceed').addEventListener('click', function () {
+    confirmed = true;
+    document.getElementById('confirm-proceed').disabled = true;
+    confirmModal.classList.add('hidden');
+    confirmModal.classList.remove('flex');
+    startFinalSubmission();
+  });
+
+  showStep(1);
+})();
+</script>
+<script>
+(function () {
+  const locationData = {
+    "Abia": ["Aba North", "Aba South", "Arochukwu", "Bende", "Ikwuano", "Isiala Ngwa North", "Isiala Ngwa South", "Isuikwuato", "Obi Ngwa", "Ohafia", "Osisioma", "Ugwunagbo", "Ukwa East", "Ukwa West", "Umuahia North", "Umuahia South", "Umu Nneochi"],
+    "Adamawa": ["Demsa", "Fufure", "Ganye", "Gayuk", "Gombi", "Grie", "Hong", "Jada", "Lamurde", "Madagali", "Maiha", "Mayo Belwa", "Michika", "Mubi North", "Mubi South", "Numan", "Shelleng", "Song", "Toungo", "Yola North", "Yola South"],
+    "Akwa Ibom": ["Abak", "Eastern Obolo", "Eket", "Esit Eket", "Essien Udim", "Etim Ekpo", "Etinan", "Ibeno", "Ibesikpo Asutan", "Ibiono-Ibom", "Ika", "Ikono", "Ikot Abasi", "Ikot Ekpene", "Ini", "Itu", "Mbo", "Mkpat-Enin", "Nsit-Atai", "Nsit-Ibom", "Nsit-Ubium", "Obot Akara", "Okobo", "Onna", "Oron", "Oruk Anam", "Udung-Uko", "Ukanafun", "Uruan", "Urue-Offong/Oruko", "Uyo"],
+    "Anambra": ["Aguata", "Anambra East", "Anambra West", "Anaocha", "Awka North", "Awka South", "Ayamelum", "Dunukofia", "Ekwusigo", "Idemili North", "Idemili South", "Ihiala", "Njikoka", "Nnewi North", "Nnewi South", "Ogbaru", "Onitsha North", "Onitsha South", "Orumba North", "Orumba South", "Oyi"],
+    "Bauchi": ["Alkaleri", "Bauchi", "Bogoro", "Damban", "Darazo", "Dass", "Gamawa", "Ganjuwa", "Giade", "Itas/Gadau", "Jama'are", "Katagum", "Kirfi", "Misau", "Ningi", "Shira", "Tafawa Balewa", "Toro", "Warji", "Zaki"],
+    "Bayelsa": ["Brass", "Ekeremor", "Kolokuma/Opokuma", "Nembe", "Ogbia", "Sagbama", "Southern Ijaw", "Yenagoa"],
+    "Benue": ["Ado", "Agatu", "Apa", "Buruku", "Gboko", "Guma", "Gwer East", "Gwer West", "Katsina-Ala", "Konshisha", "Kwande", "Logo", "Makurdi", "Obi", "Ogbadibo", "Ohimini", "Oju", "Okpokwu", "Otukpo", "Tarka", "Ukum", "Ushongo", "Vandeikya"],
+    "Borno": ["Abadam", "Askira/Uba", "Bama", "Bayo", "Biu", "Chibok", "Damboa", "Dikwa", "Gubio", "Guzamala", "Gwoza", "Hawul", "Jere", "Kaga", "Kala/Balge", "Konduga", "Kukawa", "Kwaya Kusar", "Mafa", "Magumeri", "Maiduguri", "Marte", "Mobbar", "Monguno", "Ngala", "Nganzai", "Shani"],
+    "Cross River": ["Abi", "Akamkpa", "Akpabuyo", "Bakassi", "Bekwarra", "Biase", "Boki", "Calabar Municipal", "Calabar South", "Etung", "Ikom", "Obanliku", "Obubra", "Obudu", "Odukpani", "Ogoja", "Yakuur", "Yala"],
+    "Delta": ["Aniocha North", "Aniocha South", "Bomadi", "Burutu", "Ethiope East", "Ethiope West", "Ika North East", "Ika South", "Isoko North", "Isoko South", "Ndokwa East", "Ndokwa West", "Okpe", "Oshimili North", "Oshimili South", "Patani", "Sapele", "Udu", "Ughelli North", "Ughelli South", "Ukwuani", "Uvwie", "Warri North", "Warri South", "Warri South West"],
+    "Ebonyi": ["Abakaliki", "Afikpo North", "Afikpo South", "Ebonyi", "Ezza North", "Ezza South", "Ikwo", "Ishielu", "Ivo", "Izzi", "Ohaozara", "Ohaukwu", "Onicha"],
+    "Edo": ["Akoko-Edo", "Egor", "Esan Central", "Esan North-East", "Esan South-East", "Esan West", "Etsako Central", "Etsako East", "Etsako West", "Igueben", "Ikpoba Okha", "Orhionmwon", "Oredo", "Ovia North-East", "Ovia South-West", "Owan East", "Owan West", "Uhunmwonde"],
+    "Ekiti": ["Ado Ekiti", "Efon", "Ekiti East", "Ekiti South-West", "Ekiti West", "Emure", "Gbonyin", "Ido Osi", "Ijero", "Ikere", "Ikole", "Ilejemeje", "Irepodun/Ifelodun", "Ise/Orun", "Moba", "Oye"],
+    "Enugu": ["Aninri", "Awgu", "Enugu East", "Enugu North", "Enugu South", "Ezeagu", "Igbo Etiti", "Igbo Eze North", "Igbo Eze South", "Isi Uzo", "Nkanu East", "Nkanu West", "Nsukka", "Oji River", "Udenu", "Udi", "Uzo Uwani"],
+    "FCT": ["Abaji", "Bwari", "Gwagwalada", "Kuje", "Kwali", "Municipal Area Council"],
+    "Gombe": ["Akko", "Balanga", "Billiri", "Dukku", "Funakaye", "Gombe", "Kaltungo", "Kwami", "Nafada", "Shongom", "Yamaltu/Deba"],
+    "Imo": ["Aboh Mbaise", "Ahiazu Mbaise", "Ehime Mbano", "Ezinihitte", "Ideato North", "Ideato South", "Ihitte/Uboma", "Ikeduru", "Isiala Mbano", "Isu", "Mbaitoli", "Ngor Okpala", "Njaba", "Nkwerre", "Nwangele", "Obowo", "Oguta", "Ohaji/Egbema", "Okigwe", "Orlu", "Orsu", "Oru East", "Oru West", "Owerri Municipal", "Owerri North", "Owerri West", "Unuimo"],
+    "Jigawa": ["Auyo", "Babura", "Biriniwa", "Birnin Kudu", "Buji", "Dutse", "Gagarawa", "Garki", "Gumel", "Guri", "Gwaram", "Gwiwa", "Hadejia", "Jahun", "Kafin Hausa", "Kaugama", "Kazaure", "Kiri Kasama", "Kiyawa", "Maigatari", "Malam Madori", "Miga", "Ringim", "Roni", "Sule Tankarkar", "Taura", "Yankwashi"],
+    "Kaduna": ["Birnin Gwari", "Chikun", "Giwa", "Igabi", "Ikara", "Jaba", "Jema'a", "Kachia", "Kaduna North", "Kaduna South", "Kagarko", "Kajuru", "Kaura", "Kauru", "Kubau", "Kudan", "Lere", "Makarfi", "Sabon Gari", "Sanga", "Soba", "Zangon Kataf", "Zaria"],
+    "Kano": ["Ajingi", "Albasu", "Bagwai", "Bebeji", "Bichi", "Bunkure", "Dala", "Dambatta", "Dawakin Kudu", "Dawakin Tofa", "Doguwa", "Fagge", "Gabasawa", "Garko", "Garun Mallam", "Gaya", "Gezawa", "Gwale", "Gwarzo", "Kabo", "Kano Municipal", "Karaye", "Kibiya", "Kiru", "Kumbotso", "Kunchi", "Kura", "Madobi", "Makoda", "Minjibir", "Nasarawa", "Rano", "Rimin Gado", "Rogo", "Shanono", "Sumaila", "Takai", "Tarauni", "Tofa", "Tsanyawa", "Tudun Wada", "Ungogo", "Warawa", "Wudil"],
+    "Katsina": ["Bakori", "Batagarawa", "Batsari", "Baure", "Bindawa", "Charanchi", "Dandume", "Danja", "Dan Musa", "Daura", "Dutsi", "Dutsin Ma", "Faskari", "Funtua", "Ingawa", "Jibia", "Kafur", "Kaita", "Kankara", "Kankia", "Katsina", "Kurfi", "Kusada", "Mai'Adua", "Malumfashi", "Mani", "Mashi", "Matazu", "Musawa", "Rimi", "Sabuwa", "Safana", "Sandamu", "Zango"],
+    "Kebbi": ["Aleiro", "Arewa Dandi", "Argungu", "Augie", "Bagudo", "Birnin Kebbi", "Bunza", "Dandi", "Fakai", "Gwandu", "Jega", "Kalgo", "Koko/Besse", "Maiyama", "Ngaski", "Sakaba", "Shanga", "Suru", "Wasagu/Danko", "Yauri", "Zuru"],
+    "Kogi": ["Adavi", "Ajaokuta", "Ankpa", "Bassa", "Dekina", "Ibaji", "Idah", "Igalamela Odolu", "Ijumu", "Kabba/Bunu", "Kogi", "Lokoja", "Mopa Muro", "Ofu", "Ogori/Magongo", "Okehi", "Okene", "Olamaboro", "Omala", "Yagba East", "Yagba West"],
+    "Kwara": ["Asa", "Baruten", "Edu", "Ekiti", "Ifelodun", "Ilorin East", "Ilorin South", "Ilorin West", "Irepodun", "Isin", "Kaiama", "Moro", "Offa", "Oke Ero", "Oyun", "Pategi"],
+    "Lagos": ["Agege", "Ajeromi-Ifelodun", "Alimosho", "Amuwo-Odofin", "Apapa", "Badagry", "Epe", "Eti Osa", "Ibeju-Lekki", "Ifako-Ijaiye", "Ikeja", "Ikorodu", "Kosofe", "Lagos Island", "Lagos Mainland", "Mushin", "Ojo", "Oshodi-Isolo", "Shomolu", "Surulere"],
+    "Nasarawa": ["Akwanga", "Awe", "Doma", "Karu", "Keana", "Keffi", "Kokona", "Lafia", "Nasarawa", "Nasarawa Egon", "Obi", "Toto", "Wamba"],
+    "Niger": ["Agaie", "Agwara", "Bida", "Borgu", "Bosso", "Chanchaga", "Edati", "Gbako", "Gurara", "Katcha", "Kontagora", "Lapai", "Lavun", "Magama", "Mariga", "Mashegu", "Mokwa", "Muya", "Paikoro", "Rafi", "Rijau", "Shiroro", "Suleja", "Tafa", "Wushishi"],
+    "Ogun": ["Abeokuta North", "Abeokuta South", "Ado-Odo/Ota", "Egbado North", "Egbado South", "Ewekoro", "Ifo", "Ijebu East", "Ijebu North", "Ijebu North East", "Ijebu Ode", "Ikenne", "Imeko Afon", "Ipokia", "Obafemi Owode", "Odeda", "Odogbolu", "Ogun Waterside", "Remo North", "Shagamu"],
+    "Ondo": ["Akoko North-East", "Akoko North-West", "Akoko South-East", "Akoko South-West", "Akure North", "Akure South", "Ese Odo", "Idanre", "Ifedore", "Ilaje", "Ile Oluji/Okeigbo", "Irele", "Odigbo", "Okitipupa", "Ondo East", "Ondo West", "Ose", "Owo"],
+    "Osun": ["Atakumosa East", "Atakumosa West", "Aiyedaade", "Aiyedire", "Boluwaduro", "Boripe", "Ede North", "Ede South", "Ife Central", "Ife East", "Ife North", "Ife South", "Egbedore", "Ejigbo", "Ifedayo", "Ifelodun", "Ila", "Ilesa East", "Ilesa West", "Irepodun", "Irewole", "Isokan", "Iwo", "Obokun", "Odo Otin", "Ola Oluwa", "Olorunda", "Oriade", "Orolu", "Osogbo"],
+    "Oyo": ["Afijio", "Akinyele", "Atiba", "Atisbo", "Egbeda", "Ibadan North", "Ibadan North-East", "Ibadan North-West", "Ibadan South-East", "Ibadan South-West", "Ibarapa Central", "Ibarapa East", "Ibarapa North", "Ido", "Irepo", "Iseyin", "Itesiwaju", "Iwajowa", "Kajola", "Lagelu", "Ogbomosho North", "Ogbomosho South", "Ogo Oluwa", "Olorunsogo", "Oluyole", "Ona Ara", "Orelope", "Ori Ire", "Oyo East", "Oyo West", "Saki East", "Saki West", "Surulere"],
+    "Plateau": ["Bokkos", "Barkin Ladi", "Bassa", "Jos East", "Jos North", "Jos South", "Kanam", "Kanke", "Langtang North", "Langtang South", "Mangu", "Mikang", "Pankshin", "Qua'an Pan", "Riyom", "Shendam", "Wase"],
+    "Rivers": ["Abua/Odual", "Ahoada East", "Ahoada West", "Akuku-Toru", "Andoni", "Asari-Toru", "Bonny", "Degema", "Eleme", "Emuoha", "Etche", "Gokana", "Ikwerre", "Khana", "Obio/Akpor", "Ogba/Egbema/Ndoni", "Ogu/Bolo", "Okrika", "Omuma", "Opobo/Nkoro", "Oyigbo", "Port Harcourt", "Tai"],
+    "Sokoto": ["Binji", "Bodinga", "Dange Shuni", "Gada", "Goronyo", "Gudu", "Gwadabawa", "Illela", "Isa", "Kebbe", "Kware", "Rabah", "Sabon Birni", "Shagari", "Silame", "Sokoto North", "Sokoto South", "Tambuwal", "Tangaza", "Tureta", "Wamako", "Wurno", "Yabo"],
+    "Taraba": ["Ardo Kola", "Bali", "Donga", "Gashaka", "Gassol", "Ibi", "Jalingo", "Karim Lamido", "Kurmi", "Lau", "Sardauna", "Takum", "Ussa", "Wukari", "Yorro", "Zing"],
+    "Yobe": ["Bade", "Bursari", "Damaturu", "Fika", "Fune", "Geidam", "Gujba", "Gulani", "Jakusko", "Karasuwa", "Machina", "Nangere", "Nguru", "Potiskum", "Tarmua", "Yunusari", "Yusufari"],
+    "Zamfara": ["Anka", "Bakura", "Birnin Magaji/Kiyaw", "Bukkuyum", "Bungudu", "Gummi", "Gusau", "Kaura Namoda", "Maradun", "Maru", "Shinkafi", "Talata Mafara", "Chafe", "Zurmi"]
+  };
+  const nationalities = ["Nigerian", "Ghanaian", "Kenyan", "South African", "American", "British", "Canadian", "Australian", "Other"];
+  const sexOptions = ["Male", "Female"];
+  const presentClassOptions = ["Kindergarten 1", "Kindergarten 2", "Nursery 1", "Nursery 2", "Primary 1", "Primary 2", "Primary 3", "Primary 4", "Primary 5", "Primary 6"];
+  const schoolTypeOptions = [{% for value, label in school_type_choices %}{ label: "{{ label|escapejs }}", value: "{{ value|escapejs }}" }{% if not forloop.last %}, {% endif %}{% endfor %}];
+  const programmeOptions = [{% for value, label in program_choices %}{ label: "{{ label|escapejs }}", value: "{{ value|escapejs }}" }{% if not forloop.last %}, {% endif %}{% endfor %}];
+  const classroomOptions = [{% for classroom in classrooms %}{ label: "{{ classroom.name|escapejs }}", value: "{{ classroom.pk }}" }{% if not forloop.last %}, {% endif %}{% endfor %}];
+  const programClassMap = {
+    'Kindergarten (KG)': ['KG 1', 'KG 2'],
+    'Nursery (NUR)': ['Nursery 1', 'Nursery 2'],
+    'Primary (PRY)': ['Primary 1', 'Primary 2', 'Primary 3', 'Primary 4', 'Primary 6']
+  };
+  function containerFor(name) { return document.querySelector('.custom-select[data-name="' + name + '"]'); }
+  function closeAllSelects() { document.querySelectorAll('.custom-select').forEach(function (container) { container.querySelector('.options-container').classList.add('hidden'); container.querySelector('.dropdown-icon').classList.remove('rotate-180'); }); }
+  function populateCustomSelect(name, options, placeholder) {
+    const container = containerFor(name); if (!container) return;
+    const input = container.querySelector('.search-input'); const list = container.querySelector('.options-list');
+    input.placeholder = placeholder; list.innerHTML = '';
+    if (!options.length) { const empty = document.createElement('li'); empty.className = 'px-4 py-2.5 text-xs italic text-white/50'; empty.textContent = 'No options available'; list.appendChild(empty); return; }
+    options.forEach(function (option) { const optionLabel = typeof option === 'string' ? option : option.label; const optionValue = typeof option === 'string' ? option : option.value; const item = document.createElement('li'); item.className = 'option-item cursor-pointer px-4 py-2.5 text-white transition-colors hover:bg-white/10'; item.textContent = optionLabel; item.dataset.value = optionValue; item.addEventListener('mousedown', function (event) { event.preventDefault(); input.value = optionLabel; input.dataset.selectedValue = optionLabel; const hiddenInput = container.querySelector('input[type="hidden"]'); if (hiddenInput) hiddenInput.value = optionValue; closeAllSelects(); input.dispatchEvent(new Event('change', { bubbles: true })); }); list.appendChild(item); });
+  }
+  function openSelect(container) { container.querySelector('.options-container').classList.remove('hidden'); container.querySelector('.dropdown-icon').classList.add('rotate-180'); }
+  function updateLgas() { const state = document.getElementById('state_of_origin').value.trim(); const lgas = locationData[state] || []; const lgaInput = document.getElementById('lga'); if (!lgas.includes(lgaInput.value)) lgaInput.value = ''; lgaInput.dataset.selectedValue = lgaInput.value; populateCustomSelect('lga', lgas.slice().sort(), lgas.length ? 'Select LGA...' : 'Select State First...'); }
+  function togglePreviousSchoolName() {
+    const schoolType = document.getElementById('school_type').value;
+    const previousSchoolInput = document.getElementById('previous_school');
+    const previousSchoolMarker = document.getElementById('previous-school-required-marker');
+    const presentClassContainer = containerFor('present_class');
+    const presentClassInput = document.getElementById('present_class');
+    const presentClassMarker = document.getElementById('present-class-required-marker');
+    const presentClassBox = presentClassContainer.querySelector('.select-box');
+    const isFirstSchool = schoolType === 'None';
+    previousSchoolInput.disabled = isFirstSchool;
+    previousSchoolInput.required = !isFirstSchool;
+    previousSchoolInput.classList.toggle('opacity-40', isFirstSchool);
+    previousSchoolInput.classList.toggle('cursor-not-allowed', isFirstSchool);
+    previousSchoolInput.classList.toggle('bg-slate-800/50', isFirstSchool);
+    previousSchoolMarker.classList.toggle('hidden', isFirstSchool);
+    if (isFirstSchool) previousSchoolInput.value = '';
+
+    presentClassInput.disabled = isFirstSchool;
+    presentClassInput.required = !isFirstSchool;
+    presentClassContainer.classList.toggle('pointer-events-none', isFirstSchool);
+    presentClassBox.classList.toggle('opacity-40', isFirstSchool);
+    presentClassBox.classList.toggle('cursor-not-allowed', isFirstSchool);
+    presentClassBox.classList.toggle('bg-slate-800/50', isFirstSchool);
+    presentClassMarker.classList.toggle('hidden', isFirstSchool);
+    if (isFirstSchool) {
+      presentClassInput.value = '';
+      presentClassInput.dataset.selectedValue = '';
+      closeAllSelects();
+    }
+  }
+  function updateIntendedClasses() {
+    const programme = document.getElementById('programme_of_study').value;
+    const allowedClasses = programClassMap[programme] || [];
+    const classOptions = classroomOptions.filter(function (classroom) { return allowedClasses.includes(classroom.label); });
+    const classInput = document.getElementById('intended_class');
+    const classDisplayInput = document.getElementById('intended_class_display');
+    if (!classOptions.some(function (classroom) { return classroom.value === classInput.value; })) {
+      classInput.value = '';
+      classDisplayInput.value = '';
+      classDisplayInput.dataset.selectedValue = '';
+    }
+    populateCustomSelect('intended_class', classOptions, classOptions.length ? 'Select a class...' : 'Select Program First...');
+  }
+  populateCustomSelect('sex', sexOptions, 'Select gender...');
+  populateCustomSelect('nationality', nationalities, 'Select nationality...');
+  populateCustomSelect('religion', ['Christianity', 'Islam', 'Other'], 'Select religion...');
+  populateCustomSelect('state_of_origin', Object.keys(locationData).sort(), 'Select State...');
+  populateCustomSelect('school_type', schoolTypeOptions, 'Select school type...');
+  populateCustomSelect('present_class', presentClassOptions, 'Select present class...');
+  populateCustomSelect('programme_of_study', programmeOptions, 'Select programme...');
+  updateLgas();
+  ['sex', 'nationality', 'religion', 'state_of_origin', 'lga', 'school_type', 'present_class', 'programme_of_study', 'intended_class'].forEach(function (name) {
+    const input = document.getElementById(name);
+    const displayInput = ['school_type', 'programme_of_study', 'intended_class'].includes(name) ? document.getElementById(name + '_display') : input;
+    const options = name === 'sex' ? sexOptions : name === 'nationality' ? nationalities : name === 'religion' ? ['Christianity', 'Islam', 'Other'] : name === 'state_of_origin' ? Object.keys(locationData) : name === 'lga' ? (locationData[document.getElementById('state_of_origin').value] || []) : name === 'school_type' ? schoolTypeOptions : name === 'present_class' ? presentClassOptions : name === 'programme_of_study' ? programmeOptions : classroomOptions;
+    const selectedOption = options.find(function (option) { return (typeof option === 'string' ? option : option.value) === input.value; });
+    if (selectedOption) displayInput.value = typeof selectedOption === 'string' ? selectedOption : selectedOption.label;
+    displayInput.dataset.selectedValue = selectedOption ? displayInput.value : '';
+  });
+  document.getElementById('state_of_origin').addEventListener('input', updateLgas);
+  document.getElementById('state_of_origin').addEventListener('change', updateLgas);
+  document.getElementById('school_type_display').addEventListener('change', togglePreviousSchoolName);
+  document.getElementById('programme_of_study_display').addEventListener('change', updateIntendedClasses);
+  togglePreviousSchoolName();
+  updateIntendedClasses();
+  document.querySelectorAll('.custom-select').forEach(function (container) {
+    const input = container.querySelector('.search-input'); const list = container.querySelector('.options-list'); const icon = container.querySelector('.dropdown-icon');
+    container.addEventListener('click', function (event) { event.stopPropagation(); });
+    input.addEventListener('focus', function (event) { event.stopPropagation(); closeAllSelects(); openSelect(container); });
+    input.addEventListener('click', function (event) { event.stopPropagation(); closeAllSelects(); openSelect(container); });
+    input.addEventListener('input', function () { input.dataset.selectedValue = ''; openSelect(container); const filter = input.value.toLowerCase(); list.querySelectorAll('.option-item').forEach(function (item) { item.style.display = item.textContent.toLowerCase().includes(filter) ? '' : 'none'; }); });
+    icon.addEventListener('click', function (event) { event.stopPropagation(); const isClosed = container.querySelector('.options-container').classList.contains('hidden'); closeAllSelects(); if (isClosed) { openSelect(container); input.focus(); } });
+  });
+  document.addEventListener('click', function (event) {
+    if (!event.target.closest('.custom-select')) closeAllSelects();
+  });
+})();
+</script>
+{% endblock %}

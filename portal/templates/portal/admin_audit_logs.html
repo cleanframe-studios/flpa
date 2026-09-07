@@ -1,0 +1,49 @@
+{% extends 'portal/base.html' %}
+{% load portal_extras %}
+{% block page_title %}Security Audit Log{% endblock %}
+{% block content %}
+<div class="min-h-full bg-slate-100 p-6 lg:p-8">
+  <div class="mx-auto max-w-7xl space-y-6">
+    <header class="rounded-3xl bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950 p-8 text-white shadow-lg">
+      <p class="text-xs font-bold uppercase tracking-[0.2em] text-blue-200">Security Operations</p>
+      <h1 class="mt-2 text-2xl font-black">Immutable Activity Log</h1>
+      <p class="mt-1 text-sm text-blue-100">Chronological record of protected academic and financial actions.</p>
+    </header>
+
+    <form method="get" class="grid items-end gap-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:grid-cols-5">
+      {% include 'portal/result_filter_combobox.html' with field_name='action_type' label='Action' selected_value=selected_action_type selected_label=selected_action_label options=action_choices %}
+      {% include 'portal/result_filter_combobox.html' with field_name='user' label='Actor' selected_value=user_query selected_label=user_query options=audit_users %}
+      <div class="flex flex-col">
+        <label for="audit-start-date" class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Start date</label>
+        <input type="text" id="audit-start-date" name="start_date" value="{{ start_date }}" placeholder="YYYY-MM-DD" class="global-date-picker w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold text-slate-800">
+      </div>
+      <div class="flex flex-col">
+        <label for="audit-end-date" class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">End date</label>
+        <input type="text" id="audit-end-date" name="end_date" value="{{ end_date }}" placeholder="YYYY-MM-DD" class="global-date-picker w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold text-slate-800">
+      </div>
+      <button type="submit" class="self-end rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700">Filter Activity</button>
+    </form>
+
+    <section class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[1000px] text-left text-sm">
+          <thead class="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500"><tr><th class="p-4">Timestamp</th><th class="p-4">Actor</th><th class="p-4">Action</th><th class="p-4">Target</th><th class="p-4">IP Address</th><th class="p-4">Changes</th></tr></thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for log in logs %}<tr class="align-top hover:bg-slate-50/70"><td class="whitespace-nowrap p-4 text-slate-600">{{ log.timestamp|date:'d M Y H:i:s' }}</td><td class="p-4 font-bold text-slate-800">{{ log.user.username }}</td><td class="p-4"><span class="rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-800">{{ log.get_action_type_display }}</span></td><td class="p-4 text-slate-700">{{ log.target_description }}</td><td class="p-4 font-mono text-xs text-slate-600">{{ log.ip_address|default:'Unavailable' }}</td><td class="p-4 max-w-sm">{% with rows=log.changes_json|audit_diff %}{% if rows %}<div class="space-y-2">{% for row in rows %}<div><p class="mb-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">{{ row.label }}</p><div class="flex flex-wrap items-center gap-1">{% if row.before %}<span class="rounded-md bg-rose-100 px-2 py-1 text-xs font-bold text-rose-700 line-through">{{ row.before }}</span><span class="mx-1 text-slate-400">➔</span>{% endif %}{% if row.after %}<span class="rounded-md bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-700">{{ row.after }}</span>{% endif %}</div></div>{% endfor %}</div>{% else %}<span class="text-slate-400 italic">State recorded</span>{% endif %}{% endwith %}</td></tr>{% empty %}<tr><td colspan="6" class="p-12 text-center text-sm text-slate-500">No audit events match these filters.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if page_obj.paginator.num_pages > 1 %}
+      <nav class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-4 py-4" aria-label="Audit log pagination">
+        <span class="text-xs font-semibold text-slate-500">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        <div class="flex items-center gap-1">
+          {% if page_obj.has_previous %}<a href="?action_type={{ selected_action_type|urlencode }}&user={{ user_query|urlencode }}&start_date={{ start_date|urlencode }}&end_date={{ end_date|urlencode }}&page={{ page_obj.previous_page_number }}" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">Previous</a>{% endif %}
+          {% for page_number in page_obj.paginator.page_range %}<a href="?action_type={{ selected_action_type|urlencode }}&user={{ user_query|urlencode }}&start_date={{ start_date|urlencode }}&end_date={{ end_date|urlencode }}&page={{ page_number }}" class="rounded-lg px-3 py-2 text-xs font-bold {% if page_number == page_obj.number %}bg-blue-600 text-white{% else %}text-slate-700 hover:bg-slate-50{% endif %}">{{ page_number }}</a>{% endfor %}
+          {% if page_obj.has_next %}<a href="?action_type={{ selected_action_type|urlencode }}&user={{ user_query|urlencode }}&start_date={{ start_date|urlencode }}&end_date={{ end_date|urlencode }}&page={{ page_obj.next_page_number }}" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">Next</a>{% endif %}
+        </div>
+      </nav>
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}

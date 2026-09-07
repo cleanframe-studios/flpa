@@ -1,0 +1,135 @@
+{% extends 'portal/base.html' %}
+{% block page_title %}Class Management{% endblock %}
+{% block content %}
+<div class="min-h-full bg-slate-100 p-6 lg:p-8">
+  <div class="mx-auto max-w-7xl space-y-6">
+    <header class="rounded-3xl bg-gradient-to-r from-blue-950 via-blue-900 to-slate-900 p-8 text-white shadow-lg">
+      <p class="text-xs font-bold uppercase tracking-[0.2em] text-blue-200">Academics Configuration</p>
+      <h1 class="mt-2 text-2xl font-black">Class Management &amp; Progression</h1>
+      <p class="mt-1 text-sm text-blue-100">Configure the destination class and graduation status used by the rollover wizard.</p>
+    </header>
+
+    <section class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <div class="border-b border-slate-100 p-6">
+        <h2 class="text-lg font-bold text-slate-900">Progression Map</h2>
+        <p class="mt-1 text-sm text-slate-500">Each class can point to any destination class, including non-linear progressions.</p>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[760px] text-left text-sm">
+          <thead class="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
+            <tr>
+              <th class="p-4">Class Name</th>
+              <th class="p-4">Next Class (Progression)</th>
+              <th class="p-4">Terminal Status</th>
+              <th class="p-4 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for classroom in classrooms %}
+              <tr class="hover:bg-slate-50/70">
+                <td class="p-4 font-bold text-slate-800">{{ classroom.name }}</td>
+                <td class="p-4">
+                  {% if classroom.is_terminal %}
+                    <span class="text-emerald-600 font-bold">Graduating (Terminal)</span>
+                  {% elif classroom.next_class %}
+                    <span class="text-slate-700">{{ classroom.next_class.name }}</span>
+                  {% else %}
+                    <span class="text-amber-600 font-semibold">Not configured</span>
+                  {% endif %}
+                </td>
+                <td class="p-4">
+                  <span class="rounded-full px-3 py-1.5 text-xs font-bold {% if classroom.is_terminal %}bg-emerald-100 text-emerald-800{% else %}bg-slate-100 text-slate-600{% endif %}">
+                    {% if classroom.is_terminal %}Graduating{% else %}Standard{% endif %}
+                  </span>
+                </td>
+                <td class="p-4 text-right">
+                  <button type="button" onclick="openClassModal('{{ classroom.pk }}','{{ classroom.name|escapejs }}','{{ classroom.next_class.pk|default:'' }}','{{ classroom.is_terminal|yesno:'1,0' }}')" class="rounded-xl bg-blue-50 px-4 py-2 text-xs font-bold text-blue-700 transition hover:bg-blue-600 hover:text-white">Edit</button>
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="4" class="p-10 text-center text-sm text-slate-500">No classes configured.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div id="class-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
+  <div class="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+    <div class="flex items-start justify-between">
+      <div>
+        <p class="text-xs font-bold uppercase tracking-wider text-blue-600">Progression settings</p>
+        <h2 class="mt-1 text-xl font-black text-slate-900">Edit Class</h2>
+      </div>
+      <button type="button" onclick="closeClassModal()" class="rounded-xl p-2 text-xl text-slate-400 hover:bg-slate-100">&times;</button>
+    </div>
+    <form method="post" class="mt-6 space-y-5">
+      {% csrf_token %}
+      <input type="hidden" id="classroom-id" name="classroom_id">
+      <label class="block text-xs font-bold uppercase tracking-wider text-slate-500">Current Class
+        <input id="classroom-name" type="text" disabled class="mt-2 w-full rounded-xl border border-slate-200 bg-slate-100 p-3 text-sm font-semibold text-slate-600">
+      </label>
+      <label class="block text-xs font-bold uppercase tracking-wider text-slate-500">Next Class
+        <div class="relative mt-2">
+          <select id="next-class" name="next_class" class="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm text-slate-700 shadow-sm transition focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <option value="">No progression mapping</option>
+            {% for option in all_classrooms %}
+              <option value="{{ option.pk }}">{{ option.name }}</option>
+            {% endfor %}
+          </select>
+          <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-slate-400">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7"></path></svg>
+          </div>
+        </div>
+      </label>
+      <label class="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm font-bold text-slate-700">
+        <input id="is-terminal" type="checkbox" name="is_terminal" value="1" class="h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-600"> Is Terminal / Graduating Class
+      </label>
+      <div class="flex justify-end gap-3">
+        <button type="button" onclick="closeClassModal()" class="rounded-xl bg-slate-100 px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-200">Cancel</button>
+        <button type="submit" class="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-700">Save Settings</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function syncTerminalControl() {
+  const checkbox = document.getElementById('is-terminal');
+  const select = document.getElementById('next-class');
+  if (!checkbox || !select) return;
+  const isTerminal = checkbox.checked;
+  if (isTerminal) {
+    select.value = '';
+    select.disabled = true;
+  } else {
+    select.disabled = false;
+  }
+}
+
+function openClassModal(id, name, nextClass, terminal) {
+  document.getElementById('classroom-id').value = id;
+  document.getElementById('classroom-name').value = name;
+  const isTerminal = terminal === '1';
+  document.getElementById('is-terminal').checked = isTerminal;
+  document.getElementById('next-class').value = isTerminal ? '' : nextClass;
+  syncTerminalControl();
+  const modal = document.getElementById('class-modal');
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+}
+
+function closeClassModal() {
+  const modal = document.getElementById('class-modal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+}
+
+document.getElementById('is-terminal').addEventListener('change', syncTerminalControl);
+document.addEventListener('DOMContentLoaded', syncTerminalControl);
+</script>
+{% endblock %}

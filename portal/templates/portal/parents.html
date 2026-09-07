@@ -1,0 +1,203 @@
+{% extends 'portal/base.html' %}
+
+{% block page_title %}Parents Manager{% endblock %}
+{% block content %}
+<style>
+    @keyframes assembleUp { 0% { opacity: 0; transform: translateY(20px); } 100% { opacity: 1; transform: translateY(0); } }
+    .animate-stage-1 { animation: assembleUp .6s cubic-bezier(.16,1,.3,1) .05s forwards; opacity: 0; }
+    .animate-stage-2 { animation: assembleUp .6s cubic-bezier(.16,1,.3,1) .15s forwards; opacity: 0; }
+    .parent-menu { display: block; }
+    .parent-menu.hidden { display: none; }
+    #parent-directory-print .overflow-x-auto { overflow: visible; }
+    @media print {
+        body * { visibility: hidden !important; }
+        #parent-directory-print, #parent-directory-print * { visibility: visible !important; }
+        #parent-directory-print { position: absolute; inset: 0; width: 100%; padding: 24px; background: white; }
+        #parent-print-report, #parent-print-report * { visibility: visible !important; }
+        #parent-print-report { display: block !important; position: absolute; inset: 0; padding: 24px; background: white; }
+        #parent-print-report table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        #parent-print-report th, #parent-print-report td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; }
+        #parent-print-report th { background: #f1f5f9; }
+        .parent-directory-actions, .parent-link-action, #parent-directory-print form { display: none !important; }
+    }
+</style>
+<div class="animate-stage-1 min-h-full bg-slate-100 p-6 lg:p-8">
+    <div class="animate-stage-2 mx-auto max-w-7xl space-y-6">
+        <div class="flex flex-col justify-between gap-4 rounded-3xl bg-gradient-to-r from-blue-900 via-blue-800 to-slate-900 p-8 text-white shadow-lg sm:flex-row sm:items-center">
+            <div><h1 class="text-2xl font-black tracking-tight">Parents Manager</h1><p class="mt-1 text-xs text-blue-100">Manage parent records and connect families to enrolled students.</p></div>
+            <div class="parent-directory-actions flex gap-2"><button type="button" onclick="openPrintFilter()" class="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-3 text-xs font-bold text-white shadow-sm transition-transform duration-100 hover:bg-white/20 active:scale-95">Print Details</button><button type="button" onclick="openParentModal()" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-xs font-bold text-white shadow-sm transition-transform duration-100 hover:bg-blue-500 active:scale-95">+ Add Parent</button></div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p class="text-xs font-bold uppercase tracking-wider text-slate-500">Total Parents</p><p class="mt-2 text-3xl font-black text-slate-900">{{ parents|length }}</p></div>
+            <div class="rounded-2xl border border-blue-200 bg-blue-50 p-5 shadow-sm"><p class="text-xs font-bold uppercase tracking-wider text-blue-700">Linked Students</p><p class="mt-2 text-3xl font-black text-blue-900">{{ linked_students }}</p></div>
+            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm"><p class="text-xs font-bold uppercase tracking-wider text-amber-700">Unlinked Students</p><p class="mt-2 text-3xl font-black text-amber-900">{{ unlinked_students }}</p></div>
+        </div>
+
+        <div id="parent-directory-print" class="overflow-visible rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div class="mb-5"><h2 class="text-lg font-bold text-slate-900">Parent Directory</h2><p class="text-xs text-slate-500">Each parent can be connected to multiple student records.</p></div>
+            <div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead><tr class="bg-slate-50 text-xs uppercase tracking-wider text-slate-600"><th class="p-3">Parent</th><th class="p-3">Sex</th><th class="p-3">Location</th><th class="p-3">Children</th><th class="p-3">Link a student</th><th class="p-3">Actions</th></tr></thead><tbody class="divide-y divide-slate-100">{% for parent in parents %}<tr><td class="p-3 font-bold text-slate-900"><strong>{{ parent.first_name }} {{ parent.last_name }}</strong><span class="mt-1 block text-xs font-normal text-slate-500">{{ parent.parent_id }}</span></td><td class="p-3 text-slate-700">{{ parent.sex|default:'—' }}</td><td class="p-3 text-slate-700">{{ parent.state }}{% if parent.lga %}, {{ parent.lga }}{% endif %}</td><td class="p-3"><div class="flex max-w-sm flex-wrap gap-1">{% for child in parent.children.all %}<span class="rounded-full border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700">{{ child.first_name }} {{ child.last_name }}</span>{% empty %}<span class="text-xs italic text-slate-400">No linked students</span>{% endfor %}</div></td><td class="p-3"><form method="post" class="flex min-w-[220px] gap-2">{% csrf_token %}<input type="hidden" name="action" value="link_student"><input type="hidden" name="parent" value="{{ parent.pk }}"><div class="relative custom-parent-select flex-1"><input type="hidden" name="student" required><button type="button" class="parent-select-button flex w-full items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-left text-xs text-slate-700">Select student</button><div class="parent-menu absolute z-50 mt-2 max-h-60 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white p-1 shadow-xl hidden"><div class="profile-options">{% for student in available_students %}{% if not student.parent %}<button type="button" data-value="{{ student.pk }}" class="parent-option block w-full rounded px-2 py-2 text-left text-xs hover:bg-blue-50">{{ student.first_name }} {{ student.last_name }}</button>{% endif %}{% empty %}<span class="block px-2 py-2 text-xs text-slate-400">No students available.</span>{% endfor %}</div></div></div><button type="submit" class="rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white transition-transform duration-100 hover:bg-blue-700 active:scale-95">Link</button></form></td><td class="p-3"><a href="{% url 'parent_profile' parent.pk %}" class="inline-flex rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-bold text-white transition-transform duration-100 hover:bg-slate-800 active:scale-95">View Profile</a></td></tr>{% empty %}<tr><td colspan="6" class="p-12 text-center text-sm text-slate-500">No parent records yet. Add the first parent to begin linking families.</td></tr>{% endfor %}</tbody></table></div>
+        </div>
+    </div>
+</div>
+
+<div id="parentPrintFilter" class="fixed inset-0 z-[9999] h-screen w-screen hidden items-center justify-center bg-slate-900/60 p-4 backdrop-blur-md overflow-hidden">
+    <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+        <h2 class="text-lg font-black text-slate-900">Print which records?</h2>
+        <div class="mt-5 grid gap-2"><button type="button" onclick="printParentDetails('all')" class="rounded-xl bg-slate-900 px-4 py-3 text-left text-xs font-bold text-white active:scale-95">All Parents</button><button type="button" onclick="printParentDetails('Active')" class="rounded-xl bg-emerald-600 px-4 py-3 text-left text-xs font-bold text-white active:scale-95">Active Parents</button><button type="button" onclick="printParentDetails('Inactive')" class="rounded-xl bg-slate-200 px-4 py-3 text-left text-xs font-bold text-slate-700 active:scale-95">Inactive Parents</button></div>
+        <button type="button" onclick="closePrintFilter()" class="mt-5 rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-700 active:scale-95">Cancel</button>
+    </div>
+</div>
+<div id="parent-print-report" class="hidden"><h1>Future Leaders Private Academy - Parent Details</h1><table><thead><tr><th>Parent Name / ID</th><th>Sex/Gender</th><th>Location</th><th>Children</th><th>Status</th></tr></thead><tbody>{% for parent in parents %}<tr data-status="{{ parent.status }}"><td><strong>{{ parent.display_name }}</strong><br>{{ parent.parent_id }}</td><td>{{ parent.sex }}</td><td>{{ parent.state }} / {{ parent.lga }}</td><td>{% for child in parent.children.all %}{{ child.first_name }} {{ child.last_name }}{% if not forloop.last %}, {% endif %}{% empty %}-{% endfor %}</td><td>{{ parent.status }}</td></tr>{% endfor %}</tbody></table></div>
+
+<div id="parentModal" data-open="{{ open_parent_modal|yesno:'true,false' }}" class="fixed inset-0 z-[9999] h-screen w-screen flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-md overflow-hidden opacity-0 pointer-events-none transition-all duration-300">
+    <div class="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl transition-all duration-300 sm:p-8">
+        <div class="mb-6 flex items-start justify-between"><div><p class="text-xs font-bold uppercase tracking-[.2em] text-blue-600">Family record</p><h2 class="mt-1 text-2xl font-black text-slate-900">Add Parent</h2></div><button type="button" onclick="closeParentModal()" class="rounded-full p-2 text-slate-400 transition-transform duration-100 hover:bg-slate-100 hover:text-slate-700 active:scale-95">✕</button></div>
+        <form method="post" class="grid grid-cols-1 gap-4 sm:grid-cols-2">{% csrf_token %}<input type="hidden" name="action" value="create_parent">
+             {% if open_parent_modal %}<div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-semibold text-red-700 sm:col-span-2">Please correct the highlighted required fields and submit again.</div>{% endif %}
+            <label class="block"><span class="field-label">First name *</span><input name="first_name" value="{{ parent_form.first_name|default:'' }}" required class="parent-field"></label><label class="block"><span class="field-label">Last name *</span><input name="last_name" value="{{ parent_form.last_name|default:'' }}" required class="parent-field"></label><label class="block"><span class="field-label">Middle name</span><input name="middle_name" value="{{ parent_form.middle_name|default:'' }}" class="parent-field"></label>
+            <label class="block"><span class="field-label">Phone number *</span><input name="phone_number" value="{{ parent_form.phone_number|default:'' }}" required class="parent-field"></label>
+            <div class="relative custom-parent-select"><span class="field-label">Sex *</span><input type="hidden" name="sex" required><button type="button" class="parent-select-button parent-field flex items-center justify-between text-left">Select sex</button><div class="parent-menu absolute z-50 mt-2 max-h-60 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl hidden"><button type="button" data-value="Male" class="parent-option block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-blue-50">Male</button><button type="button" data-value="Female" class="parent-option block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-blue-50">Female</button></div></div>
+            <label class="block"><span class="field-label">Email</span><input type="email" name="email" value="{{ parent_form.email|default:'' }}" class="parent-field"></label><label class="block"><span class="field-label">Occupation</span><input name="occupation" value="{{ parent_form.occupation|default:'' }}" class="parent-field"></label>
+            <div class="relative custom-parent-select"><span class="field-label">Marital status *</span><input type="hidden" name="marital_status" required><button type="button" class="parent-select-button parent-field flex items-center justify-between text-left">Select status</button><div class="parent-menu absolute z-50 mt-2 max-h-60 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl hidden">{% for value,label in marital_choices %}<button type="button" data-value="{{ value }}" class="parent-option block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-blue-50">{{ label }}</button>{% endfor %}</div></div>
+            <div class="relative custom-parent-select"><span class="field-label">Religion</span><input type="hidden" name="religion"><button type="button" class="parent-select-button parent-field flex items-center justify-between text-left">Select religion</button><div class="parent-menu absolute z-50 mt-2 max-h-60 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl hidden"><button type="button" data-value="Christianity" class="parent-option block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-blue-50">Christianity</button><button type="button" data-value="Islam" class="parent-option block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-blue-50">Islam</button></div></div>
+            <label class="block sm:col-span-2"><span class="field-label">Address *</span><textarea name="address" required rows="2" class="parent-field resize-none">{{ parent_form.address|default:'' }}</textarea></label>
+            <div class="relative custom-parent-select"><span class="field-label">State *</span><input type="hidden" name="state" required><button type="button" class="parent-select-button parent-field flex items-center justify-between text-left">Select state</button><div id="stateMenu" class="parent-menu absolute z-50 mt-2 max-h-60 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl hidden"></div></div>
+            <div class="relative custom-parent-select"><span class="field-label">LGA *</span><input type="hidden" name="lga" required><button type="button" class="parent-select-button parent-field flex items-center justify-between text-left">Select LGA</button><div id="lgaMenu" class="parent-menu absolute z-50 mt-2 max-h-60 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl hidden"></div></div>
+            <div class="flex justify-end gap-3 pt-4 sm:col-span-2"><button type="button" onclick="closeParentModal()" class="rounded-xl border border-slate-200 px-4 py-3 text-xs font-bold text-slate-700 transition-transform duration-100 hover:bg-slate-50 active:scale-95">Cancel</button><button type="submit" class="rounded-xl bg-blue-600 px-5 py-3 text-xs font-bold text-white transition-transform duration-100 hover:bg-blue-700 active:scale-95">Save Parent</button></div>
+        </form>
+    </div>
+</div>
+<style>.field-label{display:block;margin-bottom:.4rem;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#475569}.parent-field{width:100%;border:1px solid #e2e8f0;border-radius:.75rem;background:#f8fafc;padding:.7rem .8rem;font-size:.875rem;color:#1e293b}.parent-field:focus{outline:0;border-color:#3b82f6}.parent-menu{display:block}.parent-menu.hidden{display:none}</style>
+<script>
+function openParentModal(){const modal=document.getElementById('parentModal');modal.classList.remove('opacity-0','pointer-events-none');modal.classList.add('opacity-100','pointer-events-auto')}
+function closeParentModal(){const modal=document.getElementById('parentModal');modal.classList.remove('opacity-100','pointer-events-auto');modal.classList.add('opacity-0','pointer-events-none')}
+const parentModal=document.getElementById('parentModal');if(parentModal)document.body.appendChild(parentModal);
+const printFilterModal=document.getElementById('parentPrintFilter');if(printFilterModal)document.body.appendChild(printFilterModal);
+function openPrintFilter(){const modal=document.getElementById('parentPrintFilter');modal.classList.remove('hidden');modal.classList.add('flex')}
+function closePrintFilter(){const modal=document.getElementById('parentPrintFilter');modal.classList.add('hidden');modal.classList.remove('flex')}
+function printParentDetails(filter){document.querySelectorAll('#parent-print-report tbody tr').forEach(row=>{row.style.display=filter==='all'||row.dataset.status===filter?'':'none'});closePrintFilter();window.print()}
+if(document.getElementById('parentModal')?.dataset.open==='true')openParentModal();
+function closeParentMenus(){document.querySelectorAll('#parentModal .parent-menu, #parent-directory-print .parent-menu').forEach(menu=>menu.classList.add('hidden'));document.querySelectorAll('#parentModal .parent-chevron, #parent-directory-print .parent-chevron').forEach(chevron=>chevron.classList.remove('rotate-180'))}
+document.querySelectorAll('#parentModal .parent-menu, #parent-directory-print .parent-menu').forEach(menu=>menu.dataset.noFilter='true');
+document.querySelectorAll('#parentModal .parent-menu').forEach(menu=>menu.dataset.noFilter='true');
+function setupParentCombobox(select){
+    const hiddenInput=select.querySelector('input[type="hidden"]'),toggle=select.querySelector('.parent-select-button'),menu=select.querySelector('.parent-menu');
+    if(!hiddenInput||!toggle||!menu)return;
+    const searchInput=document.createElement('input');searchInput.type='text';searchInput.name=`${hiddenInput.name}_display`;searchInput.className='parent-field w-full pr-8';searchInput.autocomplete='off';searchInput.placeholder=toggle.textContent.replace(/\s*[⌄]\s*$/,'').replace(/\s+v\s*$/i,'').trim();searchInput.value=hiddenInput.value?(menu.querySelector(`[data-value="${CSS.escape(hiddenInput.value)}"]`)?.textContent.trim()||''):'';if(hiddenInput.name==='sex')searchInput.required=true;
+    const wrapper=document.createElement('div');wrapper.className='relative';wrapper.appendChild(searchInput);
+    const chevron=document.createElementNS('http://www.w3.org/2000/svg','svg');chevron.setAttribute('class','parent-chevron pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-transform duration-200');chevron.setAttribute('fill','none');chevron.setAttribute('stroke','currentColor');chevron.setAttribute('viewBox','0 0 24 24');chevron.innerHTML='<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7"></path>';wrapper.appendChild(chevron);toggle.replaceWith(wrapper);
+    const open=()=>{closeParentMenus();menu.classList.remove('hidden');chevron.classList.add('rotate-180')};
+    const filter=()=>{open();const query=searchInput.value.toLowerCase().trim();menu.querySelectorAll('.parent-option').forEach(option=>option.style.display=option.textContent.toLowerCase().includes(query)?'':'none')};
+    searchInput.addEventListener('focus',open);searchInput.addEventListener('click',event=>{event.stopPropagation();open()});searchInput.addEventListener('input',filter);
+    menu.querySelectorAll('.parent-option').forEach(option=>option.addEventListener('click',event=>{event.stopPropagation();hiddenInput.value=option.dataset.value;searchInput.value=option.textContent.trim();menu.classList.add('hidden');chevron.classList.remove('rotate-180');hiddenInput.dispatchEvent(new Event('change',{bubbles:true}));if(hiddenInput.name==='state')refreshParentLgas()}));
+}
+document.querySelectorAll('#parentModal .custom-parent-select, #parent-directory-print .custom-parent-select').forEach(setupParentCombobox);
+function refreshParentLgas(){const stateInput=document.querySelector('#parentModal input[name="state"]');const lgaInput=document.querySelector('#parentModal input[name="lga"]');const lgaSelect=lgaInput?.closest('.custom-parent-select');const lgaMenu=lgaSelect?.querySelector('.parent-menu');const visibleInput=lgaSelect?.querySelector('input[type="text"]');if(!stateInput||!lgaInput||!lgaMenu)return;lgaInput.value='';if(visibleInput)visibleInput.value='';lgaMenu.innerHTML='';(locationData[stateInput.value]||[]).forEach(option=>{const item=document.createElement('button');item.type='button';item.dataset.value=option;item.className='parent-option block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-blue-50';item.textContent=option;item.addEventListener('click',event=>{event.stopPropagation();lgaInput.value=option;if(visibleInput)visibleInput.value=option;lgaMenu.classList.add('hidden');lgaSelect.querySelector('.parent-chevron')?.classList.remove('rotate-180')});lgaMenu.appendChild(item)})}
+document.addEventListener('click',closeParentMenus)
+function showParentToast(message){
+    let container=document.getElementById('toast-container');
+    if(!container){container=document.createElement('div');container.id='toast-container';container.className='fixed top-5 right-5 z-[10000] flex flex-col gap-3 pointer-events-none';document.body.appendChild(container)}
+    const toast=document.createElement('div');toast.className='pointer-events-auto max-w-sm w-[320px] rounded-2xl border-l-4 border-l-red-500 bg-red-50 px-4 py-3 text-red-700 shadow-2xl';toast.textContent=message;container.appendChild(toast);setTimeout(()=>toast.remove(),4000)
+}
+document.querySelectorAll('#parent-directory-print form').forEach(form=>form.addEventListener('submit',event=>{const student=form.querySelector('input[name="student"]');if(!student?.value){event.preventDefault();showParentToast('Please select a student to link.')}}));
+document.querySelectorAll('#parent-directory-print tbody tr').forEach(row=>{const linkForm=row.querySelector('form input[name="action"][value="link_student"]')?.closest('form');if(linkForm){const parentId=linkForm.querySelector('input[name="parent"]')?.value;linkForm.querySelector('input[name="student"]')?.setAttribute('required','');if(parentId)linkForm.querySelector('input[name="parent"]')?.setAttribute('value',parentId)}})
+const parentHeadings=document.querySelectorAll('#parent-directory-print thead th');document.querySelectorAll('#parent-directory-print thead th').forEach((heading,index)=>{heading.textContent=['Parent Name / ID','Sex/Gender','Location','Children','Link a Student','Actions'][index]||heading.textContent});
+const locationData={
+"Abia":["Aba North","Aba South","Arochukwu","Bende","Ikwuano","Isiala Ngwa North","Isiala Ngwa South","Isuikwuato","Obi Ngwa","Ohafia","Osisioma","Ugwunagbo","Ukwa East","Ukwa West","Umuahia North","Umuahia South","Umu Nneochi"],
+"Adamawa":["Demsa","Fufure","Ganye","Gayuk","Gombi","Grie","Hong","Jada","Larmurde","Madagali","Maiha","Mayo Belwa","Michika","Mubi North","Mubi South","Numan","Shelleng","Song","Toungo","Yola North","Yola South"],
+"Akwa Ibom":["Abak","Eastern Obolo","Eket","Esit Eket","Essien Udim","Etim Ekpo","Etinan","Ibeno","Ibesikpo Asutan","Ibiono-Ibom","Ika","Ikono","Ikot Abasi","Ikot Ekpene","Ini","Itu","Mbo","Mkpat-Enin","Nsit-Atai","Nsit-Ibom","Nsit-Ubium","Obot Akara","Okobo","Onna","Oron","Oruk Anam","Udung-Uko","Ukanafun","Uruan","Urue-Offong/Oruko","Uyo"],
+"Anambra":["Aguata","Anambra East","Anambra West","Anaocha","Awka North","Awka South","Ayamelum","Dunukofia","Ekwusigo","Idemili North","Idemili South","Ihiala","Njikoka","Nnewi North","Nnewi South","Ogbaru","Onitsha North","Onitsha South","Orumba North","Orumba South","Oyi"],
+"Bauchi":["Alkaleri","Bauchi","Bogoro","Damban","Darazo","Dass","Gamawa","Ganjuwa","Giade","Itas/Gadau","Jama'are","Katagum","Kirfi","Misau","Ningi","Shira","Tafawa Balewa","Toro","Warji","Zaki"],
+"Bayelsa":["Brass","Ekeremor","Kolokuma/Opokuma","Nembe","Ogbia","Sagbama","Southern Ijaw","Yenagoa"],
+"Benue":["Ado","Agatu","Apa","Buruku","Gboko","Guma","Gwer East","Gwer West","Katsina-Ala","Konshisha","Kwande","Logo","Makurdi","Obi","Ogbadibo","Ohimini","Oju","Okpokwu","Otukpo","Tarka","Ukum","Ushongo","Vandeikya"],
+"Borno":["Abadam","Askira/Uba","Bama","Bayo","Biu","Chibok","Damboa","Dikwa","Gubio","Guzamala","Gwoza","Hawul","Jere","Kaga","Kala/Balge","Konduga","Kukawa","Kwaya Kusar","Mafa","Magumeri","Maiduguri","Marte","Mobbar","Monguno","Ngala","Nganzai","Shani"],
+"Cross River":["Abi","Akamkpa","Akpabuyo","Bakassi","Bekwarra","Biase","Boki","Calabar Municipal","Calabar South","Etung","Ikom","Obanliku","Obubra","Obudu","Odukpani","Ogoja","Yakuur","Yala"],
+"Delta":["Aniocha North","Aniocha South","Bomadi","Burutu","Ethiope East","Ethiope West","Ika North East","Ika South","Isoko North","Isoko South","Ndokwa East","Ndokwa West","Okpe","Oshimili North","Oshimili South","Patani","Sapele","Udu","Ughelli North","Ughelli South","Ukwuani","Uvwie","Warri North","Warri South","Warri South West"],
+"Ebonyi":["Abakaliki","Afikpo North","Afikpo South","Ebonyi","Ezza North","Ezza South","Ikwo","Ishielu","Ivo","Izzi","Ohaozara","Ohaukwu","Onicha"],
+"Edo":["Akoko-Edo","Egor","Esan Central","Esan North-East","Esan South-East","Esan West","Etsako Central","Etsako East","Etsako West","Igueben","Ikpoba Okha","Orhionmwon","Oredo","Ovia North-East","Ovia South-West","Owan East","Owan West","Uhunmwonde"],
+"Ekiti":["Ado Ekiti","Efon","Ekiti East","Ekiti South-West","Ekiti West","Emure","Gbonyin","Ido Osi","Ijero","Ikere","Ikole","Ilejemeje","Irepodun/Ifelodun","Ise/Orun","Moba","Oye"],
+"Enugu":["Aninri","Awgu","Enugu East","Enugu North","Enugu South","Ezeagu","Igbo Etiti","Igbo Eze North","Igbo Eze South","Isi Uzo","Nkanu East","Nkanu West","Nsukka","Oji River","Udenu","Udi","Uzo Uwani"],
+"FCT":["Abaji","Bwari","Gwagwalada","Kuje","Kwali","Municipal Area Council"],
+"Gombe":["Akko","Balanga","Billiri","Dukku","Funakaye","Gombe","Kaltungo","Kwami","Nafada","Shongom","Yamaltu/Deba"],
+"Imo":["Aboh Mbaise","Ahiazu Mbaise","Ehime Mbano","Ezinihitte","Ideato North","Ideato South","Ihitte/Uboma","Ikeduru","Isiala Mbano","Isu","Mbaitoli","Ngor Okpala","Njaba","Nkwerre","Nwangele","Obowo","Oguta","Ohaji/Egbema","Okigwe","Orlu","Orsu","Oru East","Oru West","Owerri Municipal","Owerri North","Owerri West","Unuimo"],
+"Jigawa":["Auyo","Babura","Biriniwa","Birnin Kudu","Buji","Dutse","Gagarawa","Garki","Gumel","Guri","Gwaram","Gwiwa","Hadejia","Jahun","Kafin Hausa","Kaugama","Kazaure","Kiri Kasama","Kiyawa","Maigatari","Malam Madori","Miga","Ringim","Roni","Sule Tankarkar","Taura","Yankwashi"],
+"Kaduna":["Birnin Gwari","Chikun","Giwa","Igabi","Ikara","Jaba","Jema'a","Kachia","Kaduna North","Kaduna South","Kagarko","Kajuru","Kaura","Kauru","Kubau","Kudan","Lere","Makarfi","Sabon Gari","Sanga","Soba","Zangon Kataf","Zaria"],
+"Kano":["Ajingi","Albasu","Bagwai","Bebeji","Bichi","Bunkure","Dala","Dambatta","Dawakin Kudu","Dawakin Tofa","Doguwa","Fagge","Gabasawa","Garko","Garun Mallam","Gaya","Gezawa","Gwale","Gwarzo","Kabo","Kano Municipal","Karaye","Kibiya","Kiru","Kumbotso","Kunchi","Kura","Madobi","Makoda","Minjibir","Nasarawa","Rano","Rimin Gado","Rogo","Shanono","Sumaila","Takai","Tarauni","Tofa","Tsanyawa","Tudun Wada","Ungogo","Warawa","Wudil"],
+"Katsina":["Bakori","Batagarawa","Batsari","Baure","Bindawa","Charanchi","Dandume","Danja","Dan Musa","Daura","Dutsi","Dutsin Ma","Faskari","Funtua","Ingawa","Jibia","Kafur","Kaita","Kankara","Kankia","Katsina","Kurfi","Kusada","Mai'Adua","Malumfashi","Mani","Mashi","Matazu","Musawa","Rimi","Sabuwa","Safana","Sandamu","Zango"],
+"Kebbi":["Aleiro","Arewa Dandi","Argungu","Augie","Bagudo","Birnin Kebbi","Bunza","Dandi","Fakai","Gwandu","Jega","Kalgo","Koko/Besse","Maiyama","Ngaski","Sakaba","Shanga","Suru","Wasagu/Danko","Yauri","Zuru"],
+"Kogi":["Adavi","Ajaokuta","Ankpa","Bassa","Dekina","Ibaji","Idah","Igalamela Odolu","Ijumu","Kabba/Bunu","Kogi","Lokoja","Mopa Muro","Ofu","Ogori/Magongo","Okehi","Okene","Olamaboro","Omala","Yagba East","Yagba West"],
+"Kwara":["Asa","Baruten","Edu","Ekiti","Ifelodun","Ilorin East","Ilorin South","Ilorin West","Irepodun","Isin","Kaiama","Moro","Offa","Oke Ero","Oyun","Pategi"],
+"Lagos":["Agege","Ajeromi-Ifelodun","Alimosho","Amuwo-Odofin","Apapa","Badagry","Epe","Eti Osa","Ibeju-Lekki","Ifako-Ijaiye","Ikeja","Ikorodu","Kosofe","Lagos Island","Lagos Mainland","Mushin","Ojo","Oshodi-Isolo","Shomolu","Surulere"],
+"Nasarawa":["Akwanga","Awe","Doma","Karu","Keana","Keffi","Kokona","Lafia","Nasarawa","Nasarawa Egon","Obi","Toto","Wamba"],
+"Niger":["Agaie","Agwara","Bida","Borgu","Bosso","Chanchaga","Edati","Gbako","Gurara","Katcha","Kontagora","Lapai","Lavun","Magama","Mariga","Mashegu","Mokwa","Muya","Pailoro","Rafi","Rijau","Shiroro","Suleja","Tafa","Wushishi"],
+"Ogun":["Abeokuta North","Abeokuta South","Ado-Odo/Ota","Egbado North","Egbado South","Ewekoro","Ifo","Ijebu East","Ijebu North","Ijebu North East","Ijebu Ode","Ikenne","Imeko Afon","Ipokia","Obafemi Owode","Odeda","Odogbolu","Ogun Waterside","Remo North","Shagamu"],
+"Ondo":["Akoko North-East","Akoko North-West","Akoko South-East","Akoko South-West","Akure North","Akure South","Ese Odo","Idanre","Ifedore","Ilaje","Ile Oluji/Okeigbo","Irele","Odigbo","Okitipupa","Ondo East","Ondo West","Ose","Owo"],
+"Osun":["Atakumosa East","Atakumosa West","Aiyedaade","Aiyedire","Boluwaduro","Boripe","Ede North","Ede South","Ife Central","Ife East","Ife North","Ife South","Egbedore","Ejigbo","Ifedayo","Ifelodun","Ila","Ilesa East","Ilesa West","Irepodun","Irewole","Isokan","Iwo","Obokun","Odo Otin","Ola Oluwa","Olorunda","Oriade","Orolu","Osogbo"],
+"Oyo":["Afijio","Akinyele","Atiba","Atisbo","Egbeda","Ibadan North","Ibadan North-East","Ibadan North-West","Ibadan South-East","Ibadan South-West","Ibarapa Central","Ibarapa East","Ibarapa North","Ido","Irepo","Iseyin","Itesiwaju","Iwajowa","Kajola","Lagelu","Ogbomosho North","Ogbomosho South","Ogo Oluwa","Olorunsogo","Oluyole","Ona Ara","Orelope","Ori Ire","Oyo East","Oyo West","Saki East","Saki West","Surulere"],
+"Plateau":["Bokkos","Barkin Ladi","Bassa","Jos East","Jos North","Jos South","Kanam","Kanke","Langtang North","Langtang South","Mangu","Mikang","Pankshin","Qua'an Pan","Riyom","Shendam","Wase"],
+"Rivers":["Abua/Odual","Ahoada East","Ahoada West","Akuku-Toru","Andoni","Asari-Toru","Bonny","Degema","Eleme","Emuoha","Etche","Gokana","Ikwerre","Khana","Obio/Akpor","Ogba/Egbema/Ndoni","Ogu/Bolo","Okrika","Omuma","Opobo/Nkoro","Oyigbo","Port Harcourt","Tai"],
+"Sokoto":["Binji","Bodinga","Dange Shuni","Gada","Goronyo","Gudu","Gwadabawa","Illela","Isa","Kebbe","Kware","Rabah","Sabon Birni","Shagari","Silame","Sokoto North","Sokoto South","Tambuwal","Tangaza","Tureta","Wamako","Wurno","Yabo"],
+"Taraba":["Ardo Kola","Bali","Donga","Gashaka","Gassol","Ibi","Jalingo","Karim Lamido","Kurmi","Lau","Sardauna","Takum","Ussa","Wukari","Yorro","Zing"],
+"Yobe":["Bade","Bursari","Damaturu","Fika","Fune","Geidam","Gujba","Gulani","Jakusko","Karasuwa","Machina","Nangere","Nguru","Potiskum","Tarmua","Yunusari","Yusufari"],
+"Zamfara":["Anka","Bakura","Birnin Magaji/Kiyaw","Bukkuyum","Bungudu","Gummi","Gusau","Kaura Namoda","Maradun","Maru","Shinkafi","Talata Mafara","Chafe","Zurmi"]};
+function populateAddParentStateOptions(){
+    const select=document.querySelector('#parentModal input[name="state"]')?.closest('.custom-parent-select');
+    const menu=select?.querySelector('.parent-menu');
+    const hiddenInput=select?.querySelector('input[type="hidden"]');
+    const visibleInput=select?.querySelector('input[type="text"]');
+    if(!select||!menu||!hiddenInput||!visibleInput)return;
+    menu.innerHTML='';
+    Object.keys(locationData).sort().forEach(value=>{
+        const option=document.createElement('button');
+        option.type='button'; option.dataset.value=value;
+        option.className='parent-option block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-blue-50';
+        option.textContent=value;
+        option.addEventListener('click',event=>{
+            event.stopPropagation();
+            hiddenInput.value=option.dataset.value;
+            visibleInput.value=option.textContent.trim();
+            menu.classList.add('hidden');
+            select.querySelector('.parent-chevron')?.classList.remove('rotate-180');
+            refreshParentLgas();
+        });
+        menu.appendChild(option);
+    });
+}
+populateAddParentStateOptions();
+</script>
+<script>
+document.querySelectorAll('.custom-parent-select').forEach(select => {
+    const hiddenInput = select.querySelector('input[type="hidden"]');
+    const toggle = select.querySelector('.parent-select-button');
+    const menu = select.querySelector('.parent-menu');
+    if (!hiddenInput || !toggle || !menu) return;
+    const searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.name = `${hiddenInput.name}_display`;
+    searchInput.className = toggle.className;
+    searchInput.autocomplete = 'off';
+    if (hiddenInput.name === 'sex') searchInput.required = true;
+    searchInput.placeholder = toggle.firstChild.textContent.trim();
+    searchInput.value = hiddenInput.value ? (menu.querySelector(`[data-value="${CSS.escape(hiddenInput.value)}"]`)?.textContent.trim() || '') : '';
+    toggle.replaceWith(searchInput);
+    const open = () => { closeParentMenus(); menu.classList.remove('hidden'); };
+    const filter = () => {
+        const query = searchInput.value.toLowerCase().trim();
+        menu.classList.remove('hidden');
+        menu.querySelectorAll('.parent-option').forEach(option => { option.style.display = option.textContent.toLowerCase().includes(query) ? '' : 'none'; });
+    };
+    searchInput.addEventListener('focus', open);
+    searchInput.addEventListener('click', event => { event.stopPropagation(); open(); });
+    searchInput.addEventListener('input', filter);
+    menu.querySelectorAll('.parent-option').forEach(option => option.addEventListener('mousedown', event => {
+        event.preventDefault();
+        hiddenInput.value = option.dataset.value;
+        searchInput.value = option.textContent.trim();
+        hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+        menu.classList.add('hidden');
+    }));
+});
+document.querySelectorAll('#parentModal, #parentPrintFilter').forEach(modal => document.body.appendChild(modal));
+</script>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends 'portal/base.html' %}
+{% block page_title %}Admissions Hub{% endblock %}
+{% block content %}
+<div class="min-h-full bg-slate-100 p-6 lg:p-8">
+  <div class="mx-auto max-w-7xl space-y-6">
+    <div class="rounded-3xl bg-gradient-to-r from-cyan-900 via-cyan-800 to-slate-900 p-8 text-white shadow-lg">
+      <p class="text-xs font-bold uppercase tracking-[0.2em] text-cyan-200">Admissions &amp; Enrollment</p>
+      <h1 class="mt-2 text-2xl font-black">Admissions Control Center</h1>
+      <p class="mt-1 text-sm text-cyan-100">{% if active_campaign %}Active campaign: {{ active_campaign.campaign_name }}{% else %}No active admission campaign{% endif %}</p>
+    </div>
+
+    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div class="rounded-3xl border border-slate-200/80 bg-white/80 p-6 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Campaigns</p>
+        <h3 class="mt-2 text-3xl font-extrabold text-slate-900">{{ total_campaigns }}</h3>
+      </div>
+      <div class="rounded-3xl border border-slate-200/80 bg-white/80 p-6 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Pending Review</p>
+        <h3 class="mt-2 text-3xl font-extrabold text-amber-600">{{ pending_applicants }}</h3>
+      </div>
+      <div class="rounded-3xl border border-slate-200/80 bg-white/80 p-6 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Ready to Approve</p>
+        <h3 class="mt-2 text-3xl font-extrabold text-cyan-600">{{ verified_unapproved }}</h3>
+      </div>
+      <div class="rounded-3xl border border-slate-200/80 bg-white/80 p-6 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Enrolled</p>
+        <h3 class="mt-2 text-3xl font-extrabold text-emerald-600">{{ approved_count }}</h3>
+      </div>
+    </div>
+
+    <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <h3 class="text-lg font-bold text-slate-900">Recent Applications</h3>
+      <div class="mt-4 overflow-x-auto rounded-2xl border border-slate-100">
+        <table class="w-full text-left text-sm">
+          <thead class="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500"><tr><th class="p-4">Reg No.</th><th class="p-4">Applicant</th><th class="p-4">Class</th><th class="p-4">Payment</th><th class="p-4">Status</th></tr></thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for applicant in recent_applicants %}
+            <tr class="hover:bg-slate-50/80"><td class="p-4 font-mono font-semibold text-cyan-700">{{ applicant.temp_reg_number }}</td><td class="p-4 text-slate-800">{{ applicant.first_name }} {{ applicant.last_name }}</td><td class="p-4 text-slate-600">{{ applicant.intended_class.name }}</td><td class="p-4">{{ applicant.payment_status }}</td><td class="p-4">{{ applicant.admission_status }}</td></tr>
+            {% empty %}
+            <tr><td colspan="5" class="p-8 text-center text-sm text-slate-500">No applications yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

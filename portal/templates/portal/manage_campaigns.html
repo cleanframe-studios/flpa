@@ -1,0 +1,179 @@
+{% extends 'portal/base.html' %}
+{% block page_title %}Admission Campaigns{% endblock %}
+{% block content %}
+<div class="min-h-full bg-slate-100 p-6 lg:p-8">
+  <div class="mx-auto max-w-6xl space-y-6">
+    <header class="flex flex-col justify-between gap-4 rounded-3xl bg-gradient-to-r from-cyan-900 via-cyan-800 to-slate-900 p-8 text-white shadow-lg sm:flex-row sm:items-center">
+      <div>
+        <p class="text-xs font-bold uppercase tracking-[0.2em] text-cyan-200">Admissions &amp; Enrollment</p>
+        <h1 class="mt-2 text-2xl font-black">Admission Campaigns</h1>
+        <p class="mt-1 text-sm text-cyan-100">Create and manage enrollment campaigns.</p>
+      </div>
+      <button type="button" onclick="openCampaignModal()" class="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-cyan-900 shadow-sm transition hover:bg-cyan-50">+ New Campaign</button>
+    </header>
+
+    <section class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[900px] text-left text-sm">
+          <thead class="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500"><tr><th class="p-4">Name</th><th class="p-4">Session / Term</th><th class="p-4">Fee</th><th class="p-4">Deadline</th><th class="p-4">Status</th><th class="p-4 text-right">Actions</th></tr></thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for campaign in campaigns %}
+            <tr class="hover:bg-slate-50/70">
+              <td class="p-4 font-semibold text-slate-900">{{ campaign.campaign_name }}</td>
+              <td class="p-4 text-slate-600">{{ campaign.target_session.name }} · {{ campaign.target_term.term_name }}</td>
+              <td class="p-4 text-slate-600">₦{{ campaign.application_fee|floatformat:0 }}</td>
+              <td class="p-4 text-slate-600">{{ campaign.deadline|date:'d M Y, H:i' }}</td>
+              <td class="p-4">{% if campaign.status == 'Active' %}<span class="rounded-lg bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">Active</span>{% elif campaign.status == 'Archived' %}<span class="rounded-lg bg-slate-200 px-2.5 py-1 text-xs font-bold text-slate-700">Archived</span>{% else %}<span class="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">Closed</span>{% endif %}</td>
+              <td class="p-4 text-right">
+                <div class="flex justify-end gap-2">
+                  <button type="button" onclick="openCampaignModal({{ campaign.pk }}, '{{ campaign.campaign_name|escapejs }}', '{{ campaign.target_session_id }}', '{{ campaign.target_term_id }}', '{{ campaign.application_fee }}', '{{ campaign.deadline|date:'Y-m-d' }}', '{{ campaign.deadline|time:'H:i' }}', '{{ campaign.status }}')" class="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100">Edit</button>
+                  {% if campaign.is_active %}
+                  <form method="post" class="inline">{% csrf_token %}<input type="hidden" name="action" value="close_campaign"><input type="hidden" name="campaign_id" value="{{ campaign.pk }}"><button type="submit" class="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 hover:bg-red-100">Close</button></form>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="p-12 text-center text-sm text-slate-500">No admission campaigns created yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div id="campaign-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-950/60 p-4 backdrop-blur-md">
+  <div class="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl">
+    <div class="flex items-start justify-between">
+      <div>
+        <p class="text-xs font-bold uppercase tracking-wider text-cyan-600">Admission Campaign</p>
+        <h2 id="campaign-modal-title" class="mt-1 text-xl font-black text-slate-900">New Campaign</h2>
+      </div>
+      <button type="button" onclick="closeCampaignModal()" class="text-2xl text-slate-400 hover:text-slate-600">&times;</button>
+    </div>
+    <form method="post" class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+      {% csrf_token %}
+      <input type="hidden" name="action" id="campaign-action" value="create_campaign">
+      <input type="hidden" name="campaign_id" id="campaign-id">
+      <div class="sm:col-span-2">
+        <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Campaign Name</label>
+        <input type="text" name="campaign_name" id="campaign-name" required class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+      </div>
+      <div>
+        <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Application Fee</label>
+        <input type="number" step="0.01" name="application_fee" id="campaign-fee" required class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+      </div>
+      <div>
+        <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Campaign Status</label>
+        <select name="status" id="campaign-status" required class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm"><option value="Active">Active</option><option value="Closed">Closed</option><option value="Archived">Archived</option></select>
+      </div>
+      <div>
+        <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Target Session</label>
+        <select name="target_session" id="campaign-session" required class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">{% for session in sessions %}<option value="{{ session.pk }}">{{ session.name }}</option>{% endfor %}</select>
+      </div>
+      <div>
+        <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Target Term</label>
+        <select name="target_term" id="campaign-term" required class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm"></select>
+      </div>
+      <div>
+        <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Deadline Date</label>
+        <input type="text" name="deadline_date" id="campaign-deadline-date" placeholder="YYYY-MM-DD" required class="global-date-picker w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+      </div>
+      <div>
+        <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Deadline Time</label>
+        <input type="text" name="deadline_time" id="campaign-deadline-time" placeholder="HH:MM" required class="global-time-picker w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+      </div>
+      <div class="sm:col-span-2 flex justify-end gap-3 pt-2">
+        <button type="button" onclick="closeCampaignModal()" class="rounded-xl bg-slate-100 px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-200">Cancel</button>
+        <button type="submit" id="campaign-submit-btn" class="rounded-xl bg-cyan-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-cyan-700">Create Campaign</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>window.campaignTermsMap = {{ terms_json|default:'{}'|safe }};</script>
+<script>
+const campaignTermSelect = document.getElementById('campaign-term');
+const campaignSessionSelect = document.getElementById('campaign-session');
+const campaignStatusSelect = document.getElementById('campaign-status');
+const campaignDeadlineDate = document.getElementById('campaign-deadline-date');
+const campaignDeadlineTime = document.getElementById('campaign-deadline-time');
+
+function syncCampaignStatusOption() {
+  const isPastDeadline = isCampaignDeadlinePast(campaignDeadlineDate.value, campaignDeadlineTime.value);
+  const activeOption = campaignStatusSelect.querySelector('option[value="Active"]');
+  activeOption.disabled = isPastDeadline;
+  if (isPastDeadline && campaignStatusSelect.value === 'Active') {
+    campaignStatusSelect.value = 'Closed';
+    campaignStatusSelect.dispatchEvent(new Event('change', {bubbles: true}));
+  }
+  campaignStatusSelect.classList.toggle('opacity-60', isPastDeadline);
+}
+
+function isCampaignDeadlinePast(dateValue, timeValue) {
+  const dateParts = (dateValue || '').split('-').map(Number);
+  const timeParts = (timeValue || '23:59').split(':').map(Number);
+  if (dateParts.length !== 3 || dateParts.some(Number.isNaN) || timeParts.some(Number.isNaN)) return false;
+  return new Date(dateParts[0], dateParts[1] - 1, dateParts[2], timeParts[0] || 0, timeParts[1] || 0).getTime() <= Date.now();
+}
+
+function populateTermsForSession(rawSessionId, selectedTermId) {
+  const sessionId = String(rawSessionId || '');
+  const terms = window.campaignTermsMap[sessionId] || [];
+  campaignTermSelect.length = 0;
+  campaignTermSelect.add(new Option('Select Term', ''));
+  terms.forEach(function (term) {
+    campaignTermSelect.add(new Option(term.term_name, term.id));
+  });
+  if (selectedTermId) campaignTermSelect.value = String(selectedTermId);
+  // The custom dropdown wrapper in base.html only rebuilds its menu/label on the select's
+  // native 'change' event, which .add()/.value= do not trigger — so dispatch it manually.
+  campaignTermSelect.dispatchEvent(new Event('change', {bubbles: true}));
+}
+campaignSessionSelect.addEventListener('change', function (event) { populateTermsForSession(event.target.value, null); });
+
+function openCampaignModal(id, name, sessionId, termId, fee, deadlineDate, deadlineTime, status) {
+  const isEdit = Boolean(id);
+  document.getElementById('campaign-modal-title').textContent = isEdit ? 'Edit Campaign' : 'New Campaign';
+  document.getElementById('campaign-submit-btn').textContent = isEdit ? 'Save Changes' : 'Create Campaign';
+  document.getElementById('campaign-action').value = isEdit ? 'edit_campaign' : 'create_campaign';
+  document.getElementById('campaign-id').value = id || '';
+  document.getElementById('campaign-name').value = name || '';
+  document.getElementById('campaign-fee').value = fee || '';
+  const activeSessionId = String(sessionId || campaignSessionSelect.value || '');
+  campaignSessionSelect.value = activeSessionId;
+  populateTermsForSession(activeSessionId, termId);
+  setPickerValue('#campaign-deadline-date', deadlineDate);
+  setPickerValue('#campaign-deadline-time', deadlineTime);
+  campaignStatusSelect.value = isCampaignDeadlinePast(deadlineDate, deadlineTime) ? 'Closed' : (isEdit ? status : 'Active');
+  campaignStatusSelect.dispatchEvent(new Event('change', {bubbles: true}));
+  syncCampaignStatusOption();
+  const modal = document.getElementById('campaign-modal');
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+}
+function closeCampaignModal() {
+  const modal = document.getElementById('campaign-modal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+}
+function setPickerValue(selector, value) {
+  const input = document.querySelector(selector);
+  if (!input) return;
+  if (input._flatpickr) {
+    if (value) { input._flatpickr.setDate(value, true); } else { input._flatpickr.clear(); }
+  } else {
+    input.value = value || '';
+  }
+}
+campaignDeadlineDate.addEventListener('input', syncCampaignStatusOption);
+campaignDeadlineDate.addEventListener('change', syncCampaignStatusOption);
+campaignDeadlineTime.addEventListener('input', syncCampaignStatusOption);
+campaignDeadlineTime.addEventListener('change', syncCampaignStatusOption);
+document.getElementById('campaign-modal').addEventListener('click', function (event) {
+  if (event.target.id === 'campaign-modal') closeCampaignModal();
+});
+</script>
+{% endblock %}
+

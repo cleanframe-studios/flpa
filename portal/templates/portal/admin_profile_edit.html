@@ -1,0 +1,17 @@
+{% extends 'portal/base.html' %}
+{% block page_title %}Admin Profile{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto py-8">
+  <form method="post" enctype="multipart/form-data" class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-6">
+    {% csrf_token %}
+    <div><h2 class="text-lg font-bold text-slate-900">Profile Details</h2><p class="mt-1 text-sm text-slate-500">Update your administrator account details and profile image.</p></div>
+    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+      <label class="text-sm font-semibold text-slate-700">First Name<input name="first_name" value="{{ request.user.first_name }}" class="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold text-slate-800 transition focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/10"></label>
+      <label class="text-sm font-semibold text-slate-700">Surname<input name="last_name" value="{{ request.user.last_name }}" class="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold text-slate-800 transition focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/10"></label>
+    </div>
+    <label class="block text-sm font-semibold text-slate-700">Email<input type="email" name="email" value="{{ request.user.email }}" class="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold text-slate-800 transition focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/10"></label>
+    <div class="flex items-center gap-4">{% if profile.profile_picture %}<img src="{{ profile.profile_picture.url }}" alt="Current profile picture" class="h-16 w-16 rounded-full object-cover">{% endif %}<label class="flex-1 text-sm font-semibold text-slate-700">Profile Picture<input id="profilePictureInput" type="file" name="profile_picture" accept="image/*" class="crop-enabled mt-2 block w-full text-sm text-slate-500 file:mr-4 file:cursor-pointer file:rounded-xl file:border-0 file:bg-blue-50 file:px-5 file:py-2.5 file:text-sm file:font-bold file:text-blue-700 transition hover:file:bg-blue-100"></label></div>
+    <div class="flex justify-end"><button class="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-3 text-sm font-bold text-white shadow-lg shadow-blue-500/25 transition hover:from-blue-700 hover:to-indigo-700">Save Profile</button></div>
+  </form>
+</div>
+{% endblock %}

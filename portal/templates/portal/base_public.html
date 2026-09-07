@@ -1,0 +1,148 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="min-h-screen">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}FUTURE LEADERS PRIVATE ACADEMY{% endblock %}</title>
+
+    <link rel="stylesheet" href="{% static 'portal/css/global.css' %}">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Montserrat'], },
+                    colors: { brand: { blue: '#1e3a8a', darkRed: '#7f1d1d', brightRed: '#dc2626', } }
+                }
+            }
+        }
+    </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof flatpickr === 'undefined') return;
+            document.querySelectorAll('.global-date-picker').forEach(function(input) {
+                flatpickr(input, { dateFormat: 'Y-m-d', allowInput: true });
+            });
+        });
+    </script>
+
+    <style>
+        body {
+            background:
+                radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px),
+                linear-gradient(135deg, rgba(9, 13, 22, 0.9) 0%, rgba(14, 40, 60, 0.9) 45%, rgba(6, 20, 30, 0.95) 100%),
+                url('{% static "portal/background.jpg" %}');
+            background-size: 24px 24px, 100% 100%, cover;
+            background-position: center;
+            background-attachment: fixed;
+            min-height: 100vh;
+        }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 9999px; }
+
+        @keyframes textGradientMove {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .gradient-title {
+            background: linear-gradient(90deg, #1e3a8a 0%, #dc2626 35%, #1e3a8a 50%, #dc2626 75%, #1e3a8a 100%);
+            background-size: 200% auto;
+            color: transparent;
+            -webkit-background-clip: text;
+            background-clip: text;
+            animation: textGradientMove 6s linear infinite;
+        }
+        .glass-header {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.15);
+        }
+
+        @keyframes pageEnter {
+            0% { opacity: 0; transform: translateY(18px) scale(0.98); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .page-enter { animation: pageEnter 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+        /* Native browser crossfade for full page navigations (back/forward included), where supported. */
+        @view-transition { navigation: auto; }
+
+        html { transition: opacity 0.3s ease; }
+        html.page-exiting { opacity: 0; }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="font-sans antialiased flex min-h-screen w-full flex-col">
+
+    <!-- Global Top Branding Nav (matches the main landing page header) -->
+    <nav class="glass-header sticky top-0 z-50">
+        <div class="w-full px-6 lg:px-10">
+            <div class="flex h-16 sm:h-20 items-center justify-start">
+                <div class="flex items-center space-x-5">
+                    <img src="{% static 'portal/logo.png' %}" alt="School Logo" class="h-7 sm:h-8 w-auto object-contain">
+                    <a href="{% url 'login' %}" class="public-brand-link hover:translate-y-0 text-base sm:text-xl font-extrabold tracking-widest uppercase">
+                        <span class="public-brand-name gradient-title bg-gradient-to-r from-blue-600 via-indigo-500 to-red-600 bg-clip-text text-transparent font-black tracking-tight">
+                        FUTURE LEADERS PRIVATE ACADEMY
+                        </span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="page-enter w-full flex-grow">
+        {% block content %}{% endblock %}
+    </main>
+
+    <script>
+        // Fade the page out before following same-origin links, so leaving the
+        // application flow (e.g. "Back to login") feels like a smooth transition
+        // instead of a hard cut. Resets automatically on bfcache restore.
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('a[href]').forEach(function (link) {
+                if (link.target === '_blank' || link.hasAttribute('download') || link.hash) return;
+                var url;
+                try { url = new URL(link.href, window.location.href); } catch (e) { return; }
+                if (url.origin !== window.location.origin) return;
+                link.addEventListener('click', function (event) {
+                    if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.button !== 0) return;
+                    event.preventDefault();
+                    document.documentElement.classList.add('page-exiting');
+                    setTimeout(function () { window.location.href = link.href; }, 300);
+                });
+            });
+        });
+        window.addEventListener('pageshow', function () {
+            document.documentElement.classList.remove('page-exiting');
+        });
+    </script>
+
+    {% if messages %}
+    <div class="fixed top-5 right-5 z-50 flex flex-col gap-3">
+        {% for message in messages %}
+        <div class="w-[320px] rounded-2xl border px-4 py-3 bg-white/85 backdrop-blur-md shadow-2xl text-sm font-semibold
+            {% if message.tags == 'success' %} text-emerald-800 border-l-4 border-l-emerald-500{% elif message.tags == 'error' %} text-red-700 border-l-4 border-l-red-500{% elif message.tags == 'warning' %} text-amber-800 border-l-4 border-l-amber-500{% else %} text-sky-800 border-l-4 border-l-sky-500{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <footer class="text-center text-white/50 text-xs py-4 border-t border-white/10">
+        &copy; 2026 FUTURE LEADERS PRIVATE ACADEMY. Powered by Cleanframe Software.
+    </footer>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

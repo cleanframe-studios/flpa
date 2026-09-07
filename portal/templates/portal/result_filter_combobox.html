@@ -1,0 +1,92 @@
+<div id="{{ wrapper_id|default:'' }}" class="relative profile-select-wrap" data-field-name="{{ field_name }}">
+    <label class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-600">{{ label }}</label>
+    <input type="hidden" name="{{ field_name }}" value="{{ selected_value|default:'' }}" class="combobox-hidden-input">
+    <input type="text" value="{{ selected_label|default:'' }}" placeholder="Select {{ label|lower }}" autocomplete="off" class="profile-search-input w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 pr-9 text-sm text-slate-800 focus:border-blue-500 focus:outline-none" aria-label="Search {{ label|lower }}">
+    <svg class="pointer-events-none absolute right-3 top-[2.35rem] h-4 w-4 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 9 6 6 6-6"></path></svg>
+    <div class="combobox-menu profile-menu absolute z-30 mt-1 hidden max-h-56 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl">
+        {% for option in options %}
+        <button type="button" class="profile-option block w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-blue-50" data-value="{{ option.pk }}" data-option-type="{{ option.option_type|default:'individual' }}">{% if field_name == 'term' and label_field == 'term_name' %}{{ option.term_name }}{% elif field_name == 'term' %}{{ option }}{% elif field_name == 'session' %}{{ option.name }}{% else %}{{ option.name }}{% endif %}</button>
+        {% endfor %}
+    </div>
+</div>
+<script>
+document.querySelectorAll('.profile-select-wrap').forEach(function (wrap) {
+    const input = wrap.querySelector('.profile-search-input');
+    const hidden = wrap.querySelector('input[type="hidden"]');
+    const menu = wrap.querySelector('.profile-menu');
+    const arrow = wrap.querySelector('svg');
+    const options = Array.from(menu.querySelectorAll('.profile-option'));
+    const close = () => { menu.classList.add('hidden'); menu.classList.remove('open'); arrow.classList.remove('rotate-180'); };
+    const open = () => {
+        document.querySelectorAll('.combobox-menu.open').forEach(otherMenu => {
+            if (otherMenu !== menu) {
+                otherMenu.classList.add('hidden');
+                otherMenu.classList.remove('open');
+                otherMenu.closest('.profile-select-wrap').querySelector('svg').classList.remove('rotate-180');
+            }
+        });
+        menu.classList.remove('hidden');
+        menu.classList.add('open');
+        arrow.classList.add('rotate-180');
+    };
+    const rebuildTermOptions = sessionId => {
+        const termWrap = document.querySelector('.profile-select-wrap[data-field-name="term"]');
+        if (!termWrap || !window.resultTermsMap) return;
+        const termInput = termWrap.querySelector('.profile-search-input');
+        const termHidden = termWrap.querySelector('input[type="hidden"]');
+        const termMenu = termWrap.querySelector('.profile-menu');
+        const termArrow = termWrap.querySelector('svg');
+        termHidden.value = '';
+        termInput.value = '';
+        termMenu.replaceChildren();
+        (window.resultTermsMap[sessionId] || []).forEach(term => {
+            const termOption = document.createElement('button');
+            termOption.type = 'button';
+            termOption.className = 'profile-option block w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-blue-50';
+            termOption.dataset.optionType = 'individual';
+            termOption.dataset.value = term.id ?? term.pk ?? '';
+            termOption.textContent = term.term_name || term.name || 'Term';
+            termOption.addEventListener('click', event => {
+                event.stopPropagation();
+                termHidden.value = termOption.dataset.value;
+                termInput.value = termOption.textContent;
+                termMenu.classList.add('hidden');
+                termMenu.classList.remove('open');
+                termArrow.classList.remove('rotate-180');
+            });
+            termMenu.appendChild(termOption);
+        });
+    };
+    input.addEventListener('focus', open);
+    input.addEventListener('click', event => { event.stopPropagation(); open(); });
+    input.addEventListener('input', () => {
+        const query = input.value.trim().toLowerCase();
+        open();
+        options.forEach(option => {
+            const isParentSearch = wrap.dataset.fieldName === 'recipient_user_parent';
+            const optionType = option.dataset.optionType || 'individual';
+            const visible = isParentSearch
+                ? (query ? optionType === 'individual' && option.textContent.toLowerCase().includes(query) : optionType !== 'individual')
+                : option.textContent.toLowerCase().includes(query);
+            option.style.display = visible ? '' : 'none';
+        });
+    });
+    options.forEach(option => option.addEventListener('click', event => {
+        event.stopPropagation();
+        hidden.value = option.dataset.value;
+        input.value = option.textContent.trim();
+        hidden.dispatchEvent(new Event('change', { bubbles: true }));
+        if (wrap.dataset.fieldName === 'session') rebuildTermOptions(option.dataset.value);
+        close();
+    }));
+});
+document.addEventListener('click', event => {
+    if (!event.target.closest('.profile-select-wrap')) {
+        document.querySelectorAll('.profile-select-wrap').forEach(wrap => {
+            wrap.querySelector('.profile-menu').classList.add('hidden');
+            wrap.querySelector('.profile-menu').classList.remove('open');
+            wrap.querySelector('svg').classList.remove('rotate-180');
+        });
+    }
+});
+</script>

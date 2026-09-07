@@ -1,0 +1,220 @@
+{% extends 'portal/base.html' %}
+{% load portal_extras %}
+{% block page_title %}Salary Profiles{% endblock %}
+{% block content %}
+<div class="min-h-full bg-slate-100 p-6 lg:p-8">
+  <div class="mx-auto max-w-6xl space-y-6">
+    <header class="rounded-3xl bg-gradient-to-r from-slate-950 via-emerald-950 to-slate-900 p-8 text-white shadow-lg">
+      <p class="text-xs font-bold uppercase tracking-[0.2em] text-emerald-200">HR &amp; Payroll</p>
+      <h1 class="mt-2 text-2xl font-black">Salary Profiles</h1>
+      <p class="mt-1 text-sm text-emerald-100">Manage salary and bank details for each staff member.</p>
+    </header>
+
+    <section>
+      {% if selected_term %}<form method="post" id="fetch-previous-term-form">{% csrf_token %}<input type="hidden" name="action" value="fetch_previous_term"><input type="hidden" name="session" value="{{ selected_session.pk }}"><input type="hidden" name="term" value="{{ selected_term.pk }}"></form>{% endif %}
+      <form method="get" class="grid gap-3 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:grid-cols-4 items-end">
+        {% include 'portal/result_filter_combobox.html' with field_name='session' label='Session' selected_value=selected_session.pk selected_label=selected_session.name options=sessions %}
+        {% include 'portal/result_filter_combobox.html' with field_name='term' label='Term' selected_value=selected_term.pk selected_label=selected_term.term_name options=terms %}
+        <button type="submit" class="inline-flex min-h-[48px] w-full items-center justify-center rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700">Load Salary Profiles</button>
+        {% if selected_term %}<button type="submit" form="fetch-previous-term-form" class="inline-flex min-h-[48px] w-full items-center justify-center rounded-xl border border-blue-200 bg-blue-50 px-5 py-3 text-sm font-bold text-blue-700 hover:bg-blue-100">Fetch from previous term</button>{% endif %}
+      </form>
+    </section>
+
+    <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div class="relative w-full sm:max-w-sm">
+        <input type="text" id="staff-search-input" placeholder="Search by name, staff ID, or role..." class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm focus:border-emerald-500 focus:outline-none">
+        <svg class="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+      </div>
+
+      <div class="mt-4 max-h-[550px] overflow-y-auto rounded-2xl border border-slate-100">
+        <table class="w-full text-left text-sm">
+          <thead class="sticky top-0 z-10 bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500"><tr><th class="p-4">Staff</th><th class="p-4">Role</th><th class="p-4">Profile Status</th><th class="p-4 text-right">Action</th></tr></thead>
+          <tbody id="staff-table-body" class="divide-y divide-slate-100">
+            {% for staff_user in staff_users %}
+            <tr class="staff-row hover:bg-slate-50/70" data-search="{{ staff_user.get_full_name|default:staff_user.username|lower }} {{ staff_user.teacher_record.staff_id|default:''|lower }} {{ staff_user|staff_primary_role|lower }}">
+              <td class="p-4">
+                <p class="font-bold text-slate-900">{{ staff_user.get_full_name|default:staff_user.username }}</p>
+                <p class="text-xs text-slate-500">{{ staff_user.teacher_record.staff_id|default:staff_user.username }}</p>
+              </td>
+              <td class="p-4"><span class="rounded-lg bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-800">{{ staff_user|staff_primary_role }}</span></td>
+              <td class="p-4">{% if staff_user.selected_salary_profile %}<span class="rounded-lg bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">Configured</span>{% else %}<span class="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">No Profile</span>{% endif %}</td>
+              <td class="p-4 text-right">
+                <button type="button" onclick='openSalaryModal({{ staff_user.pk }}, "{{ staff_user.get_full_name|default:staff_user.username|escapejs }}", {{ staff_user.selected_salary_profile.base_salary|default:"0" }}, {{ staff_user.selected_salary_profile.allowances|default:"0" }}, {{ staff_user.selected_salary_profile.deductions|default:"0" }}, "{{ staff_user.selected_salary_profile.bank_name|default:""|escapejs }}", "{{ staff_user.selected_salary_profile.account_number|default:""|escapejs }}", {{ staff_user.selected_salary_profile.is_active|default_if_none:True|yesno:"1,0" }})' class="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100">{% if staff_user.selected_salary_profile %}Edit Profile{% else %}Configure Salary{% endif %}</button>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="p-10 text-center text-sm text-slate-500">No staff members found.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <h3 class="text-lg font-bold text-slate-900">Configured Salary Profiles</h3>
+        <div class="flex gap-4 text-right">
+          <div><p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Total Salary</p><p class="text-lg font-black text-emerald-700">₦{{ total_salary|floatformat:0 }}</p></div>
+        </div>
+      </div>
+      <div class="mt-4 overflow-x-auto rounded-2xl border border-slate-100">
+        <table class="w-full text-left text-sm">
+          <thead class="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500"><tr><th class="p-4">Staff</th><th class="p-4">Pay</th><th class="p-4">Status</th><th class="p-4 text-right">Actions</th></tr></thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for profile in configured_profiles %}
+            <tr class="hover:bg-slate-50/70">
+              <td class="p-4 font-semibold text-slate-900">{{ profile.user.get_full_name|default:profile.user.username }}</td>
+              <td class="p-4 font-bold text-emerald-700">₦{{ profile.base_salary|floatformat:0 }}</td>
+              <td class="p-4">{% if profile.is_active %}<span class="rounded-lg bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">Active</span>{% else %}<span class="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">Inactive</span>{% endif %}</td>
+              <td class="p-4 text-right">
+                <div class="flex justify-end gap-2">
+                  <button type="button" onclick='openSalaryModal({{ profile.user.pk }}, "{{ profile.user.get_full_name|default:profile.user.username|escapejs }}", {{ profile.base_salary }}, {{ profile.allowances }}, {{ profile.deductions }}, "{{ profile.bank_name|escapejs }}", "{{ profile.account_number|escapejs }}", {{ profile.is_active|yesno:"1,0" }})' class="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100">Update</button>
+                  <button type="button" onclick="openClearSalaryModal('{{ profile.pk }}', '{{ profile.user.pk }}', '{{ profile.user.get_full_name|default:profile.user.username|escapejs }}')" class="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 hover:bg-red-100">Clear</button>
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="p-10 text-center text-sm text-slate-500">No salary profiles have been configured yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div id="salary-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-950/60 p-4 backdrop-blur-md">
+  <div class="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl">
+    <div class="flex items-start justify-between">
+      <div>
+        <p class="text-xs font-bold uppercase tracking-wider text-emerald-600">Salary Profile</p>
+        <h2 id="salary-modal-title" class="mt-1 text-xl font-black text-slate-900">Configure Salary</h2>
+      </div>
+      <button type="button" onclick="closeSalaryModal()" class="text-2xl text-slate-400 hover:text-slate-600">&times;</button>
+    </div>
+    <form method="post" class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="save_profile">
+      <input type="hidden" name="user_id" id="salary-user-id">
+      <input type="hidden" name="session" value="{{ selected_session.pk }}">
+      <input type="hidden" name="term" value="{{ selected_term.pk }}">
+      <div>
+        <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Base Salary (Amount to pay)</label>
+        <input type="number" step="0.01" name="base_salary" id="salary-base" required class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+      </div>
+      <div>
+        <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Allowances</label>
+        <input type="number" step="0.01" min="0" name="allowances" id="salary-allowances" value="0" class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+      </div>
+      <div>
+        <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Deductions</label>
+        <input type="number" step="0.01" min="0" name="deductions" id="salary-deductions" value="0" class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+      </div>
+      <div>
+        <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Bank Name</label>
+        <input type="text" name="bank_name" id="salary-bank" class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+      </div>
+      <div class="sm:col-span-2">
+        <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Account Number</label>
+        <input type="text" name="account_number" id="salary-account" class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+      </div>
+      <div class="sm:col-span-2">
+        <label class="flex items-center gap-3 text-sm font-semibold text-slate-700 cursor-pointer"><span class="relative inline-flex h-6 w-11 flex-shrink-0 items-center"><input type="checkbox" name="is_active" id="salary-is-active" value="1" checked class="peer sr-only"><span class="absolute inset-0 rounded-full bg-slate-300 transition-colors duration-200 peer-checked:bg-blue-600"></span><span class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200 peer-checked:translate-x-5"></span></span>Active on payroll</label>
+      </div>
+      <div class="sm:col-span-2 flex justify-end gap-3 pt-2">
+        <button type="button" onclick="closeSalaryModal()" class="rounded-xl bg-slate-100 px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-200">Cancel</button>
+        <button type="submit" class="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-emerald-700">Save Profile</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="clear-salary-modal" class="fixed inset-0 z-[110] hidden items-center justify-center bg-slate-950/70 p-4 backdrop-blur-md"><div class="w-full max-w-sm rounded-3xl border border-white/10 bg-slate-900 p-6 text-white shadow-2xl"><h2 class="text-lg font-black">Clear salary profile?</h2><p id="clear-salary-message" class="mt-2 text-sm text-slate-300"></p><form method="post" class="mt-6 flex justify-end gap-3">{% csrf_token %}<input type="hidden" name="action" value="clear_profile"><input type="hidden" name="profile_id" id="clear-salary-profile-id"><input type="hidden" name="user_id" id="clear-salary-user-id"><input type="hidden" name="session" value="{{ selected_session.pk }}"><input type="hidden" name="term" value="{{ selected_term.pk }}"><button type="button" onclick="closeClearSalaryModal()" class="rounded-xl border border-white/20 px-4 py-2 text-sm font-bold text-white hover:bg-white/10">Cancel</button><button type="submit" class="rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-500">Yes, Clear</button></form></div></div>
+
+<script>
+document.getElementById('staff-search-input').addEventListener('input', function () {
+  const query = this.value.trim().toLowerCase();
+  document.querySelectorAll('#staff-table-body .staff-row').forEach(function (row) {
+    row.style.display = row.dataset.search.includes(query) ? '' : 'none';
+  });
+});
+
+window.resultTermsMap = {{ terms_json|safe }};
+const salaryTermsMap = window.resultTermsMap && typeof window.resultTermsMap === 'object' ? window.resultTermsMap : {};
+const salarySessionInput = document.querySelector('[data-field-name="session"] .combobox-hidden-input');
+const salaryTermWrap = document.querySelector('[data-field-name="term"]');
+const salaryTermInput = salaryTermWrap.querySelector('.profile-search-input');
+const salaryTermHidden = salaryTermWrap.querySelector('.combobox-hidden-input');
+const salaryTermMenu = salaryTermWrap.querySelector('.profile-menu');
+function getSalaryTerms(sessionId) {
+  const normalizedSessionId = String(sessionId ?? '');
+  if (Array.isArray(salaryTermsMap[normalizedSessionId])) {
+    return salaryTermsMap[normalizedSessionId];
+  }
+  const matchingKey = Object.keys(salaryTermsMap).find(function (key) {
+    return String(key) === normalizedSessionId;
+  });
+  return matchingKey !== undefined && Array.isArray(salaryTermsMap[matchingKey]) ? salaryTermsMap[matchingKey] : [];
+}
+function populateSalaryTerms(sessionId, preserveSelection) {
+  const selectedTermId = preserveSelection ? salaryTermHidden.value : '';
+  const selectedTermLabel = preserveSelection ? salaryTermInput.value : '';
+  salaryTermHidden.value = '';
+  salaryTermInput.value = '';
+  salaryTermMenu.replaceChildren();
+  getSalaryTerms(sessionId).forEach(function (term) {
+    const termId = term.id ?? term.pk ?? '';
+    const termLabel = term.term_name || term.name || 'Term';
+    const option = document.createElement('button');
+    option.type = 'button';
+    option.className = 'profile-option block w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-blue-50';
+    option.dataset.value = termId;
+    option.textContent = termLabel;
+    option.addEventListener('click', function (event) {
+      event.stopPropagation();
+      salaryTermHidden.value = termId;
+      salaryTermInput.value = termLabel;
+      salaryTermMenu.classList.add('hidden');
+      salaryTermMenu.classList.remove('open');
+      salaryTermWrap.querySelector('svg').classList.remove('rotate-180');
+    });
+    salaryTermMenu.appendChild(option);
+    if (String(termId) === String(selectedTermId)) {
+      salaryTermHidden.value = selectedTermId;
+      salaryTermInput.value = selectedTermLabel || termLabel;
+    }
+  });
+}
+salarySessionInput.addEventListener('change', function () {
+  populateSalaryTerms(this.value, false);
+});
+document.addEventListener('DOMContentLoaded', function () {
+  if (salarySessionInput.value) populateSalaryTerms(salarySessionInput.value, true);
+});
+
+function openSalaryModal(userId, name, base, allowances, deductions, bank, account, isActive) {
+  document.getElementById('salary-modal-title').textContent = 'Configure Salary — ' + name;
+  document.getElementById('salary-user-id').value = userId;
+  document.getElementById('salary-base').value = base;
+  document.getElementById('salary-allowances').value = allowances;
+  document.getElementById('salary-deductions').value = deductions;
+  document.getElementById('salary-bank').value = bank;
+  document.getElementById('salary-account').value = account;
+  document.getElementById('salary-is-active').checked = isActive === 1;
+  const modal = document.getElementById('salary-modal');
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+}
+function closeSalaryModal() {
+  const modal = document.getElementById('salary-modal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+}
+function openClearSalaryModal(profileId, userId, name) { document.getElementById('clear-salary-profile-id').value = profileId; document.getElementById('clear-salary-user-id').value = userId; document.getElementById('clear-salary-message').textContent = 'This removes the salary configuration for ' + name + ' in the selected term.'; document.getElementById('clear-salary-modal').classList.remove('hidden'); document.getElementById('clear-salary-modal').classList.add('flex'); }
+function closeClearSalaryModal() { document.getElementById('clear-salary-modal').classList.add('hidden'); document.getElementById('clear-salary-modal').classList.remove('flex'); }
+document.getElementById('salary-modal').addEventListener('click', function (event) {
+  if (event.target.id === 'salary-modal') closeSalaryModal();
+});
+</script>
+{% endblock %}
+

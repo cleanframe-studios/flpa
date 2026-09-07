@@ -1,0 +1,40 @@
+{% extends 'portal/base.html' %}
+{% block page_title %}School-Wide Analytics{% endblock %}
+{% block content %}
+<div class="min-h-full bg-slate-100 p-6 lg:p-8">
+  <div class="mx-auto max-w-7xl space-y-6">
+    <div class="rounded-3xl bg-gradient-to-r from-indigo-900 via-blue-900 to-slate-900 p-8 text-white shadow-lg">
+      <p class="text-xs font-bold uppercase tracking-[0.2em] text-indigo-200">Oversight &amp; Approvals</p>
+      <h1 class="mt-2 text-2xl font-black">School-Wide Analytics</h1>
+      <p class="mt-1 text-sm text-indigo-100">{% if active_term %}{{ active_term.term_name }} · {{ active_term.session.name }}{% else %}No active term configured{% endif %}</p>
+    </div>
+
+    <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <h3 class="text-lg font-bold text-slate-900">Classroom Performance &amp; Attendance</h3>
+      <p class="text-xs text-slate-500">Today's attendance rate and term academic average per class.</p>
+      <div class="mt-4 overflow-x-auto rounded-2xl border border-slate-100">
+        <table class="w-full text-left text-sm">
+          <thead class="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500"><tr><th class="p-4">Class</th><th class="p-4">Students</th><th class="p-4">Attendance Today</th><th class="p-4">Academic Average</th></tr></thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for item in classroom_breakdown %}
+            <tr class="hover:bg-slate-50/80">
+              <td class="p-4 font-semibold text-slate-900">{{ item.classroom.name }}</td>
+              <td class="p-4 text-slate-600">{{ item.total }}</td>
+              <td class="p-4">
+                <div class="flex items-center gap-2">
+                  <div class="h-2 w-24 overflow-hidden rounded-full bg-slate-100"><div class="h-full rounded-full {% if item.attendance_rate >= 80 %}bg-emerald-500{% elif item.attendance_rate >= 50 %}bg-amber-500{% else %}bg-red-500{% endif %}" style="width: {{ item.attendance_rate }}%"></div></div>
+                  <span class="text-xs font-semibold text-slate-600">{{ item.attendance_rate }}%</span>
+                </div>
+              </td>
+              <td class="p-4 font-bold text-slate-800">{% if item.average_result is not None %}{{ item.average_result }}%{% else %}—{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="p-8 text-center text-sm text-slate-500">No classes have been configured yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

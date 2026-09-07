@@ -1,0 +1,84 @@
+{% extends 'portal/base.html' %}
+{% block page_title %}CBT Results{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<div class="min-h-full bg-slate-100 p-6 lg:p-8">
+  <div class="mx-auto max-w-7xl space-y-6">
+    <header class="rounded-3xl bg-gradient-to-r from-blue-900 via-blue-800 to-slate-900 p-8 text-white shadow-lg">
+      <p class="text-xs font-bold uppercase tracking-[0.2em] text-blue-200">Results Control</p>
+      <h1 class="mt-2 text-2xl font-black">CBT Results</h1>
+      <p class="mt-1 text-sm text-blue-100">Review student submissions and objective scores.</p>
+    </header>
+
+    <form method="get" class="grid gap-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:grid-cols-2 xl:grid-cols-4">
+      {% for key, label, selected, options, value_mode in filter_data %}
+      <div class="relative profile-select-wrap" data-filter-key="{{ key }}">
+        <label class="mb-2 block text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">{{ label }}</label>
+        <input type="text" name="{{ key }}" value="{{ selected|default:'' }}" placeholder="Filter by {{ label|lower }}" autocomplete="off" class="profile-search-input w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs text-slate-700 outline-none transition focus:border-blue-500">
+        <div class="profile-menu absolute z-30 mt-1 hidden max-h-60 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl">
+          <button type="button" data-filter-value="" class="profile-option block w-full rounded-lg px-3 py-2 text-left text-xs text-slate-700 hover:bg-blue-50">All {{ label|lower }}s</button>
+          {% for option in options %}<button type="button" data-filter-value="{% if value_mode == 'pk' or value_mode == 'term' %}{{ option.pk }}{% else %}{{ option.name|lower }}{% endif %}" class="profile-option block w-full rounded-lg px-3 py-2 text-left text-xs text-slate-700 hover:bg-blue-50">{% if value_mode == 'term' %}{{ option.term_name }}{% else %}{{ option }}{% endif %}</button>{% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+      <button type="submit" class="rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 xl:col-span-4">Load Results</button>
+    </form>
+
+    <section class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-6">
+        <div><h2 class="text-lg font-bold text-slate-900">Student Submissions</h2><p class="mt-1 text-sm text-slate-500">{% if request.GET.classroom or request.GET.subject %}Showing results for: <span class="font-semibold text-slate-700">{{ request.GET.classroom|default:"All Classes" }}</span> &bull; <span class="font-semibold text-slate-700">{{ request.GET.subject|default:"All Subjects" }}</span>{% else %}Overview of recent student submissions. Select a Class and Subject above to load specific exam scores.{% endif %}</p></div>
+        {% if selected_exam %}<span class="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700">{{ students|length }} student{{ students|length|pluralize }}</span>{% endif %}
+      </div>
+      <div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-slate-50 text-xs uppercase tracking-wider text-slate-600"><tr><th class="p-4">Student ID</th><th class="p-4">Full Name</th><th class="p-4">Attempt Status</th><th class="p-4">Score</th><th class="p-4 text-right">Actions</th></tr></thead><tbody class="divide-y divide-slate-100">{% for student in students %}<tr class="hover:bg-slate-50/70"><td class="p-4 font-semibold text-blue-700">{{ student.student_id }}</td><td class="p-4 font-semibold text-slate-800">{{ student.last_name }} {{ student.first_name }}</td><td class="p-4">{% if student.attempt_session and student.attempt_session.is_completed %}<span class="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">Attempted</span>{% else %}<span class="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">Not Attempted</span>{% endif %}</td><td class="p-4 font-bold text-slate-800">{% if student.attempt_session and student.attempt_session.is_completed %}{{ student.attempt_session.score|floatformat:0 }} / {{ selected_exam.questions.count }}{% else %}<span class="text-slate-400">-</span>{% endif %}</td><td class="p-4 text-right">{% if student.attempt_session and student.attempt_session.is_completed %}<button type="button" onclick="openSubmissionModal({{ student.pk }}, '{{ student.first_name|escapejs }} {{ student.last_name|escapejs }}')" class="mr-2 rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100">View Submission</button><button type="button" onclick="deleteSubmission({{ student.attempt_session.pk }})" class="rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-200">Delete Submission</button>{% else %}<span class="text-xs text-slate-400">No actions</span>{% endif %}</td></tr>{% empty %}<tr><td colspan="5" class="p-12 text-center text-sm text-slate-500">No students or no exam matches the selected filters.</td></tr>{% endfor %}</tbody></table></div>
+    </section>
+  </div>
+</div>
+
+<div id="submissionModal" class="fixed inset-0 z-[9999] hidden items-center justify-center bg-slate-900/60 p-4 backdrop-blur-md">
+  <div class="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-white/40 bg-white/85 shadow-2xl backdrop-blur-md">
+    <div class="flex shrink-0 items-center justify-between border-b border-slate-200 px-6 py-5"><div><p class="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">Submission Review</p><h2 id="submissionTitle" class="mt-1 text-xl font-black text-slate-900"></h2></div><button type="button" onclick="closeSubmissionModal()" class="rounded-xl p-2 text-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700">×</button></div>
+    <div id="submissionFeed" class="space-y-4 overflow-y-auto p-6"></div>
+  </div>
+</div>
+<script>
+const submissions = {{ submissions_json|safe }};
+function escapeHtml(value) { return String(value ?? '').replace(/[&<>\'"]/g, (character) => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[character])); }
+function sanitizeRichHtml(value) {
+  if (!value) return '';
+  const parsed = new DOMParser().parseFromString('<div>' + value + '</div>', 'text/html');
+  const root = parsed.body.firstElementChild;
+  if (!root) return escapeHtml(value);
+  const allowedTags = new Set(['BR', 'EM', 'LI', 'OL', 'P', 'S', 'SPAN', 'STRONG', 'U', 'UL']);
+  root.querySelectorAll('*').forEach((element) => {
+    if (!allowedTags.has(element.tagName)) {
+      element.replaceWith(...element.childNodes);
+      return;
+    }
+    Array.from(element.attributes).forEach((attribute) => {
+      const allowed = (attribute.name === 'class' && attribute.value === 'ql-formula') || attribute.name === 'data-value';
+      if (!allowed) element.removeAttribute(attribute.name);
+    });
+  });
+  return root.innerHTML;
+}
+function renderFormulaEmbeds(element) {
+  element.querySelectorAll('.ql-formula').forEach((formula) => {
+    if (window.katex && formula.dataset.value) {
+      formula.replaceChildren();
+      window.katex.render(formula.dataset.value, formula, {throwOnError: false});
+    }
+  });
+}
+function renderSubmissionMath() {
+  const feed = document.getElementById('submissionFeed');
+  renderFormulaEmbeds(feed);
+  if (window.renderMathInElement) renderMathInElement(feed, {delimiters: [{left: '$', right: '$', display: false}], throwOnError: false});
+}
+function openSubmissionModal(studentId, studentName) { const feed = document.getElementById('submissionFeed'); document.getElementById('submissionTitle').textContent = studentName + ' - Submission'; const items = submissions[String(studentId)] || []; feed.innerHTML = items.map((item) => { const correct = item.choice === item.correct; return `<article class="rounded-2xl border border-slate-200 bg-slate-50 p-5"><div class="flex items-start justify-between gap-3"><p class="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Question ${item.number}</p><span class="rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase ${correct ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700'}">${correct ? 'Correct' : 'Incorrect'}</span></div><div class="math-content mt-3 text-sm font-semibold leading-6 text-slate-900">${sanitizeRichHtml(item.text)}</div><div class="mt-4 grid gap-2 sm:grid-cols-2">${['A','B','C','D'].map((letter) => `<div class="math-content rounded-xl bg-white p-3 text-xs text-slate-700"><strong>${letter}.</strong> ${escapeHtml(item.options[letter])}</div>`).join('')}</div><div class="mt-4 grid gap-2 text-xs sm:grid-cols-2"><p class="rounded-xl border ${correct ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-red-200 bg-red-50 text-red-800'} p-3"><strong>Student's Choice:</strong> ${item.choice || 'No answer'}</p><p class="rounded-xl border border-blue-200 bg-blue-50 p-3 text-blue-800"><strong>Correct Answer:</strong> ${item.correct}</p></div></article>`; }).join('') || '<p class="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">No submission details available.</p>'; document.getElementById('submissionModal').classList.remove('hidden'); document.getElementById('submissionModal').classList.add('flex'); renderSubmissionMath(); }
+function closeSubmissionModal() { document.getElementById('submissionModal').classList.add('hidden'); document.getElementById('submissionModal').classList.remove('flex'); }
+function deleteSubmission(sessionId) { const body = new URLSearchParams({action: 'delete_submission', session_id: sessionId, csrfmiddlewaretoken: document.querySelector('[name="csrfmiddlewaretoken"]').value}); fetch(window.location.href, {method: 'POST', body, headers: {'X-Requested-With': 'XMLHttpRequest'}, credentials: 'same-origin'}).then((response) => { if (!response.ok) throw new Error('Could not delete submission.'); return response.json(); }).then(() => window.location.reload()).catch((error) => window.showToast ? showToast(error.message, 'delete') : alert(error.message)); }
+function applyComboboxFilters() { document.querySelectorAll('.profile-select-wrap').forEach((wrapper) => { const input = wrapper.querySelector('.profile-search-input'); const menu = wrapper.querySelector('.profile-menu'); wrapper.dataset.filterValue = ''; input.addEventListener('focus', () => { document.querySelectorAll('.profile-menu').forEach((other) => { if (other !== menu) other.classList.add('hidden'); }); menu.classList.remove('hidden'); }); input.addEventListener('input', () => { wrapper.dataset.filterValue = ''; menu.classList.remove('hidden'); const query = input.value.toLowerCase().trim(); menu.querySelectorAll('.profile-option').forEach((option) => option.style.display = option.textContent.toLowerCase().includes(query) ? '' : 'none'); }); menu.querySelectorAll('.profile-option').forEach((option) => option.addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); input.value = option.textContent.trim(); wrapper.dataset.filterValue = option.dataset.filterValue || ''; menu.classList.add('hidden'); })); }); }
+applyComboboxFilters(); document.getElementById('submissionModal').addEventListener('click', function(event) { if (event.target === this) closeSubmissionModal(); });
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script><script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+{% endblock %}

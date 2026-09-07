@@ -1,0 +1,165 @@
+{% extends 'portal/base.html' %}
+{% load static %}
+
+{% block page_title %}Class Allocation Control{% endblock %}
+{% block main_classes %}flex-grow flex flex-col p-0 bg-slate-100{% endblock %}
+{% block container_class %}w-full flex-grow flex flex-col min-h-0 bg-slate-100 text-slate-800 relative overflow-hidden{% endblock %}
+
+{% block content %}
+<style>
+    @keyframes assembleUp {
+        0% { opacity: 0; transform: translateY(20px); }
+        100% { opacity: 1; transform: translateY(0); }
+    }
+    .animate-stage-1 { animation: assembleUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.05s forwards; opacity: 0; }
+    .animate-stage-2 { animation: assembleUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.15s forwards; opacity: 0; }
+</style>
+
+<div class="flex-grow flex w-full min-h-0 bg-slate-100 font-sans relative overflow-y-auto p-6 lg:p-8">
+    <div class="flex-grow flex flex-col space-y-6 max-w-7xl mx-auto w-full">
+        
+        <!-- Header Banner -->
+        <div class="animate-stage-1 bg-gradient-to-r from-blue-900 via-blue-800 to-slate-900 text-white rounded-3xl p-8 shadow-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-black text-white tracking-tight">Class & Teacher Allocation Hub</h1>
+                <p class="text-xs text-blue-100 font-light mt-1">Assign homeroom teachers to classrooms across Kindergarten, Nursery, and Primary tiers.</p>
+            </div>
+            <div class="bg-white/10 backdrop-blur-md px-4 py-2 rounded-2xl text-xs font-semibold border border-white/10">
+                Total Classrooms: {{ classrooms.count }}
+            </div>
+        </div>
+
+        <!-- Classrooms Table Card -->
+        <div class="animate-stage-2 bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-6">
+            <form method="POST">
+                {% csrf_token %}
+            <div class="overflow-x-auto border border-slate-100 rounded-2xl">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 text-xs uppercase tracking-wider font-semibold">
+                            <th class="py-4 px-6 w-12">#</th>
+                            <th class="py-4 px-6">Classroom Name</th>
+                            <th class="py-4 px-6">Section</th>
+                            <th class="py-4 px-6">Current Class Teacher</th>
+                            <th class="py-4 px-6 text-right">Action / Re-assign</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 text-sm text-slate-700">
+                        {% for room in classrooms %}
+                        <tr class="hover:bg-slate-50/80 transition-colors">
+                            <td class="py-4 px-6 text-slate-400 font-medium">{{ forloop.counter }}</td>
+                            <td class="py-4 px-6 font-bold text-slate-900">{{ room.name }}</td>
+                            <td class="py-4 px-6">
+                                <span class="px-3 py-1 rounded-full text-[10px] font-bold 
+                                    {% if room.section == 'KG' %}bg-amber-50 text-amber-700 border border-amber-200/50
+                                    {% elif room.section == 'Nursery' %}bg-purple-50 text-purple-700 border border-purple-200/50
+                                    {% else %}bg-blue-50 text-blue-700 border border-blue-200/50{% endif %}">
+                                    {{ room.section }}
+                                </span>
+                            </td>
+                            <td class="py-4 px-6">
+                                {% if room.class_teacher %}
+                                    <span class="font-semibold text-slate-700">{{ room.class_teacher.first_name }} {{ room.class_teacher.last_name }}</span>
+                                {% else %}
+                                    <span class="text-xs text-rose-500 font-medium bg-rose-50 px-2.5 py-1 rounded-full border border-rose-100">Unassigned</span>
+                                {% endif %}
+                            </td>
+                            <td class="py-4 px-6 text-right">
+                                <div class="teacher-combobox relative ml-auto w-52 text-left">
+                                    <input type="text" class="teacher-search-input w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10" value="" placeholder="Search teacher..." autocomplete="off" aria-label="Teacher for {{ room.name }}" aria-expanded="false">
+                                    <input type="hidden" name="teacher_{{ room.id }}" value="{{ room.class_teacher_id|default:'' }}">
+                                    <div class="teacher-options absolute z-30 mt-1 hidden max-h-56 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl">
+                                        <button type="button" class="teacher-option block w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-blue-50" data-teacher-id="">Unassigned</button>
+                                        {% for teacher in teachers %}<button type="button" class="teacher-option block w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-blue-50" data-teacher-id="{{ teacher.id }}">{{ teacher.first_name }} {{ teacher.last_name }}</button>{% endfor %}
+                                        <p class="teacher-no-match hidden px-3 py-2 text-sm text-slate-500">No matching teachers.</p>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-6 flex justify-end"><button type="submit" class="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-3 text-sm font-bold text-white shadow-lg shadow-blue-500/25 transition hover:from-blue-700 hover:to-indigo-700">Save All Allocations</button></div>
+            </form>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    function closeOptions(exceptOptionsBox) {
+        document.querySelectorAll('.teacher-options').forEach(function (optionsBox) {
+            if (optionsBox !== exceptOptionsBox) {
+                optionsBox.classList.add('hidden');
+            }
+        });
+        document.querySelectorAll('.teacher-search-input').forEach(function (searchInput) {
+            if (!exceptOptionsBox || !searchInput.closest('.teacher-combobox').contains(exceptOptionsBox)) {
+                searchInput.setAttribute('aria-expanded', 'false');
+            }
+        });
+    }
+
+    document.querySelectorAll('.teacher-combobox').forEach(function (combobox) {
+        const searchInput = combobox.querySelector('.teacher-search-input');
+        const selectedIdInput = combobox.querySelector('input[type="hidden"]');
+        const optionsBox = combobox.querySelector('.teacher-options');
+        const options = combobox.querySelectorAll('.teacher-option');
+        const noMatchMessage = combobox.querySelector('.teacher-no-match');
+
+        function showOptions() {
+            closeOptions(optionsBox);
+            optionsBox.classList.remove('hidden');
+            searchInput.setAttribute('aria-expanded', 'true');
+        }
+
+        function hideOptions() {
+            optionsBox.classList.add('hidden');
+            searchInput.setAttribute('aria-expanded', 'false');
+        }
+
+        function filterOptions() {
+            const query = searchInput.value.trim().toLowerCase();
+            let visibleOptions = 0;
+
+            options.forEach(function (option) {
+                const matches = option.textContent.trim().toLowerCase().includes(query);
+                option.classList.toggle('hidden', !matches);
+                if (matches) visibleOptions += 1;
+            });
+
+            noMatchMessage.classList.toggle('hidden', visibleOptions !== 0);
+        }
+
+        searchInput.addEventListener('focus', function () {
+            filterOptions();
+            showOptions();
+        });
+
+        searchInput.addEventListener('input', function () {
+            selectedIdInput.value = '';
+            filterOptions();
+            showOptions();
+        });
+
+        options.forEach(function (option) {
+            option.addEventListener('click', function () {
+                searchInput.value = option.textContent.trim() === 'Unassigned' ? '' : option.textContent.trim();
+                selectedIdInput.value = option.dataset.teacherId;
+                hideOptions();
+            });
+        });
+    });
+
+    document.addEventListener('click', function (event) {
+        if (!event.target.closest('.teacher-combobox')) {
+            closeOptions();
+        }
+    });
+});
+</script>
+{% endblock %}

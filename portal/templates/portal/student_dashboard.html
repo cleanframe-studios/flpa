@@ -1,0 +1,72 @@
+{% extends 'portal/base.html' %}
+{% block page_title %}Student Dashboard{% endblock %}
+{% block content %}
+<div class="min-h-full bg-slate-100 p-6 lg:p-8">
+  <div class="mx-auto max-w-6xl space-y-6">
+    <div class="flex flex-col justify-between gap-4 rounded-3xl bg-gradient-to-r from-blue-900 to-slate-900 p-8 text-white sm:flex-row sm:items-center">
+      <div><p class="text-xs uppercase tracking-widest text-blue-200">Student Dashboard</p>
+      <h1 class="mt-2 text-2xl font-black">{{ student.first_name }} {{ student.last_name }}</h1>
+      <p class="mt-1 text-sm text-blue-100">{{ student.student_id }} · {{ student.status }}</p>
+      <div class="mt-4 flex flex-wrap gap-3 text-xs">
+        <span class="rounded-xl border border-white/20 bg-white/10 px-3 py-2 font-bold"><span class="text-blue-200">Class:</span> {% if student_class %}{{ student_class.name }}{% else %}Unassigned{% endif %}</span>
+        <span class="rounded-xl border border-white/20 bg-white/10 px-3 py-2 font-bold"><span class="text-blue-200">LIN:</span> {% if student.is_lin_visible %}{{ student_lin|default:'Not set' }}{% else %}<a href="#lin-access-restricted" onclick="openLinAccessModal(event)" class="text-amber-200 underline decoration-amber-200/60 underline-offset-2">LIN-***-LOCKED</a>{% endif %}</span>
+      </div>
+      </div>
+      {% if student.passport %}<img src="{{ student.passport.url }}" alt="{{ student.first_name }} {{ student.last_name }} profile picture" class="h-16 w-16 rounded-full border-4 border-white/20 object-cover shadow-sm">{% endif %}
+    </div>
+    {% if cbt_eligible or promotion_notice %}
+    <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <h2 class="flex items-center gap-2 text-lg font-bold text-slate-900">
+        <span class="relative flex h-2.5 w-2.5"
+          ><span
+            class="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75"
+          ></span
+          ><span
+            class="relative inline-flex h-2.5 w-2.5 rounded-full bg-rose-500"
+          ></span></span
+        >Priority Message Center
+      </h2>
+      <div class="mt-4 space-y-3">
+        {% if promotion_notice %}
+        <div class="flex items-center justify-between gap-4 rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-sm">
+          {% if promotion_notice.status == 'Promoted' %}
+          <p class="font-bold text-slate-800">Notice: You have been promoted to {{ promotion_notice.next_class_name }}.</p>
+          <a href="{% url 'dismiss_promotion_notice' %}" class="flex-shrink-0 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-700">View Report Card / Result</a>
+          {% elif promotion_notice.status == 'Graduated' %}
+          <p class="font-bold text-slate-800">Notice: You have graduated. Your academic records have been archived to the Alumni network.</p>
+          {% elif promotion_notice.status == 'Repeated' %}
+          <p class="font-bold text-slate-800">Notice: End-of-year review: You have been advised to repeat {{ promotion_notice.current_class_name }} for the upcoming session.</p>
+          {% endif %}
+        </div>
+        {% endif %}
+        {% for exam in exams %}
+        <div
+          class="flex items-center justify-between gap-4 rounded-2xl border border-rose-200/60 bg-rose-50/40 p-4 shadow-sm backdrop-blur-md"
+        >
+          <p class="font-bold text-slate-800">
+            {{ exam.subject.name }} CBT Assessment Available
+          </p>
+          {% if exam.attempted %}<span
+            class="flex-shrink-0 cursor-not-allowed rounded-xl bg-slate-200 px-4 py-2 text-xs font-bold text-slate-500"
+            >Attempted</span
+          >{% else %}<a
+            href="{% url 'cbt_instructions' exam.pk %}"
+            class="flex-shrink-0 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-700"
+            >View</a
+          >{% endif %}
+        </div>
+        {% empty %}
+        {% if not promotion_notice %}<p class="text-sm text-slate-500">
+          No priority messages are available.
+        </p>{% endif %}
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}<a
+      href="{% url 'student_report_hub' %}"
+      class="inline-flex rounded-xl bg-slate-900 px-4 py-3 text-xs font-bold text-white"
+      >View Report Card</a
+    >
+  </div>
+</div>
+{% endblock %}

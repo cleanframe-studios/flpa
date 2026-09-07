@@ -1,0 +1,1 @@
+web: gunicorn future_leaders_academy.wsgi --log-file -

@@ -1,0 +1,506 @@
+{% extends 'portal/base.html' %}
+{% load static %}
+{% block content_width %}max-w-4xl{% endblock %}
+
+{% block content %}
+<div class="flex flex-col md:flex-row items-center md:items-stretch justify-center gap-6">
+{% if landing_campaign %}
+<div class="admission-card glass-panel w-full md:flex-1 flex flex-col justify-center rounded-3xl p-10 text-white transform transition-all animate-smooth"{% if landing_campaign.status == 'Active' %} data-deadline="{{ landing_campaign.deadline|date:'c' }}" id="admission-banner"{% endif %}>
+    <span class="inline-flex w-fit items-center rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] {% if landing_campaign.status == 'Active' %}border-emerald-300/30 bg-emerald-400/10 text-emerald-300{% else %}border-slate-300/20 bg-slate-400/10 text-slate-300{% endif %}">{% if landing_campaign.status == 'Active' %}Admissions Open{% else %}Admissions Closed{% endif %}</span>
+    <h3 class="mt-3 text-3xl font-black">{{ landing_campaign.campaign_name }}</h3>
+    <p class="mt-2 text-sm text-slate-300">For {{ landing_campaign.target_session.name }} · {{ landing_campaign.target_term.term_name }}</p>
+    <div class="mt-6 grid grid-cols-4 gap-3 text-center">
+        <div class="rounded-xl bg-white/10 py-4"><p{% if landing_campaign.status == 'Active' %} id="admission-days"{% endif %} class="text-3xl font-black">{% if landing_campaign.status == 'Active' %}00{% else %}--{% endif %}</p><p class="text-xs uppercase text-slate-300">Days</p></div>
+        <div class="rounded-xl bg-white/10 py-4"><p{% if landing_campaign.status == 'Active' %} id="admission-hours"{% endif %} class="text-3xl font-black">{% if landing_campaign.status == 'Active' %}00{% else %}--{% endif %}</p><p class="text-xs uppercase text-slate-300">Hrs</p></div>
+        <div class="rounded-xl bg-white/10 py-4"><p{% if landing_campaign.status == 'Active' %} id="admission-minutes"{% endif %} class="text-3xl font-black">{% if landing_campaign.status == 'Active' %}00{% else %}--{% endif %}</p><p class="text-xs uppercase text-slate-300">Min</p></div>
+        <div class="rounded-xl bg-white/10 py-4"><p{% if landing_campaign.status == 'Active' %} id="admission-seconds"{% endif %} class="text-3xl font-black">{% if landing_campaign.status == 'Active' %}00{% else %}--{% endif %}</p><p class="text-xs uppercase text-slate-300">Sec</p></div>
+    </div>
+    <div class="mt-8 flex gap-3">
+        {% if landing_campaign.status == 'Active' %}
+        <a href="{% url 'apply_admission' %}" id="start-application-btn" class="flex-1 inline-flex items-center justify-center whitespace-nowrap rounded-full bg-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-600/30 transition-all hover:bg-emerald-500">Apply Now</a>
+        {% else %}
+        <div class="flex-1 inline-flex items-center justify-center whitespace-nowrap rounded-full border border-slate-500/40 bg-slate-500/10 px-4 py-3 text-sm font-bold text-slate-300">Admission Closed</div>
+        {% endif %}
+        <button type="button" id="check-status-trigger" class="flex-1 inline-flex items-center justify-center whitespace-nowrap rounded-full border border-slate-600 bg-transparent px-4 py-3 text-sm font-bold text-slate-200 transition-all hover:bg-slate-700">Continue / Check Status</button>
+    </div>
+</div>
+<script>
+(function () {
+    var banner = document.getElementById('admission-banner');
+    if (!banner) return;
+    var deadline = new Date(banner.dataset.deadline).getTime();
+    function tick() {
+        var distance = deadline - Date.now();
+        if (distance < 0) distance = 0;
+        var days = Math.floor(distance / 86400000);
+        var hours = Math.floor((distance % 86400000) / 3600000);
+        var minutes = Math.floor((distance % 3600000) / 60000);
+        var seconds = Math.floor((distance % 60000) / 1000);
+        document.getElementById('admission-days').textContent = String(days).padStart(2, '0');
+        document.getElementById('admission-hours').textContent = String(hours).padStart(2, '0');
+        document.getElementById('admission-minutes').textContent = String(minutes).padStart(2, '0');
+        document.getElementById('admission-seconds').textContent = String(seconds).padStart(2, '0');
+    }
+    tick();
+    setInterval(tick, 1000);
+})();
+</script>
+{% endif %}
+<div class="glass-panel w-full md:flex-1 flex flex-col justify-center rounded-3xl p-10 transform transition-all animate-smooth">
+    
+    <!-- Logo Container: Crisp white background box to make the transparent logo pop -->
+    <div class="flex justify-center mb-6">
+        <div class="bg-white rounded-2xl p-3 shadow-xl w-24 h-24 flex items-center justify-center border border-white/40 transform hover:scale-105 transition duration-300">
+            <img src="{% static 'portal/logo.png' %}" alt="School Logo" class="max-h-full max-w-full object-contain"
+                 onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%231e3a8a\'><path stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M12 14l9-5-9-5-9 5 9 5z\'/></svg>';">
+        </div>
+    </div>
+
+    <div class="text-center mb-8">
+        <h2 class="text-3xl font-extrabold text-white tracking-tight">Welcome Back</h2>
+        <p class="text-sm text-gray-300 mt-2 font-light">Secure Portal Authentication</p>
+    </div>
+
+    <form method="POST" action="">
+        {% csrf_token %}
+        
+        <!-- Username Input -->
+        <div class="mb-6">
+            <label class="block text-gray-300 text-xs font-semibold uppercase tracking-wider mb-2 pl-1" for="username">Username</label>
+            <input class="w-full bg-white/10 border border-white/20 rounded-xl py-3 px-4 text-white placeholder-white/40 focus:outline-none focus:bg-white/20 focus:border-white/50 transition duration-300" 
+                   id="username" name="username" type="text" placeholder="Enter your ID" required>
+        </div>
+        
+        <!-- Password Input with Forgot Password Link -->
+        <div class="mb-8">
+            <div class="flex justify-between items-end mb-2 pl-1">
+                <label class="block text-gray-300 text-xs font-semibold uppercase tracking-wider" for="password">Password</label>
+                <!-- The sleek new forgot password link -->
+                <a href="{% url 'forgot_password' %}" class="text-xs text-white/60 hover:text-brand-brightRed transition-colors duration-300 font-medium">Forgot Password?</a>
+            </div>
+            <input class="w-full bg-white/10 border border-white/20 rounded-xl py-3 px-4 text-white placeholder-white/40 mb-3 focus:outline-none focus:bg-white/20 focus:border-white/50 transition duration-300" 
+                   id="password" name="password" type="password" placeholder="••••••••" required>
+        </div>
+        
+        <!-- The Interactive Button: Solid White to Red Gradient with Shine -->
+        <button class="shine-btn w-full bg-white text-gray-900 font-bold py-4 px-4 rounded-xl shadow-xl transform hover:scale-[1.02] active:scale-[0.98] hover:bg-gradient-to-r hover:from-brand-darkRed hover:to-brand-brightRed hover:text-white transition-all duration-300 ease-in-out focus:outline-none" 
+                type="submit">
+            Sign In
+        </button>
+    </form>
+</div>
+</div>
+
+<!-- Admission status lookup stays on the landing page so applicants never leave this flow. -->
+<div id="status-modal" class="fixed inset-0 z-[9999] hidden items-center justify-center overflow-y-auto bg-slate-950/60 p-4 backdrop-blur-xl" role="dialog" aria-modal="true" aria-labelledby="status-modal-title">
+    <div id="status-modal-panel" class="relative my-auto w-full max-w-md scale-95 rounded-3xl border border-white/10 bg-slate-900/80 p-6 text-white opacity-0 shadow-2xl backdrop-blur-xl transition-all duration-300">
+        <button type="button" id="status-modal-close" class="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/10 text-xl leading-none text-white/80 transition hover:bg-white/20 hover:text-white" aria-label="Close status lookup">&times;</button>
+
+        <div id="status-input-view" class="transition-opacity duration-300">
+            <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-300">Admissions</p>
+            <h2 id="status-modal-title" class="mt-2 text-2xl font-black">Check application status</h2>
+            <p class="mt-2 text-sm leading-6 text-slate-300">Enter the registration number sent with your application.</p>
+            <form id="status-lookup-form" class="mt-6 space-y-4" action="{% url 'admission_status_lookup' %}" method="post">
+                {% csrf_token %}
+                <div>
+                    <label for="status-registration-number" class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-300">Registration number</label>
+                    <input id="status-registration-number" name="temp_reg_number" type="text" required autocomplete="off" placeholder="e.g. FLA-26-JS1-X9K2" class="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3.5 text-sm font-semibold text-white placeholder-white/40 outline-none transition focus:border-emerald-300/80 focus:bg-white/15">
+                </div>
+                <p id="status-lookup-error" class="hidden text-sm font-medium text-red-300" role="alert"></p>
+                <button id="status-lookup-button" type="submit" class="w-full rounded-xl bg-emerald-600 px-4 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/30 transition hover:bg-emerald-500 disabled:cursor-wait disabled:opacity-70">Look up application</button>
+            </form>
+            <button type="button" id="status-back-to-login" class="mt-4 w-full text-center text-xs font-semibold text-slate-400 transition hover:text-white">Back to login</button>
+        </div>
+
+        <div id="status-result-view" class="hidden opacity-0 transition-opacity duration-300" aria-live="polite">
+            <div class="flex items-start justify-between gap-4 pr-8">
+                <div>
+                    <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-300">Application found</p>
+                    <h2 id="status-applicant-name" class="mt-2 text-2xl font-black"></h2>
+                    <p id="status-registration-label" class="mt-1 text-sm font-medium text-slate-300"></p>
+                </div>
+                <span id="status-admission-badge" class="shrink-0 rounded-full px-3 py-1.5 text-xs font-bold"></span>
+            </div>
+            <div class="mt-6 grid gap-3 sm:grid-cols-2">
+                <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Applying for</p>
+                    <p id="status-intended-class" class="mt-1 text-sm font-bold text-white"></p>
+                </div>
+                <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Academic session</p>
+                    <p id="status-session" class="mt-1 text-sm font-bold text-white"></p>
+                    <p id="status-term" class="mt-1 text-xs text-slate-300"></p>
+                </div>
+            </div>
+            <div class="mt-4 flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Payment</span>
+                <span id="status-payment-badge" class="rounded-full px-3 py-1.5 text-xs font-bold"></span>
+            </div>
+            <div id="status-onboarding-actions" class="mt-6 hidden"></div>
+            <button type="button" id="status-new-lookup" class="mt-6 w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/20">Check another application</button>
+        </div>
+
+        <div id="status-accepted-view" class="hidden opacity-0 text-center transition-opacity duration-300" aria-live="polite">
+            <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-500/20 text-amber-300">
+                <svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"></path></svg>
+            </div>
+            <h2 class="mt-5 text-2xl font-black">Admission already accepted!</h2>
+            <p class="mt-2 text-sm leading-6 text-slate-300">Please log in normally with your assigned credentials.</p>
+        </div>
+
+        <div id="status-profile-view" class="hidden opacity-0 transition-opacity duration-300">
+            <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-300">Profile completion</p>
+            <h2 class="mt-2 text-2xl font-black">Complete your profile</h2>
+            <form id="status-profile-form" class="mt-6 space-y-4">
+                {% csrf_token %}
+                <input type="hidden" name="temp_reg_number" id="profile-registration-number">
+                <fieldset>
+                    <legend class="mb-2 text-xs font-bold uppercase tracking-wider text-slate-300">Which parent's details should be used for the primary profile?</legend>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="flex cursor-pointer items-center gap-2 rounded-xl border border-white/20 bg-white/5 p-3 text-sm font-semibold"><input type="radio" name="parent_choice" value="mother" required> Mother</label>
+                        <label class="flex cursor-pointer items-center gap-2 rounded-xl border border-white/20 bg-white/5 p-3 text-sm font-semibold"><input type="radio" name="parent_choice" value="father" required> Father</label>
+                    </div>
+                </fieldset>
+                <div id="status-profile-fields" class="space-y-4"></div>
+                <button type="submit" class="w-full rounded-xl bg-emerald-600 px-4 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/30 transition hover:bg-emerald-500">Save and create profiles</button>
+            </form>
+        </div>
+
+        <div id="status-credentials-view" class="hidden opacity-0 transition-opacity duration-300" aria-live="polite">
+            <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-300">Portal access ready</p>
+            <h2 class="mt-2 text-2xl font-black">Login details</h2>
+            <p class="mt-2 text-sm leading-6 text-slate-300">Keep these credentials private and use them to sign in from this landing page.</p>
+            <div id="status-credential-cards" class="mt-6 space-y-3"></div>
+            <button type="button" id="status-credentials-close" class="mt-6 w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/20">Back to login</button>
+        </div>
+
+        <div id="status-acceptance-success" class="hidden opacity-0 transition-opacity duration-300 text-center" aria-live="polite">
+            <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-300">
+                <svg class="h-9 w-9" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="m5 12 4 4L19 6"></path></svg>
+            </div>
+            <h2 class="mt-5 text-2xl font-black">Admission accepted</h2>
+            <p class="mt-2 text-sm leading-6 text-slate-300">Your student and parent portal accounts are ready.</p>
+            <button type="button" id="view-login-credentials" class="mt-6 w-full rounded-xl bg-emerald-600 px-4 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/30 transition hover:bg-emerald-500">View Login Credentials</button>
+        </div>
+    </div>
+</div>
+
+<!-- Cinematic loading overlay for the admission application transition -->
+<div id="app-transition-overlay" class="fixed inset-0 z-[10000] hidden items-center justify-center bg-slate-950 opacity-0 transition-opacity duration-300">
+    <div class="flex w-full max-w-sm flex-col items-center gap-5 rounded-3xl border border-white/20 bg-slate-900 px-10 py-8 text-center shadow-2xl">
+        <div class="h-12 w-12 animate-spin rounded-full border-4 border-white/20 border-t-emerald-400"></div>
+        <p id="app-transition-message" class="text-sm font-semibold text-white opacity-100 transition-opacity duration-300 ease-in-out">Securing connection...</p>
+    </div>
+</div>
+<script>
+(function () {
+    var btn = document.getElementById('start-application-btn');
+    var overlay = document.getElementById('app-transition-overlay');
+    if (!btn || !overlay) return;
+    var messageEl = document.getElementById('app-transition-message');
+    var messages = ['Securing connection...', 'Setting up your application file...', 'Almost ready...'];
+
+    function hideOverlay() {
+        overlay.classList.add('opacity-0');
+        overlay.classList.remove('flex');
+        overlay.classList.add('hidden');
+        messageEl.classList.remove('opacity-0');
+        messageEl.textContent = messages[0];
+    }
+
+    // Never let a user get trapped on the loader when navigating back (bfcache restore).
+    window.addEventListener('pageshow', function (event) {
+        if (event.persisted) hideOverlay();
+    });
+    hideOverlay();
+
+    btn.addEventListener('click', function (event) {
+        event.preventDefault();
+        var destination = btn.getAttribute('href');
+        overlay.classList.remove('hidden');
+        overlay.classList.add('flex');
+        requestAnimationFrame(function () { overlay.classList.remove('opacity-0'); });
+        var step = 0;
+        messageEl.textContent = messages[0];
+        var cycle = setInterval(function () {
+            // Cross-fade: fade out, swap text, fade back in.
+            messageEl.classList.add('opacity-0');
+            setTimeout(function () {
+                step = (step + 1) % messages.length;
+                messageEl.textContent = messages[step];
+                messageEl.classList.remove('opacity-0');
+            }, 300);
+        }, 450);
+        setTimeout(function () {
+            clearInterval(cycle);
+            window.location.href = destination;
+        }, 1000);
+    });
+})();
+</script>
+<script>
+(function () {
+    var modal = document.getElementById('status-modal');
+    var panel = document.getElementById('status-modal-panel');
+    var trigger = document.getElementById('check-status-trigger');
+    var closeButton = document.getElementById('status-modal-close');
+    var form = document.getElementById('status-lookup-form');
+    var registrationInput = document.getElementById('status-registration-number');
+    var lookupButton = document.getElementById('status-lookup-button');
+    var errorMessage = document.getElementById('status-lookup-error');
+    var inputView = document.getElementById('status-input-view');
+    var resultView = document.getElementById('status-result-view');
+    var acceptedView = document.getElementById('status-accepted-view');
+    var profileView = document.getElementById('status-profile-view');
+    var credentialsView = document.getElementById('status-credentials-view');
+    var acceptanceSuccessView = document.getElementById('status-acceptance-success');
+    var viewCredentialsButton = document.getElementById('view-login-credentials');
+    var onboardingActions = document.getElementById('status-onboarding-actions');
+    var profileForm = document.getElementById('status-profile-form');
+    var profileFields = document.getElementById('status-profile-fields');
+    var newLookupButton = document.getElementById('status-new-lookup');
+    var backToLoginButton = document.getElementById('status-back-to-login');
+    var credentialsCloseButton = document.getElementById('status-credentials-close');
+    var currentRegistrationNumber = '';
+    var currentParentChoice = '';
+    var currentOnboarding = null;
+    var generatedCredentials = null;
+    if (!modal || !panel || !trigger || !closeButton || !form || !profileForm || !backToLoginButton) return;
+
+    function setBadge(element, status, approvedClass, pendingClass, rejectedClass) {
+        element.textContent = status;
+        element.className = 'shrink-0 rounded-full px-3 py-1.5 text-xs font-bold ' +
+            (status === 'Approved' || status === 'Verified' ? approvedClass : status === 'Rejected' ? rejectedClass : pendingClass);
+    }
+
+    function showInputView() {
+        resultView.classList.add('hidden', 'opacity-0');
+        acceptedView.classList.add('hidden', 'opacity-0');
+        profileView.classList.add('hidden', 'opacity-0');
+        credentialsView.classList.add('hidden', 'opacity-0');
+        acceptanceSuccessView.classList.add('hidden', 'opacity-0');
+        onboardingActions.classList.add('hidden');
+        inputView.classList.remove('hidden');
+        requestAnimationFrame(function () { inputView.classList.remove('opacity-0'); });
+        registrationInput.focus();
+    }
+
+    function showProfileView(missingFields) {
+        profileFields.replaceChildren();
+        document.getElementById('profile-registration-number').value = currentRegistrationNumber;
+        missingFields.forEach(function (field) {
+            var wrapper = document.createElement('div');
+            var label = document.createElement('label');
+            label.className = 'mb-2 block text-xs font-bold uppercase tracking-wider text-slate-300';
+            label.textContent = field.label;
+            var input = document.createElement('input');
+            input.type = field.type;
+            input.name = field.name;
+            input.required = true;
+            input.className = 'w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold text-white outline-none transition focus:border-emerald-300/80 focus:bg-white/15';
+            wrapper.append(label, input);
+            profileFields.appendChild(wrapper);
+        });
+        resultView.classList.add('hidden', 'opacity-0');
+        onboardingActions.classList.add('hidden');
+        profileView.classList.remove('hidden');
+        requestAnimationFrame(function () { profileView.classList.remove('opacity-0'); });
+    }
+
+    function copyText(value, button) {
+        if (!navigator.clipboard || !navigator.clipboard.writeText) return;
+        navigator.clipboard.writeText(value).then(function () {
+            var original = button.textContent;
+            button.textContent = 'Copied!';
+            setTimeout(function () { button.textContent = original; }, 1400);
+        });
+    }
+
+    function revealCredentials() {
+        if (!generatedCredentials) return;
+        var cards = document.getElementById('status-credential-cards');
+        cards.replaceChildren();
+        generatedCredentials.forEach(function (entry) {
+            var card = document.createElement('div');
+            card.className = 'rounded-2xl border border-white/10 bg-white/5 p-4';
+            var title = document.createElement('p');
+            title.className = 'text-[10px] font-bold uppercase tracking-wider text-emerald-200';
+            title.textContent = entry.role + ' portal';
+            var details = document.createElement('div');
+            details.className = 'mt-3 space-y-2 text-sm';
+            [['Username / ID', entry.username], ['Password', entry.password], ['Portal Link', entry.portal_url]].forEach(function (row) {
+                var detailRow = document.createElement('div');
+                detailRow.className = 'flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between';
+                var label = document.createElement('span');
+                label.className = 'text-xs font-bold uppercase tracking-wider text-slate-400';
+                label.textContent = row[0];
+                var value = document.createElement('span');
+                value.className = 'break-all font-mono font-bold text-white sm:text-right';
+                value.textContent = row[1];
+                detailRow.append(label, value);
+                details.appendChild(detailRow);
+            });
+            var copyButton = document.createElement('button');
+            copyButton.type = 'button';
+            copyButton.className = 'mt-4 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/20';
+            copyButton.textContent = 'Copy credentials';
+            copyButton.addEventListener('click', function () {
+                copyText('Username / ID: ' + entry.username + '\nPassword: ' + entry.password + '\nPortal Link: ' + entry.portal_url, copyButton);
+            });
+            card.append(title, details, copyButton);
+            cards.appendChild(card);
+        });
+        acceptanceSuccessView.classList.add('hidden', 'opacity-0');
+        credentialsView.classList.remove('hidden');
+        requestAnimationFrame(function () { credentialsView.classList.remove('opacity-0'); });
+    }
+
+    function setOnboardingActions(onboarding) {
+        onboardingActions.replaceChildren();
+        if (!onboarding) return;
+        currentOnboarding = onboarding;
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-600/30 transition hover:bg-emerald-500';
+        button.textContent = onboarding.missing_fields.length ? 'Complete Profile' : 'Choose Primary Parent';
+        button.addEventListener('click', function () { showProfileView((onboarding.parent_missing_fields || {}).father || onboarding.missing_fields); });
+        onboardingActions.appendChild(button);
+        onboardingActions.classList.remove('hidden');
+    }
+
+    function showResult(applicant, onboarding) {
+        currentRegistrationNumber = applicant.registration_number;
+        document.getElementById('status-applicant-name').textContent = applicant.name;
+        document.getElementById('status-registration-label').textContent = applicant.registration_number;
+        document.getElementById('status-intended-class').textContent = applicant.intended_class;
+        document.getElementById('status-session').textContent = applicant.session;
+        document.getElementById('status-term').textContent = applicant.term;
+        setBadge(document.getElementById('status-admission-badge'), applicant.admission_status, 'bg-emerald-500/20 text-emerald-200', 'bg-amber-500/20 text-amber-200', 'bg-red-500/20 text-red-200');
+        setBadge(document.getElementById('status-payment-badge'), applicant.payment_status, 'bg-emerald-500/20 text-emerald-200', 'bg-amber-500/20 text-amber-200', 'bg-red-500/20 text-red-200');
+        inputView.classList.add('opacity-0');
+        setTimeout(function () {
+            inputView.classList.add('hidden');
+            resultView.classList.remove('hidden');
+            requestAnimationFrame(function () { resultView.classList.remove('opacity-0'); });
+            setOnboardingActions(onboarding);
+        }, 200);
+    }
+
+    function showAcceptedView() {
+        inputView.classList.add('hidden', 'opacity-0');
+        resultView.classList.add('hidden', 'opacity-0');
+        profileView.classList.add('hidden', 'opacity-0');
+        credentialsView.classList.add('hidden', 'opacity-0');
+        acceptanceSuccessView.classList.add('hidden', 'opacity-0');
+        onboardingActions.classList.add('hidden');
+        acceptedView.classList.remove('hidden');
+        requestAnimationFrame(function () { acceptedView.classList.remove('opacity-0'); });
+    }
+
+    function openModal() {
+        errorMessage.classList.add('hidden');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        document.body.classList.add('overflow-hidden');
+        requestAnimationFrame(function () {
+            panel.classList.remove('scale-95', 'opacity-0');
+            registrationInput.focus();
+        });
+    }
+
+    function closeModal() {
+        panel.classList.add('scale-95', 'opacity-0');
+        setTimeout(function () {
+            modal.classList.remove('flex');
+            modal.classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+            if (!resultView.classList.contains('hidden')) showInputView();
+        }, 200);
+    }
+
+    trigger.addEventListener('click', openModal);
+    closeButton.addEventListener('click', closeModal);
+    backToLoginButton.addEventListener('click', closeModal);
+    credentialsCloseButton.addEventListener('click', closeModal);
+    modal.addEventListener('click', function (event) {
+        if (event.target === modal) closeModal();
+    });
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
+    });
+    newLookupButton.addEventListener('click', showInputView);
+
+    form.addEventListener('submit', function (event) {
+        event.preventDefault();
+        errorMessage.classList.add('hidden');
+        lookupButton.disabled = true;
+        lookupButton.textContent = 'Looking up...';
+        fetch(form.action, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: new FormData(form),
+        })
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                if (!data.found) throw new Error(data.message || 'We could not find that application.');
+                if (data.already_accepted) {
+                    showAcceptedView();
+                    return;
+                }
+                showResult(data.applicant, data.onboarding);
+            })
+            .catch(function (error) {
+                errorMessage.textContent = error.message || 'Unable to check your application right now.';
+                errorMessage.classList.remove('hidden');
+            })
+            .finally(function () {
+                lookupButton.disabled = false;
+                lookupButton.textContent = 'Look up application';
+            });
+    });
+
+    profileForm.addEventListener('submit', function (event) {
+        event.preventDefault();
+        currentParentChoice = profileForm.querySelector('[name="parent_choice"]:checked').value;
+        profileView.classList.add('hidden');
+        onboardingActions.classList.add('hidden');
+        resultView.classList.add('hidden');
+        credentialsView.classList.add('hidden', 'opacity-0');
+        acceptanceSuccessView.classList.add('hidden', 'opacity-0');
+        var transitionOverlay = document.getElementById('app-transition-overlay');
+        document.getElementById('app-transition-message').textContent = 'Generating student and parent portal accounts... Please do not close this page.';
+        transitionOverlay.classList.remove('hidden');
+        transitionOverlay.classList.add('flex');
+        requestAnimationFrame(function () { transitionOverlay.classList.remove('opacity-0'); });
+        fetch('{% url "admission_complete_profile" %}', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: new FormData(profileForm) })
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                if (data.status !== 'success' || !data.credentials) throw new Error(data.message || 'Unable to create portal accounts.');
+                generatedCredentials = data.credentials;
+                history.replaceState(null, '', window.location.href);
+                transitionOverlay.classList.add('opacity-0');
+                setTimeout(function () {
+                    transitionOverlay.classList.add('hidden');
+                    transitionOverlay.classList.remove('flex');
+                    acceptanceSuccessView.classList.remove('hidden');
+                    requestAnimationFrame(function () { acceptanceSuccessView.classList.remove('opacity-0'); });
+                }, 300);
+            })
+            .catch(function (error) {
+                console.error('Admission account generation failed:', error);
+                transitionOverlay.classList.add('hidden');
+                transitionOverlay.classList.remove('flex', 'opacity-0');
+                profileView.classList.remove('hidden');
+            });
+    });
+
+    viewCredentialsButton.addEventListener('click', revealCredentials);
+
+    profileForm.querySelectorAll('[name="parent_choice"]').forEach(function (choice) {
+        choice.addEventListener('change', function () {
+            if (currentOnboarding) showProfileView((currentOnboarding.parent_missing_fields || {})[choice.value] || []);
+        });
+    });
+})();
+</script>
+{% endblock %}
