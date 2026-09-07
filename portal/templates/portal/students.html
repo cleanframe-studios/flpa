@@ -25,8 +25,8 @@
         <h2 class="text-2xl font-extrabold tracking-tight">Student Directory</h2>
         <p class="text-sm text-blue-100 font-light">Register new students with auto-generated IDs and manage all academy records.</p>
     </div>
-                    <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5" for="other_name">Other Name *</label>
-                    <input type="text" name="other_name" value="{{ student.other_name|default:'' }}" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500" required>
+    {% if request.user.is_staff or request.user.is_superuser or request.user.account_profile.role == 'registrar' %}
+    <div class="flex gap-3">
         <button onclick="openStudentPrintModal()" class="bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold text-xs py-3 px-4 rounded-xl transition-all flex items-center space-x-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"></path></svg>
             <span>Print Details</span>
@@ -35,7 +35,8 @@
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
             <span>Register New Student</span>
         </button>
-        </div>{% endif %}
+    </div>
+    {% endif %}
     </div>
 </div>
 
@@ -71,17 +72,17 @@
                     <th class="py-4 px-6">State</th>
                     <th class="py-4 px-6">Status</th>
                     <th class="py-4 px-6 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students %}
                 <tr class="hover:bg-slate-50/80 transition-colors" data-status="{{ student.status }}" data-student-id="{{ student.student_id }}" data-name="{{ student.last_name }} {{ student.first_name }} {{ student.other_name|default:'' }}" data-class="{% if student.current_class %}{{ student.current_class.name }}{% else %}Unassigned{% endif %}" data-state="{{ student.state_of_origin }}" data-program="{{ student.program }}">
                     <td class="py-4 px-6 text-slate-400 font-medium">{{ forloop.counter }}</td>
                     <td class="py-4 px-6 font-semibold text-blue-600">{{ student.student_id }}</td>
                     
                     <td class="py-4 px-6">
-                    <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5" for="first_name">First Name *</label>
-                    <input class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500 transition-all" id="first_name" name="first_name" type="text" required>
-                </div>
-                <div>
-                    <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5" for="other_name">Other Name *</label>
-                    <input class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm" id="other_name" name="other_name" type="text" required>
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-slate-100 overflow-hidden flex items-center justify-center">
                                 {% if student.passport %}
                                     <img src="{{ student.passport.url }}" class="w-full h-full object-cover" alt="Passport">
                                 {% else %}
