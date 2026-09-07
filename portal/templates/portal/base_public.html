@@ -68,6 +68,8 @@
             border-bottom: 1px solid rgba(255, 255, 255, 0.5);
             box-shadow: 0 4px 30px rgba(0, 0, 0, 0.15);
         }
+        .public-mobile-drawer { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+        @media (min-width: 768px) { .public-mobile-menu, .public-mobile-overlay { display: none; } }
 
         @keyframes pageEnter {
             0% { opacity: 0; transform: translateY(18px) scale(0.98); }
@@ -89,21 +91,61 @@
     <nav class="glass-header sticky top-0 z-50">
         <div class="w-full px-6 lg:px-10">
             <div class="flex h-16 sm:h-20 items-center justify-start">
-                <div class="flex items-center space-x-5">
+                <div class="flex w-full items-center justify-between space-x-5">
                     <img src="{% static 'portal/logo.png' %}" alt="School Logo" class="h-7 sm:h-8 w-auto object-contain">
                     <a href="{% url 'login' %}" class="public-brand-link hover:translate-y-0 text-base sm:text-xl font-extrabold tracking-widest uppercase">
                         <span class="public-brand-name gradient-title bg-gradient-to-r from-blue-600 via-indigo-500 to-red-600 bg-clip-text text-transparent font-black tracking-tight">
                         FUTURE LEADERS PRIVATE ACADEMY
                         </span>
                     </a>
+                    <button type="button" class="public-mobile-menu inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white shadow-sm md:hidden" aria-controls="public-mobile-drawer" aria-expanded="false" aria-label="Open navigation menu">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                    </button>
                 </div>
             </div>
         </div>
     </nav>
 
+    <div class="public-mobile-overlay fixed inset-0 z-40 hidden bg-slate-950/50" aria-hidden="true"></div>
+    <aside id="public-mobile-drawer" class="public-mobile-drawer fixed inset-y-0 left-0 z-50 w-[min(20rem,85vw)] -translate-x-full border-r border-white/15 p-6 text-white shadow-2xl transition-transform duration-300 md:hidden" aria-label="Mobile navigation">
+        <div class="flex items-center justify-between border-b border-white/15 pb-5"><span class="text-xs font-black uppercase tracking-[0.2em] text-blue-100">Navigation</span><button type="button" class="public-mobile-close text-3xl leading-none text-white/70 hover:text-white" aria-label="Close navigation menu">&times;</button></div>
+        <nav class="mt-8 grid gap-2 text-sm font-bold" aria-label="Mobile navigation links">
+            <a href="{% url 'public_home' %}" class="rounded-xl px-4 py-3 hover:bg-white/10">Home</a>
+            <a href="{% url 'about_page' %}" class="rounded-xl px-4 py-3 hover:bg-white/10">About</a>
+            <a href="{% url 'gallery_page' %}" class="rounded-xl px-4 py-3 hover:bg-white/10">Gallery</a>
+            <a href="{% url 'apply_admission' %}" class="mt-3 rounded-xl bg-red-600 px-4 py-3 text-center text-white hover:bg-red-500">Apply Now</a>
+            <a href="{% url 'login' %}" class="rounded-xl bg-blue-600 px-4 py-3 text-center text-white hover:bg-blue-500">Portal Login</a>
+        </nav>
+    </aside>
+
     <main class="page-enter w-full flex-grow">
         {% block content %}{% endblock %}
     </main>
+
+    <script>
+        (function () {
+            var menu = document.querySelector('.public-mobile-menu');
+            var close = document.querySelector('.public-mobile-close');
+            var drawer = document.getElementById('public-mobile-drawer');
+            var overlay = document.querySelector('.public-mobile-overlay');
+            if (!menu || !close || !drawer || !overlay) return;
+            function closeDrawer() {
+                drawer.classList.add('-translate-x-full');
+                overlay.classList.add('hidden');
+                menu.setAttribute('aria-expanded', 'false');
+                document.body.classList.remove('overflow-hidden');
+            }
+            menu.addEventListener('click', function () {
+                drawer.classList.remove('-translate-x-full');
+                overlay.classList.remove('hidden');
+                menu.setAttribute('aria-expanded', 'true');
+                document.body.classList.add('overflow-hidden');
+            });
+            close.addEventListener('click', closeDrawer);
+            overlay.addEventListener('click', closeDrawer);
+            drawer.querySelectorAll('a').forEach(function (link) { link.addEventListener('click', closeDrawer); });
+        })();
+    </script>
 
     <script>
         // Fade the page out before following same-origin links, so leaving the
