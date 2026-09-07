@@ -38,7 +38,6 @@
         <a href="{% url 'public_home' %}" class="border-b-2 pb-1 transition hover:text-blue-600 {% if request.resolver_match.url_name == 'public_home' %}border-blue-700 font-bold text-blue-700{% else %}border-transparent text-slate-700{% endif %}">Home</a>
         <a href="{% url 'about_page' %}" class="border-b-2 pb-1 transition hover:text-blue-600 {% if request.resolver_match.url_name == 'about_page' %}border-blue-700 font-bold text-blue-700{% else %}border-transparent text-slate-700{% endif %}">About Us</a>
         <a href="{% url 'gallery_page' %}" class="border-b-2 pb-1 transition hover:text-blue-600 {% if request.resolver_match.url_name == 'gallery_page' %}border-blue-700 font-bold text-blue-700{% else %}border-transparent text-slate-700{% endif %}">Gallery</a>
-        <a href="{% url 'apply_admission' %}" class="border-b-2 pb-1 transition hover:text-blue-600 {% if request.resolver_match.url_name == 'apply_admission' %}border-blue-700 font-bold text-blue-700{% else %}border-transparent text-slate-700{% endif %}">Admissions</a>
         <a href="{% url 'contact_page' %}" class="border-b-2 pb-1 transition hover:text-blue-600 {% if request.resolver_match.url_name == 'contact_page' %}border-blue-700 font-bold text-blue-700{% else %}border-transparent text-slate-700{% endif %}">Contact</a>
       </div>
       <div class="flex items-center gap-2">
@@ -58,6 +57,7 @@
         <a href="{% url 'public_home' %}" class="rounded-xl px-4 py-3 hover:bg-white/10">Home</a>
         <a href="{% url 'about_page' %}" class="rounded-xl px-4 py-3 hover:bg-white/10">About</a>
         <a href="{% url 'gallery_page' %}" class="rounded-xl px-4 py-3 hover:bg-white/10">Gallery</a>
+        <a href="{% url 'contact_page' %}" class="rounded-xl px-4 py-3 hover:bg-white/10">Contact</a>
         <a href="{% url 'apply_admission' %}" class="mt-3 rounded-xl bg-red-600 px-4 py-3 text-center text-white hover:bg-red-500">Apply Now</a>
         <a href="{% url 'login' %}" class="rounded-xl bg-blue-600 px-4 py-3 text-center text-white hover:bg-blue-500">Portal Login</a>
       </nav>
