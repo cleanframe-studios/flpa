@@ -309,12 +309,6 @@
 </head>
 <body class="font-sans antialiased flex flex-col min-h-screen justify-between">
 
-    <div id="standalone-preloader" class="fixed inset-0 z-[12000] items-center justify-center bg-slate-950 text-white" aria-live="polite" aria-label="Loading portal">
-        <div class="flex flex-col items-center gap-5 text-center">
-            <img src="{% static 'portal/logo.png' %}" alt="Future Leaders Private Academy" class="h-20 w-20 object-contain">
-            <div class="h-1.5 w-40 overflow-hidden rounded-full bg-white/15"><div class="h-full w-1/2 animate-pulse rounded-full bg-gradient-to-r from-emerald-300 to-cyan-300"></div></div>
-        </div>
-    </div>
     <div id="page-transition-loader" class="hidden" aria-live="polite" aria-label="Loading page">
         <div class="page-transition-card">
             <img src="{% static 'portal/logo.png' %}" alt="Future Leaders Private Academy" class="page-transition-logo">
@@ -341,9 +335,13 @@
         <header id="standalone-app-header" class="fixed inset-x-0 top-0 z-[9000] h-16 items-center justify-between border-b border-slate-200/80 bg-white/90 px-4 shadow-sm backdrop-blur-xl">
             <a href="{% if request.user.account_profile.role == 'parent' %}{% url 'parent_dashboard' %}{% elif request.user.account_profile.role == 'teacher' %}{% url 'teacher_dashboard' %}{% elif request.user.account_profile.role == 'student' %}{% url 'student_dashboard' %}{% else %}{% url 'dashboard' %}{% endif %}" class="flex min-w-0 items-center gap-2.5">
                 <img src="{% static 'portal/logo.png' %}" alt="Future Leaders Private Academy" class="h-9 w-9 object-contain">
-                <span class="truncate text-sm font-black tracking-wide text-slate-900">FLPA Portal</span>
+                <span class="truncate text-xs font-black uppercase tracking-[0.08em] text-slate-900 sm:text-sm">Future Leaders Private Academy</span>
             </a>
-            <span class="ml-3 truncate text-xs font-bold uppercase tracking-wider text-slate-500">{{ request.user.account_profile.role|default:'Portal' }}</span>
+            <div class="ml-3 flex shrink-0 items-center gap-2.5">
+                <span class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-xs font-black text-blue-800">{{ portal_first_name|slice:':1'|upper }}</span>
+                <span class="hidden text-[10px] font-bold uppercase tracking-wider text-slate-500 sm:inline">{{ request.user.account_profile.role|default:'Portal' }}</span>
+                <a href="{% url 'logout' %}" class="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-red-200 hover:text-red-600" aria-label="Sign out" title="Sign out"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M13 5h6v14h-6m-3-4 3 3m0 0 3-3m-3 3V8M5 12h8"/></svg></a>
+            </div>
         </header>
 
         <!-- App Layout Wrapper -->
@@ -678,11 +676,11 @@
     <div id="app-more-drawer" class="fixed inset-0 z-[11000] hidden bg-slate-950/60 p-4 backdrop-blur-md" role="dialog" aria-modal="true" aria-labelledby="app-more-title">
         <div class="mx-auto flex h-full w-full max-w-lg flex-col overflow-y-auto rounded-3xl border border-white/20 bg-slate-900/95 p-5 text-white shadow-2xl">
             <div class="flex items-center justify-between"><div><p class="text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">Command center</p><h2 id="app-more-title" class="mt-1 text-2xl font-black">More tools</h2></div><button type="button" onclick="toggleAppMoreDrawer()" class="rounded-xl bg-white/10 px-3 py-2 text-xl" aria-label="Close more tools">&times;</button></div>
-            <div class="mt-6 space-y-5">
-                <section><h3 class="mb-2 text-xs font-bold uppercase tracking-wider text-cyan-300">User Operations</h3><div class="grid grid-cols-2 gap-2"><a href="{% url 'students' %}" class="rounded-xl bg-white/10 p-3 text-sm font-bold hover:bg-white/20">Students</a><a href="{% url 'teachers' %}" class="rounded-xl bg-white/10 p-3 text-sm font-bold hover:bg-white/20">Staff</a><a href="{% url 'parents' %}" class="rounded-xl bg-white/10 p-3 text-sm font-bold hover:bg-white/20">Parents</a></div></section>
-                <section><h3 class="mb-2 text-xs font-bold uppercase tracking-wider text-cyan-300">Academic Setup</h3><div class="grid grid-cols-2 gap-2"><a href="{% url 'student_class_allocation' %}" class="rounded-xl bg-white/10 p-3 text-sm font-bold hover:bg-white/20">Class Assignment</a><a href="{% url 'class_subjects' %}" class="rounded-xl bg-white/10 p-3 text-sm font-bold hover:bg-white/20">Subjects</a><a href="{% url 'results_process' %}" class="rounded-xl bg-white/10 p-3 text-sm font-bold hover:bg-white/20">Results</a></div></section>
-                <section><h3 class="mb-2 text-xs font-bold uppercase tracking-wider text-cyan-300">Finance</h3><div class="grid grid-cols-2 gap-2"><a href="{% url 'manage_fee_structures' %}" class="rounded-xl bg-white/10 p-3 text-sm font-bold hover:bg-white/20">Fee Structure</a><a href="{% url 'bursary_dashboard' %}" class="rounded-xl bg-white/10 p-3 text-sm font-bold hover:bg-white/20">Payments</a><a href="{% url 'run_payroll' %}" class="rounded-xl bg-white/10 p-3 text-sm font-bold hover:bg-white/20">Payroll</a></div></section>
-                <section><h3 class="mb-2 text-xs font-bold uppercase tracking-wider text-cyan-300">System</h3><div class="grid grid-cols-2 gap-2"><a href="{% url 'admin_audit_logs' %}" class="rounded-xl bg-white/10 p-3 text-sm font-bold hover:bg-white/20">Audit Logs</a><a href="{% url 'admin_profile_edit' %}" class="rounded-xl bg-white/10 p-3 text-sm font-bold hover:bg-white/20">Settings</a></div></section>
+            <div class="mt-6 space-y-2">
+                <div class="app-command-section"><button type="button" onclick="toggleAppCommandSection('app-users-menu', this)" class="flex w-full items-center justify-between rounded-xl px-3 py-3 text-left text-sm font-bold text-white/90 transition hover:bg-white/10"><span>User Operations</span><svg class="h-4 w-4 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-width="2" d="m6 9 6 6 6-6"/></svg></button><div id="app-users-menu" class="hidden space-y-1 border-l border-cyan-300/40 pl-3"><a href="{% url 'students' %}" class="app-command-link {% if request.resolver_match.url_name == 'students' or request.resolver_match.url_name == 'student_profile' %}is-current{% endif %}">Student Directory</a><a href="{% url 'teachers' %}" class="app-command-link {% if request.resolver_match.url_name == 'teachers' or request.resolver_match.url_name == 'teacher_profile' %}is-current{% endif %}">Staff Directory</a><a href="{% url 'parents' %}" class="app-command-link {% if request.resolver_match.url_name == 'parents' or request.resolver_match.url_name == 'parent_profile' %}is-current{% endif %}">Parent Accounts</a></div></div>
+                <div class="app-command-section"><button type="button" onclick="toggleAppCommandSection('app-academics-menu', this)" class="flex w-full items-center justify-between rounded-xl px-3 py-3 text-left text-sm font-bold text-white/90 transition hover:bg-white/10"><span>Academic Setup</span><svg class="h-4 w-4 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-width="2" d="m6 9 6 6 6-6"/></svg></button><div id="app-academics-menu" class="hidden space-y-1 border-l border-cyan-300/40 pl-3"><a href="{% url 'student_class_allocation' %}" class="app-command-link">Class Assignment</a><a href="{% url 'class_subjects' %}" class="app-command-link">Subject Allocation</a><a href="{% url 'results_process' %}" class="app-command-link">Results Processing</a></div></div>
+                <div class="app-command-section"><button type="button" onclick="toggleAppCommandSection('app-finance-menu', this)" class="flex w-full items-center justify-between rounded-xl px-3 py-3 text-left text-sm font-bold text-white/90 transition hover:bg-white/10"><span>Finance</span><svg class="h-4 w-4 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-width="2" d="m6 9 6 6 6-6"/></svg></button><div id="app-finance-menu" class="hidden space-y-1 border-l border-cyan-300/40 pl-3"><a href="{% url 'manage_fee_structures' %}" class="app-command-link">Fee Structure</a><a href="{% url 'bursary_dashboard' %}" class="app-command-link">Payment Verification</a><a href="{% url 'run_payroll' %}" class="app-command-link">Payroll</a></div></div>
+                <div class="app-command-section"><button type="button" onclick="toggleAppCommandSection('app-system-menu', this)" class="flex w-full items-center justify-between rounded-xl px-3 py-3 text-left text-sm font-bold text-white/90 transition hover:bg-white/10"><span>System</span><svg class="h-4 w-4 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-width="2" d="m6 9 6 6 6-6"/></svg></button><div id="app-system-menu" class="hidden space-y-1 border-l border-cyan-300/40 pl-3"><a href="{% url 'admin_audit_logs' %}" class="app-command-link {% if request.resolver_match.url_name == 'admin_audit_logs' %}is-current{% endif %}">Audit Logs</a><a href="{% url 'admin_profile_edit' %}" class="app-command-link">Site Settings</a></div></div>
             </div>
         </div>
     </div>
@@ -1138,11 +1136,18 @@ function toggleAppMoreDrawer() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', function () {
-    const preloader = document.getElementById('standalone-preloader');
-    if (preloader) {
-        requestAnimationFrame(function () { preloader.classList.add('is-ready'); });
+function toggleAppCommandSection(sectionId, button) {
+    const section = document.getElementById(sectionId);
+    if (!section) return;
+    const isClosed = section.classList.contains('hidden');
+    section.classList.toggle('hidden', !isClosed);
+    if (button) {
+        const arrow = button.querySelector('svg');
+        if (arrow) arrow.classList.toggle('rotate-180', isClosed);
     }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
     document.addEventListener('keydown', function (event) {
         if (event.key === 'Escape') {
             const drawer = document.getElementById('app-more-drawer');

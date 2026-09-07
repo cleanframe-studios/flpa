@@ -142,22 +142,6 @@ body {
         padding: 5.25rem 1rem 6.5rem;
     }
 
-    #standalone-preloader {
-        display: flex !important;
-        opacity: 0;
-        pointer-events: none;
-    }
-
-    #standalone-preloader:not(.is-ready) {
-        display: flex !important;
-        opacity: 1;
-        pointer-events: auto;
-    }
-}
-
-#standalone-preloader {
-    display: none;
-    transition: opacity 300ms ease;
 }
 
 #standalone-app-header {
@@ -182,6 +166,22 @@ body {
 
 #app-more-drawer.is-open > div {
     transform: translateY(0);
+}
+
+.app-command-link {
+    display: block;
+    border-radius: .75rem;
+    color: rgb(226 232 240 / .82);
+    font-size: .8rem;
+    font-weight: 700;
+    padding: .7rem .75rem;
+    transition: background-color 160ms ease, color 160ms ease;
+}
+
+.app-command-link:hover,
+.app-command-link.is-current {
+    background: rgb(37 99 235 / .8);
+    color: #fff;
 }
 
 .standalone-app-tab.is-active {
