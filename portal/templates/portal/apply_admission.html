@@ -1,5 +1,6 @@
 {% extends 'portal/base_public.html' %}
 {% load static %}
+{% block extra_head %}<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">{% endblock %}
 {% block content %}
 <div class="relative min-h-full overflow-hidden bg-gradient-to-br from-cyan-950 via-slate-900 to-indigo-950 px-4 py-10">
   <div class="pointer-events-none absolute -top-32 -left-32 h-96 w-96 rounded-full bg-cyan-400/20 blur-3xl"></div>
@@ -306,6 +307,25 @@
   </div>
 </div>
 
+<div id="passport-crop-modal" class="fixed inset-0 z-[120] hidden items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md" role="dialog" aria-modal="true" aria-labelledby="passport-crop-title">
+  <div class="w-full max-w-lg rounded-3xl border border-white/20 bg-slate-900 p-5 text-white shadow-2xl sm:p-6">
+    <div class="flex items-center justify-between gap-4">
+      <div>
+        <p class="text-xs font-bold uppercase tracking-[0.2em] text-emerald-300">Passport photo</p>
+        <h3 id="passport-crop-title" class="mt-1 text-xl font-black">Crop to a square</h3>
+      </div>
+      <button type="button" id="passport-crop-close" class="rounded-full p-2 text-2xl leading-none text-slate-400 hover:bg-white/10 hover:text-white" aria-label="Cancel passport crop">&times;</button>
+    </div>
+    <div class="mt-5 max-h-[60vh] overflow-hidden rounded-2xl bg-slate-950">
+      <img id="passport-crop-image" class="block max-h-[60vh] w-full" alt="Passport crop preview">
+    </div>
+    <div class="mt-5 flex justify-end gap-3">
+      <button type="button" id="passport-crop-cancel" class="rounded-xl bg-white/10 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/20">Cancel</button>
+      <button type="button" id="passport-crop-save" class="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-emerald-500">Use cropped photo</button>
+    </div>
+  </div>
+</div>
+
 <style>
   .glass-input {
     width: 100%;
@@ -322,6 +342,7 @@
   .step-label.step-active { color: #6ee7b7; }
 </style>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 <script>
 (function () {
   const form = document.getElementById('admission-form');
@@ -448,16 +469,67 @@
     disabilityDetails.classList.toggle('hidden', !disabilityCheckbox.checked);
   });
 
-  // Passport preview
+  // Crop the passport image to a square before it is submitted.
   const passportInput = document.getElementById('passport-input');
   const passportPreview = document.getElementById('passport-preview');
+  const passportCropModal = document.getElementById('passport-crop-modal');
+  const passportCropImage = document.getElementById('passport-crop-image');
+  const passportCropSave = document.getElementById('passport-crop-save');
+  const passportCropCancel = document.getElementById('passport-crop-cancel');
+  const passportCropClose = document.getElementById('passport-crop-close');
+  let passportCropper = null;
+
+  function closePassportCrop(clearInput) {
+    if (passportCropper) {
+      passportCropper.destroy();
+      passportCropper = null;
+    }
+    passportCropModal.classList.add('hidden');
+    passportCropModal.classList.remove('flex');
+    passportCropImage.removeAttribute('src');
+    if (clearInput) {
+      passportInput.value = '';
+      passportPreview.removeAttribute('src');
+      passportPreview.classList.add('hidden');
+    }
+  }
+
   passportInput.addEventListener('change', function () {
     const file = passportInput.files[0];
     if (!file) { passportPreview.classList.add('hidden'); return; }
+    if (typeof Cropper === 'undefined') {
+      const fallbackReader = new FileReader();
+      fallbackReader.onload = function (event) { passportPreview.src = event.target.result; passportPreview.classList.remove('hidden'); };
+      fallbackReader.readAsDataURL(file);
+      return;
+    }
     const reader = new FileReader();
-    reader.onload = function (e) { passportPreview.src = e.target.result; passportPreview.classList.remove('hidden'); };
+    reader.onload = function (e) {
+      passportCropImage.src = e.target.result;
+      passportCropModal.classList.remove('hidden');
+      passportCropModal.classList.add('flex');
+      passportCropImage.onload = function () {
+        if (passportCropper) passportCropper.destroy();
+        passportCropper = new Cropper(passportCropImage, { aspectRatio: 1, viewMode: 1, autoCropArea: 1, responsive: true });
+      };
+    };
     reader.readAsDataURL(file);
   });
+  passportCropSave.addEventListener('click', function () {
+    if (!passportCropper) return;
+    passportCropper.getCroppedCanvas({ width: 800, height: 800, imageSmoothingQuality: 'high' }).toBlob(function (blob) {
+      if (!blob) return;
+      const croppedFile = new File([blob], 'passport-cropped.png', { type: 'image/png', lastModified: Date.now() });
+      const transfer = new DataTransfer();
+      transfer.items.add(croppedFile);
+      passportInput.files = transfer.files;
+      passportPreview.src = URL.createObjectURL(blob);
+      passportPreview.classList.remove('hidden');
+      closePassportCrop(false);
+    }, 'image/png');
+  });
+  passportCropCancel.addEventListener('click', function () { closePassportCrop(true); });
+  passportCropClose.addEventListener('click', function () { closePassportCrop(true); });
 
   // ---- localStorage autosave & draft recovery ----
   const DRAFT_KEY = 'flaAdmissionDraft';
