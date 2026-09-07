@@ -1,5 +1,6 @@
 {% extends 'portal/base.html' %}
 {% load static %}
+{% block content_width %}max-w-none{% endblock %}
 
 <!-- This dynamically changes the title in the base.html header! -->
 {% block page_title %}Student Directory{% endblock %}
@@ -37,7 +38,6 @@
         </button>
     </div>
     {% endif %}
-    </div>
 </div>
 
 {% if request.user.is_staff or request.user.is_superuser or request.user.account_profile.role == 'registrar' %}<div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mt-5">
