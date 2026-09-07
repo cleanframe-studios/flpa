@@ -331,6 +331,14 @@
             </div>
         </nav>
 
+        <header id="standalone-app-header" class="fixed inset-x-0 top-0 z-[9000] h-16 items-center justify-between border-b border-slate-200/80 bg-white/90 px-4 shadow-sm backdrop-blur-xl">
+            <a href="{% if request.user.account_profile.role == 'parent' %}{% url 'parent_dashboard' %}{% elif request.user.account_profile.role == 'teacher' %}{% url 'teacher_dashboard' %}{% elif request.user.account_profile.role == 'student' %}{% url 'student_dashboard' %}{% else %}{% url 'dashboard' %}{% endif %}" class="flex min-w-0 items-center gap-2.5">
+                <img src="{% static 'portal/logo.png' %}" alt="Future Leaders Private Academy" class="h-9 w-9 object-contain">
+                <span class="truncate text-sm font-black tracking-wide text-slate-900">FLPA Portal</span>
+            </a>
+            <span class="ml-3 truncate text-xs font-bold uppercase tracking-wider text-slate-500">{{ request.user.account_profile.role|default:'Portal' }}</span>
+        </header>
+
         <!-- App Layout Wrapper -->
         <div id="app-layout-wrapper" class="mt-14 sm:mt-20 flex-grow flex w-full min-h-0 bg-slate-100 font-sans relative">
             <aside id="sidebar" 
@@ -641,16 +649,16 @@
     {% if user.is_authenticated and request.resolver_match and request.resolver_match.url_name != 'login' and 'password' not in request.resolver_match.url_name %}
     <nav class="bottom-app-nav fixed inset-x-3 bottom-3 z-[10000] hidden items-center justify-around gap-1 rounded-2xl border border-white/40 bg-white/80 p-2 shadow-2xl shadow-slate-950/20 backdrop-blur-xl md:hidden" aria-label="App navigation">
         {% if request.user.is_staff or request.user.is_superuser or request.user.account_profile.role == 'admin' or request.user.account_profile.role == 'principal' or request.user.account_profile.role == 'bursar' or request.user.account_profile.role == 'registrar' %}
-        <a href="{% url 'dashboard' %}" class="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-slate-600 transition hover:bg-blue-50 hover:text-blue-700 {% if request.resolver_match.url_name == 'dashboard' %}bg-blue-50 text-blue-700{% endif %}">
+        <a href="{% url 'dashboard' %}" aria-current="{% if request.resolver_match.url_name == 'dashboard' %}page{% endif %}" class="standalone-app-tab flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-slate-600 transition hover:bg-blue-50 hover:text-blue-700 {% if request.resolver_match.url_name == 'dashboard' %}is-active{% endif %}">
             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M4 13h6V4H4v9Zm0 7h6v-3H4v3Zm10 0h6v-9h-6v9Zm0-16v3h6V4h-6Z"/></svg><span class="text-[10px] font-bold">Dashboard</span>
         </a>
-        <a href="{% url 'school_wide_analytics' %}" class="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-slate-600 transition hover:bg-blue-50 hover:text-blue-700">
+        <a href="{% url 'school_wide_analytics' %}" aria-current="{% if request.resolver_match.url_name == 'school_wide_analytics' %}page{% endif %}" class="standalone-app-tab flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-slate-600 transition hover:bg-blue-50 hover:text-blue-700 {% if request.resolver_match.url_name == 'school_wide_analytics' %}is-active{% endif %}">
             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M4 19V5m0 14h16M8 16v-4m4 4V8m4 8v-7m4 7v-3"/></svg><span class="text-[10px] font-bold">Stats</span>
         </a>
-        <a href="{% url 'inbox' %}" class="relative flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-slate-600 transition hover:bg-blue-50 hover:text-blue-700">
+        <a href="{% url 'inbox' %}" aria-current="{% if request.resolver_match.url_name == 'inbox' %}page{% endif %}" class="standalone-app-tab relative flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-slate-600 transition hover:bg-blue-50 hover:text-blue-700 {% if request.resolver_match.url_name == 'inbox' %}is-active{% endif %}">
             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M4 5h16v14H4zM4 8l8 5 8-5"/></svg><span class="text-[10px] font-bold">Alerts</span>{% if unread_message_count or unread_notification_count %}<span class="absolute right-4 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-black text-white">{{ unread_message_count|add:unread_notification_count }}</span>{% endif %}
         </a>
-        <button type="button" onclick="toggleAppMoreDrawer()" class="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-slate-600 transition hover:bg-blue-50 hover:text-blue-700"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M5 7h14M5 12h14M5 17h14"/></svg><span class="text-[10px] font-bold">More</span></button>
+        <button id="app-more-button" type="button" onclick="toggleAppMoreDrawer()" class="standalone-app-tab flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-slate-600 transition hover:bg-blue-50 hover:text-blue-700" aria-controls="app-more-drawer" aria-expanded="false"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M5 7h14M5 12h14M5 17h14"/></svg><span class="text-[10px] font-bold">More</span></button>
         {% else %}
         <a href="{% if request.user.account_profile.role == 'parent' %}{% url 'parent_dashboard' %}{% elif request.user.account_profile.role == 'teacher' %}{% url 'teacher_dashboard' %}{% else %}{% url 'student_dashboard' %}{% endif %}" class="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-slate-600 transition hover:bg-blue-50 hover:text-blue-700"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M4 12a8 8 0 1 0 16 0A8 8 0 0 0 4 12Zm8-4v4l3 2"/></svg><span class="text-[10px] font-bold">Home</span></a>
         <a href="{% if request.user.account_profile.role == 'parent' %}{% url 'parent_report_cards' %}{% elif request.user.account_profile.role == 'teacher' %}{% url 'teacher_dashboard' %}{% else %}{% url 'student_report_hub' %}{% endif %}" class="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-slate-600 transition hover:bg-blue-50 hover:text-blue-700"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M5 4h14v16H5zM8 8h8M8 12h5M8 16h8"/></svg><span class="text-[10px] font-bold">Academics</span></a>
@@ -1100,9 +1108,27 @@ document.addEventListener('DOMContentLoaded', function () {
 <script>
 function toggleAppMoreDrawer() {
     const drawer = document.getElementById('app-more-drawer');
+    const button = document.getElementById('app-more-button');
     if (!drawer) return;
-    drawer.classList.toggle('hidden');
-    drawer.classList.toggle('flex');
+    const isOpen = drawer.classList.contains('is-open');
+    if (isOpen) {
+        drawer.classList.remove('is-open');
+        if (button) {
+            button.classList.remove('is-active');
+            button.setAttribute('aria-expanded', 'false');
+        }
+        window.setTimeout(function () {
+            if (!drawer.classList.contains('is-open')) drawer.classList.add('hidden');
+        }, 220);
+        return;
+    }
+    drawer.classList.remove('hidden');
+    drawer.classList.add('flex');
+    requestAnimationFrame(function () { drawer.classList.add('is-open'); });
+    if (button) {
+        button.classList.add('is-active');
+        button.setAttribute('aria-expanded', 'true');
+    }
 }
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -1113,9 +1139,15 @@ document.addEventListener('DOMContentLoaded', function () {
     document.addEventListener('keydown', function (event) {
         if (event.key === 'Escape') {
             const drawer = document.getElementById('app-more-drawer');
+            const button = document.getElementById('app-more-button');
             if (drawer) {
                 drawer.classList.add('hidden');
+                drawer.classList.remove('is-open');
                 drawer.classList.remove('flex');
+            }
+            if (button) {
+                button.classList.remove('is-active');
+                button.setAttribute('aria-expanded', 'false');
             }
         }
     });
