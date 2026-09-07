@@ -69,7 +69,7 @@
             box-shadow: 0 4px 30px rgba(0, 0, 0, 0.15);
         }
         .public-mobile-overlay { background: rgba(2, 6, 23, 0.5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
-        .public-mobile-drawer { background-color: rgba(15, 23, 42, 0.98) !important; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); isolation: isolate; }
+        .public-mobile-drawer { background-color: rgba(255, 255, 255, 0.98) !important; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); isolation: isolate; }
         @media (min-width: 768px) { .public-mobile-menu, .public-mobile-overlay { display: none; } }
 
         @keyframes pageEnter {
@@ -109,12 +109,12 @@
 
     <div class="public-mobile-overlay fixed inset-0 z-[60] hidden bg-slate-950/50" aria-hidden="true"></div>
     <aside id="public-mobile-drawer" class="public-mobile-drawer fixed inset-0 z-[70] w-[min(20rem,85vw)] -translate-x-full border-r border-white/15 p-6 text-white shadow-2xl transition-transform duration-300 md:hidden" aria-label="Mobile navigation" aria-hidden="true">
-        <div class="flex items-center justify-between border-b border-white/15 pb-5"><span class="text-xs font-black uppercase tracking-[0.2em] text-blue-100">Navigation</span><button type="button" class="public-mobile-close text-3xl leading-none text-white/70 hover:text-white" aria-label="Close navigation menu">&times;</button></div>
+        <div class="flex items-center justify-between border-b border-slate-200 pb-5"><span class="text-xs font-black uppercase tracking-[0.2em] text-blue-950">Navigation</span><button type="button" class="public-mobile-close text-3xl leading-none text-slate-400 hover:text-slate-900" aria-label="Close navigation menu">&times;</button></div>
         <nav class="mt-8 grid gap-2 text-sm font-bold" aria-label="Mobile navigation links">
-            <a href="{% url 'public_home' %}" class="rounded-xl px-4 py-3 hover:bg-white/10">Home</a>
-            <a href="{% url 'about_page' %}" class="rounded-xl px-4 py-3 hover:bg-white/10">About</a>
-            <a href="{% url 'gallery_page' %}" class="rounded-xl px-4 py-3 hover:bg-white/10">Gallery</a>
-            <a href="{% url 'contact_page' %}" class="rounded-xl px-4 py-3 hover:bg-white/10">Contact</a>
+            <a href="{% url 'public_home' %}" class="rounded-xl px-4 py-3 {% if request.resolver_match.url_name == 'public_home' %}bg-blue-50 text-blue-950 shadow-sm{% else %}text-slate-700 hover:bg-slate-100 hover:text-blue-950{% endif %}">Home</a>
+            <a href="{% url 'about_page' %}" class="rounded-xl px-4 py-3 {% if request.resolver_match.url_name == 'about_page' %}bg-blue-50 text-blue-950 shadow-sm{% else %}text-slate-700 hover:bg-slate-100 hover:text-blue-950{% endif %}">About</a>
+            <a href="{% url 'gallery_page' %}" class="rounded-xl px-4 py-3 {% if request.resolver_match.url_name == 'gallery_page' %}bg-blue-50 text-blue-950 shadow-sm{% else %}text-slate-700 hover:bg-slate-100 hover:text-blue-950{% endif %}">Gallery</a>
+            <a href="{% url 'contact_page' %}" class="rounded-xl px-4 py-3 {% if request.resolver_match.url_name == 'contact_page' %}bg-blue-50 text-blue-950 shadow-sm{% else %}text-slate-700 hover:bg-slate-100 hover:text-blue-950{% endif %}">Contact</a>
             <a href="{% url 'apply_admission' %}" class="mt-3 rounded-xl bg-red-600 px-4 py-3 text-center text-white hover:bg-red-500">Apply Now</a>
             <a href="{% url 'login' %}" class="rounded-xl bg-blue-600 px-4 py-3 text-center text-white hover:bg-blue-500">Portal Login</a>
         </nav>
