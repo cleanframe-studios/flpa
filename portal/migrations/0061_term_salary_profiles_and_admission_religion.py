@@ -71,7 +71,7 @@ class Migration(migrations.Migration):
             name='user',
             field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='salary_profiles', to='auth.user'),
         ),
-        migrations.RunPython(assign_legacy_salary_profiles, migrations.RunPython.noop),
+        # migrations.RunPython(assign_legacy_salary_profiles, migrations.RunPython.noop),
         migrations.AlterField(
             model_name='staffsalaryprofile',
             name='academic_session',
