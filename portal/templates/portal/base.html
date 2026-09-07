@@ -447,7 +447,7 @@
             <button id="sidebar-overlay" type="button" onclick="closeMobileSidebar()" class="fixed inset-0 z-30 hidden bg-slate-950/50" aria-label="Close navigation menu"></button>
 
             <div class="flex-grow flex flex-col min-w-0 bg-slate-100">
-                <header id="portal-header" class="h-20 px-8 flex items-center justify-between border-b border-slate-200 bg-white shadow-sm z-10">
+                <header id="portal-header" class="sticky top-0 z-30 h-20 px-8 flex items-center justify-between border-b border-slate-200 bg-white shadow-sm">
                     <div class="flex min-w-0 items-center gap-3">
                         <button id="mobile-sidebar-btn" type="button" onclick="toggleMobileSidebar()" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600 shadow-sm" aria-controls="sidebar" aria-expanded="false" aria-label="Open navigation menu">
                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
@@ -496,7 +496,7 @@
                 <main id="main-content-area" class="pt-2 px-6 sm:px-8 pb-8 space-y-6 flex-grow overflow-y-auto bg-slate-100">
     {% else %}
         <!-- Standalone Public View (Original Login & Password Reset Look) -->
-        <header class="w-full py-4 sm:py-6 px-4 sm:px-8 lg:px-12 flex items-center justify-start bg-white/85 backdrop-blur-xl border-b border-white/60 shadow-lg">
+        <header class="sticky top-0 z-50 w-full py-4 sm:py-6 px-4 sm:px-8 lg:px-12 flex items-center justify-start bg-white/85 backdrop-blur-xl border-b border-white/60 shadow-lg">
             <div class="flex items-center space-x-3 sm:space-x-4">
                 <img src="{% static 'portal/logo.png' %}" alt="School Logo" class="h-7 sm:h-8 w-auto object-contain drop-shadow-md">
                 <h1 class="gradient-title text-base leading-[0.95] sm:text-xl font-extrabold tracking-[0.08em] uppercase drop-shadow-sm sm:tracking-widest">
