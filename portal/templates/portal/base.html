@@ -209,7 +209,7 @@
 
     {% if user.is_authenticated and request.resolver_match and request.resolver_match.url_name != 'login' and 'password' not in request.resolver_match.url_name %}
         <!-- Global Top Branding Nav (Admin Mode) -->
-        <nav class="glass-header sticky top-0 z-50">
+        <nav class="glass-header fixed inset-x-0 top-0 z-50">
             <div class="w-full px-6 lg:px-10">
                 <div class="flex h-14 sm:h-20 items-center justify-start">
                     <div class="flex items-center space-x-3 sm:space-x-5">
@@ -223,7 +223,7 @@
         </nav>
 
         <!-- App Layout Wrapper -->
-        <div class="flex-grow flex w-full min-h-0 bg-slate-100 font-sans relative">
+        <div class="mt-14 sm:mt-20 flex-grow flex w-full min-h-0 bg-slate-100 font-sans relative">
             <aside id="sidebar" 
                    onmouseenter="handleSidebarHover(true)" 
                    onmouseleave="handleSidebarHover(false)"
