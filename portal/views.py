@@ -3802,7 +3802,6 @@ def dashboard_view(request):
 
 
 @login_required(login_url='login')
-@user_passes_test(is_admin_user, login_url='dashboard')
 def admin_profile_edit(request):
     profile, _ = AccountProfile.objects.get_or_create(user=request.user, defaults={'role': 'bursar'})
     if request.method == 'POST':

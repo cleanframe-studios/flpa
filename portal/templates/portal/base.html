@@ -332,24 +332,26 @@
             <div class="w-full px-6 lg:px-10">
                 <div class="flex h-14 sm:h-20 items-center justify-start">
                     <div class="flex items-center space-x-3 sm:space-x-5">
-                        <img src="{% static 'portal/logo.png' %}" alt="School Logo" class="h-6 sm:h-8 w-auto object-contain drop-shadow-md">
+                        <img src="{% static 'portal/logo.png' %}" alt="School Logo" class="h-5 sm:h-7 w-auto object-contain drop-shadow-md">
                         <a href="{% if request.user.account_profile.role == 'student' %}{% url 'student_dashboard' %}{% elif request.user.account_profile.role == 'teacher' %}{% url 'teacher_dashboard' %}{% elif request.user.account_profile.role == 'parent' %}{% url 'parent_dashboard' %}{% elif request.user.account_profile.role == 'bursar' and not request.user.is_staff and not request.user.is_superuser %}{% url 'bursar_dashboard' %}{% elif request.user.account_profile.role == 'registrar' and not request.user.is_staff and not request.user.is_superuser %}{% url 'registrar_dashboard' %}{% elif request.user.account_profile.role == 'principal' and not request.user.is_staff and not request.user.is_superuser %}{% url 'principal_dashboard' %}{% else %}{% url 'dashboard' %}{% endif %}" class="gradient-title text-sm leading-tight sm:text-xl font-extrabold tracking-[0.08em] uppercase drop-shadow-sm sm:tracking-widest">
-                            FUTURE LEADERS PRIVATE ACADEMY
+                            FUTURE LEADERS<br>PRIVATE ACADEMY
                         </a>
                     </div>
                 </div>
             </div>
         </nav>
 
-        <header id="standalone-app-header" class="fixed inset-x-0 top-0 z-[9000] h-16 items-center justify-between border-b border-slate-200/80 bg-white/90 px-4 shadow-sm backdrop-blur-xl">
+        <header id="standalone-app-header" class="fixed inset-x-0 top-0 z-[9000] h-16 items-center justify-between border-b border-white/60 bg-white/55 px-4 shadow-sm backdrop-blur-xl">
             <a href="{% if request.user.account_profile.role == 'parent' %}{% url 'parent_dashboard' %}{% elif request.user.account_profile.role == 'teacher' %}{% url 'teacher_dashboard' %}{% elif request.user.account_profile.role == 'student' %}{% url 'student_dashboard' %}{% else %}{% url 'dashboard' %}{% endif %}" class="flex min-w-0 items-center gap-2.5">
-                <img src="{% static 'portal/logo.png' %}" alt="Future Leaders Private Academy" class="h-9 w-9 object-contain">
-                <span class="truncate text-xs font-black uppercase tracking-[0.08em] text-slate-900 sm:text-sm">Future Leaders Private Academy</span>
+                <img src="{% static 'portal/logo.png' %}" alt="Future Leaders Private Academy" class="h-8 w-8 object-contain">
+                <span class="text-[10px] font-black uppercase leading-[1.05] tracking-[0.08em] text-slate-900 sm:text-xs">Future Leaders<br>Private Academy</span>
             </a>
-            <div class="ml-3 flex shrink-0 items-center gap-2.5">
-                <span class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-xs font-black text-blue-800">{{ portal_first_name|slice:':1'|upper }}</span>
-                <span class="hidden text-[10px] font-bold uppercase tracking-wider text-slate-500 sm:inline">{{ request.user.account_profile.role|default:'Portal' }}</span>
-                <a href="{% url 'logout' %}" class="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-red-200 hover:text-red-600" aria-label="Sign out" title="Sign out"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M13 5h6v14h-6m-3-4 3 3m0 0 3-3m-3 3V8M5 12h8"/></svg></a>
+            <div class="ml-3 flex shrink-0 items-center overflow-hidden rounded-full border border-white/70 bg-white/45 p-1 shadow-lg shadow-slate-900/10 backdrop-blur-xl">
+                <a href="{% url 'admin_profile_edit' %}" class="flex items-center gap-2 rounded-full px-1.5 py-1 transition hover:bg-white/70 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Edit your profile" title="Edit your profile">
+                    {% if request.user.account_profile.profile_picture %}<img src="{{ request.user.account_profile.profile_picture.url }}" alt="{{ portal_display_name }} profile picture" class="h-8 w-8 rounded-full border border-white object-cover shadow-sm">{% else %}<span class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-xs font-black text-blue-800">{{ portal_first_name|slice:':1'|upper }}</span>{% endif %}
+                    <span class="hidden max-w-24 truncate text-[10px] font-bold uppercase tracking-wider text-slate-600 sm:inline">{{ portal_display_name }}</span>
+                </a>
+                <a href="{% url 'logout' %}" class="flex h-8 w-9 items-center justify-center rounded-full text-slate-500 transition hover:bg-red-50 hover:text-red-600" aria-label="Sign out" title="Sign out"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4m7 14 5-5m0 0-5-5m5 5H9"/></svg></a>
             </div>
         </header>
 
@@ -578,7 +580,7 @@
             <button id="sidebar-overlay" type="button" onclick="closeMobileSidebar()" class="fixed inset-0 z-30 hidden bg-slate-950/50" aria-label="Close navigation menu"></button>
 
             <div class="flex-grow flex flex-col min-w-0 bg-slate-100">
-                <header id="portal-header" class="sticky top-0 z-30 h-20 px-8 flex items-center justify-between border-b border-slate-200 bg-white shadow-sm">
+                <header id="portal-header" class="sticky top-0 z-30 h-20 px-8 flex items-center justify-between border-b border-white/70 bg-white/55 shadow-lg shadow-slate-900/5 backdrop-blur-xl">
                     <div class="flex min-w-0 items-center gap-3">
                         <button id="mobile-sidebar-btn" type="button" onclick="toggleMobileSidebar()" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600 shadow-sm" aria-controls="sidebar" aria-expanded="false" aria-label="Open navigation menu">
                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
@@ -617,16 +619,16 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="profile-chip flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 shadow-sm">
-                            {% if request.user.is_staff or request.user.is_superuser %}<a href="{% url 'admin_profile_edit' %}" class="flex items-center gap-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">{% else %}<div class="flex items-center gap-3">{% endif %}
-                            {% if request.user.account_profile.role == 'student' and request.user.student_record.passport %}<img src="{{ request.user.student_record.passport.url }}" alt="Profile" class="h-10 w-10 rounded-full border-2 border-slate-200 object-cover">{% elif request.user.account_profile.role == 'teacher' and request.user.teacher_record.passport %}<img src="{{ request.user.teacher_record.passport.url }}" alt="Profile" class="h-10 w-10 rounded-full border-2 border-slate-200 object-cover">{% elif request.user.account_profile.profile_picture %}<img src="{{ request.user.account_profile.profile_picture.url }}" alt="Profile" class="h-10 w-10 rounded-full border-2 border-slate-200 object-cover">{% else %}<span class="flex h-10 w-10 items-center justify-center rounded-full border-2 border-slate-200 bg-white text-slate-400"><svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M20 21a8 8 0 0 0-16 0M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/></svg></span>{% endif %}
+                        <div class="profile-chip flex items-center gap-2 rounded-full border border-white/70 bg-white/50 px-2 py-1.5 shadow-lg shadow-slate-900/10 backdrop-blur-xl">
+                            <a href="{% url 'admin_profile_edit' %}" class="flex items-center gap-3 rounded-full px-1.5 py-1 transition hover:bg-white/70 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Edit your profile" title="Edit your profile">
+                            {% if request.user.account_profile.profile_picture %}<img src="{{ request.user.account_profile.profile_picture.url }}" alt="{{ portal_display_name }} profile picture" class="h-9 w-9 rounded-full border-2 border-white object-cover shadow-sm">{% elif request.user.account_profile.role == 'student' and request.user.student_record.passport %}<img src="{{ request.user.student_record.passport.url }}" alt="{{ portal_display_name }} profile picture" class="h-9 w-9 rounded-full border-2 border-white object-cover shadow-sm">{% elif request.user.account_profile.role == 'teacher' and request.user.teacher_record.passport %}<img src="{{ request.user.teacher_record.passport.url }}" alt="{{ portal_display_name }} profile picture" class="h-9 w-9 rounded-full border-2 border-white object-cover shadow-sm">{% else %}<span class="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-blue-800"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M20 21a8 8 0 0 0-16 0M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/></svg></span>{% endif %}
                             <div class="text-left hidden sm:block">
                                 <p class="text-xs font-bold text-slate-800 tracking-wider">{{ portal_display_name }}</p>
                                 <p class="text-[10px] text-slate-500 uppercase tracking-widest">{% if request.user.is_superuser %}Super Admin{% elif request.user.is_staff %}Admin{% elif request.user.account_profile.role == 'teacher' %}Teacher{% if request.user.teacher_record.assigned_class.exists %} · {{ request.user.teacher_record.assigned_class.all|join:', ' }}{% endif %}{% elif request.user.account_profile.role == 'parent' %}Parent{% elif request.user.account_profile.role == 'student' %}Student{% elif request.user.account_profile.role == 'bursar' %}Bursar{% elif request.user.account_profile.role == 'registrar' %}Registrar{% elif request.user.account_profile.role == 'principal' %}Principal{% else %}Portal User{% endif %}</p>
                             </div>
-                            {% if request.user.is_staff or request.user.is_superuser %}</a>{% else %}</div>{% endif %}
-                            <a href="{% url 'logout' %}" title="Sign Out" class="flex items-center border-l border-slate-200 pl-3 text-slate-400 transition-colors hover:text-red-600"> 
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                            </a>
+                            <a href="{% url 'logout' %}" title="Sign Out" aria-label="Sign out" class="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 transition hover:bg-red-50 hover:text-red-600">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4m7 14 5-5m0 0-5-5m5 5H9"/></svg>
                             </a>
                         </div>
                     </div>
