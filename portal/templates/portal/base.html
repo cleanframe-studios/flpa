@@ -594,7 +594,7 @@
                                 {% if unread_message_count or unread_notification_count %}<span class="absolute -top-1 -right-1 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white shadow">{{ unread_message_count|add:unread_notification_count }}</span>{% endif %}
                             </button>
                             <div id="notification-panel" class="hidden absolute right-0 z-50 mt-2 w-80 max-h-96 overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl">
-                                <div class="flex items-center justify-between border-b border-slate-100 p-4"><p class="text-sm font-bold text-slate-900">Notifications</p><a href="{% url 'inbox' %}" class="text-xs font-bold text-blue-600 hover:underline">View all</a></div>
+                                <div class="flex items-center justify-between border-b border-slate-100 p-4"><p class="text-sm font-bold text-slate-900">Notifications</p><div class="flex items-center gap-3"><a href="{% url 'inbox' %}" class="text-xs font-bold text-blue-600 hover:underline">View all</a>{% if request.user.is_staff or request.user.is_superuser or request.user.account_profile.role == 'principal' %}<a href="{% url 'general_messaging' %}" class="text-xs font-bold text-emerald-600 hover:underline">Send message</a>{% endif %}</div></div>
                                 <div class="divide-y divide-slate-100">
                                     {% for alert in recent_alerts %}
                                     <a href="{% url 'notification' alert.pk %}" class="block bg-amber-50/60 p-4 transition hover:bg-amber-50 {% if alert.is_read %}opacity-70{% endif %}">
@@ -1156,15 +1156,53 @@ function toggleAppMoreDrawer() {
 function toggleAppCommandSection(sectionId, button) {
     const section = document.getElementById(sectionId);
     if (!section) return;
-    const isClosed = section.classList.contains('hidden');
-    section.classList.toggle('hidden', !isClosed);
+    const isClosed = section.dataset.open !== 'true';
+    section.classList.add('app-command-menu');
+    if (isClosed) {
+        section.classList.remove('hidden');
+        section.style.maxHeight = '0px';
+        section.style.opacity = '0';
+        requestAnimationFrame(function () {
+            section.dataset.open = 'true';
+            section.style.maxHeight = section.scrollHeight + 'px';
+            section.style.opacity = '1';
+        });
+    } else {
+        section.dataset.open = 'false';
+        section.style.maxHeight = section.scrollHeight + 'px';
+        section.style.opacity = '1';
+        requestAnimationFrame(function () {
+            section.style.maxHeight = '0px';
+            section.style.opacity = '0';
+        });
+        window.setTimeout(function () {
+            if (section.dataset.open !== 'true') section.classList.add('hidden');
+        }, 300);
+    }
     if (button) {
         const arrow = button.querySelector('svg');
         if (arrow) arrow.classList.toggle('rotate-180', isClosed);
+        button.setAttribute('aria-expanded', String(isClosed));
     }
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.app-command-section').forEach(function (section) {
+        const menu = section.querySelector('[id$="-menu"]');
+        const button = section.querySelector('button');
+        if (!menu || !button) return;
+        menu.classList.add('app-command-menu');
+        const currentPath = window.location.pathname;
+        const isCurrentSection = Array.from(menu.querySelectorAll('a')).some(function (link) {
+            try {
+                const linkPath = new URL(link.href, window.location.href).pathname;
+                return currentPath === linkPath || currentPath.startsWith(linkPath);
+            } catch (error) {
+                return false;
+            }
+        });
+        if (isCurrentSection) toggleAppCommandSection(menu.id, button);
+    });
     document.addEventListener('keydown', function (event) {
         if (event.key === 'Escape') {
             const drawer = document.getElementById('app-more-drawer');
