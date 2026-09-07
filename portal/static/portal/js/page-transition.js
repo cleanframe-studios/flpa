@@ -1,6 +1,8 @@
 (function () {
   var loader = document.getElementById('page-transition-loader');
   if (!loader) return;
+  var standalone = window.matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches;
+  if (!standalone) return;
 
   function hideLoader() {
     loader.classList.remove('is-visible');

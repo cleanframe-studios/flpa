@@ -28,6 +28,8 @@ body {
 #page-transition-loader {
     align-items: center;
     background: rgb(2 6 23 / 0.42);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
     display: flex;
     inset: 0;
     justify-content: center;
@@ -60,15 +62,21 @@ body {
 }
 
 .page-transition-logo {
-    animation: pageLoaderRoll 1s linear infinite;
     height: 3.5rem;
     object-fit: contain;
     width: 3.5rem;
 }
 
+.page-transition-spinner {
+    animation: pageLoaderRoll 900ms linear infinite;
+    height: 1.75rem;
+    width: 1.75rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
     #page-transition-loader,
-    .page-transition-logo {
+    .page-transition-logo,
+    .page-transition-spinner {
         animation: none;
         transition: none;
     }
