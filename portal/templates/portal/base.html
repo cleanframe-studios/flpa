@@ -187,6 +187,11 @@
         #sidebar.w-20 .submenu-link.submenu-active::before { left: 0.35rem; top: 0.7rem; bottom: 0.7rem; }
 
         @media (max-width: 767px) {
+            body.mobile-sidebar-active,
+            body.mobile-sidebar-active #main-content-area {
+                overflow: hidden !important;
+                overscroll-behavior: none !important;
+            }
             #sidebar {
                 position: fixed;
                 top: 3.5rem;
@@ -196,6 +201,8 @@
                 width: 18rem !important;
                 max-width: calc(100vw - 2.5rem);
                 overflow-y: auto;
+                overscroll-behavior: contain;
+                -webkit-overflow-scrolling: touch;
                 transform: translateX(-105%);
                 box-shadow: 1rem 0 3rem rgba(15, 23, 42, .28);
                 transition: transform .25s ease;
@@ -210,6 +217,8 @@
                 backdrop-filter: blur(7px);
                 -webkit-backdrop-filter: blur(7px);
                 background: rgba(15, 23, 42, .45);
+                overscroll-behavior: none;
+                touch-action: none;
             }
             #sidebar-overlay:not(.hidden) { display: block; }
             #main-content-area { padding: .75rem 1rem 2rem; }
@@ -667,6 +676,7 @@
             overlay.classList.toggle('hidden', !isOpen);
             if (button) button.setAttribute('aria-expanded', String(isOpen));
             document.body.classList.toggle('overflow-hidden', isOpen);
+            document.body.classList.toggle('mobile-sidebar-active', isOpen);
         }
 
         function closeMobileSidebar() {
@@ -678,6 +688,7 @@
             overlay.classList.add('hidden');
             if (button) button.setAttribute('aria-expanded', 'false');
             document.body.classList.remove('overflow-hidden');
+            document.body.classList.remove('mobile-sidebar-active');
         }
 
         window.addEventListener('resize', function () {
