@@ -4,6 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="{% static 'portal/manifest.json' %}">
+    <link rel="apple-touch-icon" href="{% static 'portal/logo.png' %}">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>FUTURE LEADERS PRIVATE ACADEMY</title>
 
     <link rel="stylesheet" href="{% static 'portal/css/global.css' %}">
@@ -964,6 +969,15 @@ document.addEventListener('DOMContentLoaded', function () {
         }, selectedFile.type);
     });
 });
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+        navigator.serviceWorker.register('{% static "portal/sw.js" %}')
+            .then(function (registration) { console.log('Service worker registered. Scope:', registration.scope); })
+            .catch(function (error) { console.log('Service worker registration failed:', error); });
+    });
+}
 </script>
 {% block extra_js %}{% endblock %}
 </body>

@@ -4,6 +4,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="manifest" href="{% static 'portal/manifest.json' %}">
+  <link rel="apple-touch-icon" href="{% static 'portal/logo.png' %}">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Future Leaders Private Academy | Empowering Minds</title>
   <meta name="description" content="Future Leaders Private Academy provides a solid foundation for tomorrow's leaders through academic excellence and sound morals.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -312,5 +317,14 @@
       });
     }
   </script>{% endif %}
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('{% static "portal/sw.js" %}')
+          .then(function (registration) { console.log('Service worker registered. Scope:', registration.scope); })
+          .catch(function (error) { console.log('Service worker registration failed:', error); });
+      });
+    }
+  </script>
 </body>
 </html>
