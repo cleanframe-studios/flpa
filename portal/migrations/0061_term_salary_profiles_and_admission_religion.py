@@ -9,7 +9,7 @@ def assign_legacy_salary_profiles(apps, schema_editor):
 
     session = AcademicSession.objects.filter(is_active=True).first() or AcademicSession.objects.order_by('-name').first()
     if not session:
-        session = AcademicSession.objects.create(name='Legacy Salary Session')
+        session = AcademicSession.objects.create(name='Legacy Session')
     term = AcademicTerm.objects.filter(session=session, is_active=True).first() or AcademicTerm.objects.filter(session=session).first()
     if not term:
         term = AcademicTerm.objects.create(session=session, term_name='First Term')
