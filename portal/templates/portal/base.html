@@ -9,6 +9,15 @@
     <meta name="theme-color" content="#0f172a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <script>
+        (function () {
+            try {
+                if (window.matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches && sessionStorage.getItem('appTransitionPending') === '1') {
+                    document.documentElement.classList.add('app-transition-pending');
+                }
+            } catch (error) {}
+        })();
+    </script>
     <title>FUTURE LEADERS PRIVATE ACADEMY</title>
 
     <link rel="stylesheet" href="{% static 'portal/css/global.css' %}">
