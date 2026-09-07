@@ -34,7 +34,7 @@
   </div>
   <header class="fixed inset-x-0 top-0 z-40 border-b border-white/40 bg-white/75 backdrop-blur-2xl text-slate-900 shadow-[0_4px_30px_rgba(0,0,0,0.05)]">
     <nav class="flex w-full items-center justify-between gap-5 px-6 py-4 md:px-12" aria-label="Primary navigation">
-      <a href="{% url 'public_home' %}" class="public-brand-link flex items-center gap-3">
+      <a href="{% url 'public_home' %}" class="public-brand-link flex min-w-0 items-center gap-3">
         <img src="{% static 'portal/logo.png' %}" alt="Logo" class="h-9 w-9 object-contain">
         <h2 class="public-brand-name text-[clamp(.9rem,4vw,1.25rem)] font-extrabold tracking-tight animate-gradient-x bg-gradient-to-r from-blue-800 via-indigo-700 to-red-700 bg-clip-text text-transparent max-w-[190px] uppercase leading-tight sm:max-w-none">FUTURE LEADERS PRIVATE ACADEMY</h2>
       </a>
@@ -44,10 +44,10 @@
         <a href="{% url 'gallery_page' %}" class="border-b-2 pb-1 transition hover:text-blue-600 {% if request.resolver_match.url_name == 'gallery_page' %}border-blue-700 font-bold text-blue-700{% else %}border-transparent text-slate-700{% endif %}">Gallery</a>
         <a href="{% url 'contact_page' %}" class="border-b-2 pb-1 transition hover:text-blue-600 {% if request.resolver_match.url_name == 'contact_page' %}border-blue-700 font-bold text-blue-700{% else %}border-transparent text-slate-700{% endif %}">Contact</a>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex shrink-0 items-center gap-2">
         <a href="{% url 'login' %}" class="hidden rounded-full bg-blue-950 px-5 py-2.5 text-xs font-bold text-white transition-colors hover:bg-blue-900 hover:shadow-lg active:scale-95 active:translate-y-0 sm:inline-flex">Portal Login</a>
         <a href="{% url 'apply_admission' %}" class="hidden rounded-full bg-red-600 px-5 py-2.5 text-xs font-black text-white shadow-xl shadow-red-600/20 transition-colors hover:bg-red-500 hover:shadow-lg active:scale-95 active:translate-y-0 lg:inline-flex">Apply Now</a>
-        <button type="button" class="public-mobile-menu inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-300 bg-white/80 text-slate-800 shadow-sm lg:hidden" aria-controls="public-mobile-drawer" aria-expanded="false" aria-label="Open navigation menu">
+        <button type="button" class="public-mobile-menu inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-300 bg-white/80 text-slate-800 shadow-sm lg:hidden" aria-controls="public-mobile-drawer" aria-expanded="false" aria-label="Open navigation menu">
           <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
         </button>
       </div>
