@@ -161,7 +161,8 @@
           window.setTimeout(function () { spark.remove(); }, 850);
         }
       }
-      var videoSource = video.src;
+      var videoSource = video.dataset.videoSrc || 'https://www.youtube.com/embed/KjUaSlihAeQ?autoplay=1&mute=0&loop=1&playlist=KjUaSlihAeQ';
+      video.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
       video.removeAttribute('src');
       function closeSurprise() {
         modal.classList.add('hidden');
