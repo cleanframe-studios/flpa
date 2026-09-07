@@ -309,9 +309,16 @@
 </head>
 <body class="font-sans antialiased flex flex-col min-h-screen justify-between">
 
+    <div id="standalone-preloader" class="fixed inset-0 z-[12000] items-center justify-center bg-slate-950 text-white" aria-live="polite" aria-label="Loading portal">
+        <div class="flex flex-col items-center gap-5 text-center">
+            <img src="{% static 'portal/logo.png' %}" alt="Future Leaders Private Academy" class="h-20 w-20 object-contain">
+            <div class="h-1.5 w-40 overflow-hidden rounded-full bg-white/15"><div class="h-full w-1/2 animate-pulse rounded-full bg-gradient-to-r from-emerald-300 to-cyan-300"></div></div>
+        </div>
+    </div>
+
     {% if user.is_authenticated and request.resolver_match and request.resolver_match.url_name != 'login' and 'password' not in request.resolver_match.url_name %}
         <!-- Global Top Branding Nav (Admin Mode) -->
-        <nav class="glass-header fixed inset-x-0 top-0 z-50">
+        <nav id="app-global-branding" class="glass-header fixed inset-x-0 top-0 z-50">
             <div class="w-full px-6 lg:px-10">
                 <div class="flex h-14 sm:h-20 items-center justify-start">
                     <div class="flex items-center space-x-3 sm:space-x-5">
@@ -325,7 +332,7 @@
         </nav>
 
         <!-- App Layout Wrapper -->
-        <div class="mt-14 sm:mt-20 flex-grow flex w-full min-h-0 bg-slate-100 font-sans relative">
+        <div id="app-layout-wrapper" class="mt-14 sm:mt-20 flex-grow flex w-full min-h-0 bg-slate-100 font-sans relative">
             <aside id="sidebar" 
                    onmouseenter="handleSidebarHover(true)" 
                    onmouseleave="handleSidebarHover(false)"
@@ -631,6 +638,42 @@
         </main>
     {% endif %}
 
+    {% if user.is_authenticated and request.resolver_match and request.resolver_match.url_name != 'login' and 'password' not in request.resolver_match.url_name %}
+    <nav class="bottom-app-nav fixed inset-x-3 bottom-3 z-[10000] hidden items-center justify-around gap-1 rounded-2xl border border-white/40 bg-white/80 p-2 shadow-2xl shadow-slate-950/20 backdrop-blur-xl md:hidden" aria-label="App navigation">
+        {% if request.user.is_staff or request.user.is_superuser or request.user.account_profile.role == 'admin' or request.user.account_profile.role == 'principal' or request.user.account_profile.role == 'bursar' or request.user.account_profile.role == 'registrar' %}
+        <a href="{% url 'dashboard' %}" class="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-slate-600 transition hover:bg-blue-50 hover:text-blue-700 {% if request.resolver_match.url_name == 'dashboard' %}bg-blue-50 text-blue-700{% endif %}">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M4 13h6V4H4v9Zm0 7h6v-3H4v3Zm10 0h6v-9h-6v9Zm0-16v3h6V4h-6Z"/></svg><span class="text-[10px] font-bold">Dashboard</span>
+        </a>
+        <a href="{% url 'school_wide_analytics' %}" class="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-slate-600 transition hover:bg-blue-50 hover:text-blue-700">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M4 19V5m0 14h16M8 16v-4m4 4V8m4 8v-7m4 7v-3"/></svg><span class="text-[10px] font-bold">Stats</span>
+        </a>
+        <a href="{% url 'inbox' %}" class="relative flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-slate-600 transition hover:bg-blue-50 hover:text-blue-700">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M4 5h16v14H4zM4 8l8 5 8-5"/></svg><span class="text-[10px] font-bold">Alerts</span>{% if unread_message_count or unread_notification_count %}<span class="absolute right-4 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-black text-white">{{ unread_message_count|add:unread_notification_count }}</span>{% endif %}
+        </a>
+        <button type="button" onclick="toggleAppMoreDrawer()" class="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-slate-600 transition hover:bg-blue-50 hover:text-blue-700"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M5 7h14M5 12h14M5 17h14"/></svg><span class="text-[10px] font-bold">More</span></button>
+        {% else %}
+        <a href="{% if request.user.account_profile.role == 'parent' %}{% url 'parent_dashboard' %}{% elif request.user.account_profile.role == 'teacher' %}{% url 'teacher_dashboard' %}{% else %}{% url 'student_dashboard' %}{% endif %}" class="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-slate-600 transition hover:bg-blue-50 hover:text-blue-700"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M4 12a8 8 0 1 0 16 0A8 8 0 0 0 4 12Zm8-4v4l3 2"/></svg><span class="text-[10px] font-bold">Home</span></a>
+        <a href="{% if request.user.account_profile.role == 'parent' %}{% url 'parent_report_cards' %}{% elif request.user.account_profile.role == 'teacher' %}{% url 'teacher_dashboard' %}{% else %}{% url 'student_report_hub' %}{% endif %}" class="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-slate-600 transition hover:bg-blue-50 hover:text-blue-700"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M5 4h14v16H5zM8 8h8M8 12h5M8 16h8"/></svg><span class="text-[10px] font-bold">Academics</span></a>
+        <a href="{% url 'inbox' %}" class="relative flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-slate-600 transition hover:bg-blue-50 hover:text-blue-700"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M4 5h16v14H4zM4 8l8 5 8-5"/></svg><span class="text-[10px] font-bold">Messages</span>{% if unread_message_count or unread_notification_count %}<span class="absolute right-4 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-black text-white">{{ unread_message_count|add:unread_notification_count }}</span>{% endif %}</a>
+        <a href="{% if request.user.account_profile.role == 'parent' %}{% url 'parent_bursary' %}{% elif request.user.account_profile.role == 'teacher' %}{% url 'teacher_profile' request.user.teacher_record.pk %}{% else %}{% url 'student_profile' request.user.student_record.pk %}{% endif %}" class="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-slate-600 transition hover:bg-blue-50 hover:text-blue-700"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M20 21a8 8 0 0 0-16 0m12-12a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z"/></svg><span class="text-[10px] font-bold">Profile</span></a>
+        {% endif %}
+    </nav>
+
+    {% if request.user.is_staff or request.user.is_superuser or request.user.account_profile.role == 'admin' or request.user.account_profile.role == 'principal' or request.user.account_profile.role == 'bursar' or request.user.account_profile.role == 'registrar' %}
+    <div id="app-more-drawer" class="fixed inset-0 z-[11000] hidden bg-slate-950/60 p-4 backdrop-blur-md" role="dialog" aria-modal="true" aria-labelledby="app-more-title">
+        <div class="mx-auto flex h-full w-full max-w-lg flex-col overflow-y-auto rounded-3xl border border-white/20 bg-slate-900/95 p-5 text-white shadow-2xl">
+            <div class="flex items-center justify-between"><div><p class="text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">Command center</p><h2 id="app-more-title" class="mt-1 text-2xl font-black">More tools</h2></div><button type="button" onclick="toggleAppMoreDrawer()" class="rounded-xl bg-white/10 px-3 py-2 text-xl" aria-label="Close more tools">&times;</button></div>
+            <div class="mt-6 space-y-5">
+                <section><h3 class="mb-2 text-xs font-bold uppercase tracking-wider text-cyan-300">User Operations</h3><div class="grid grid-cols-2 gap-2"><a href="{% url 'students' %}" class="rounded-xl bg-white/10 p-3 text-sm font-bold hover:bg-white/20">Students</a><a href="{% url 'teachers' %}" class="rounded-xl bg-white/10 p-3 text-sm font-bold hover:bg-white/20">Staff</a><a href="{% url 'parents' %}" class="rounded-xl bg-white/10 p-3 text-sm font-bold hover:bg-white/20">Parents</a></div></section>
+                <section><h3 class="mb-2 text-xs font-bold uppercase tracking-wider text-cyan-300">Academic Setup</h3><div class="grid grid-cols-2 gap-2"><a href="{% url 'student_class_allocation' %}" class="rounded-xl bg-white/10 p-3 text-sm font-bold hover:bg-white/20">Class Assignment</a><a href="{% url 'class_subjects' %}" class="rounded-xl bg-white/10 p-3 text-sm font-bold hover:bg-white/20">Subjects</a><a href="{% url 'results_process' %}" class="rounded-xl bg-white/10 p-3 text-sm font-bold hover:bg-white/20">Results</a></div></section>
+                <section><h3 class="mb-2 text-xs font-bold uppercase tracking-wider text-cyan-300">Finance</h3><div class="grid grid-cols-2 gap-2"><a href="{% url 'manage_fee_structures' %}" class="rounded-xl bg-white/10 p-3 text-sm font-bold hover:bg-white/20">Fee Structure</a><a href="{% url 'bursary_dashboard' %}" class="rounded-xl bg-white/10 p-3 text-sm font-bold hover:bg-white/20">Payments</a><a href="{% url 'run_payroll' %}" class="rounded-xl bg-white/10 p-3 text-sm font-bold hover:bg-white/20">Payroll</a></div></section>
+                <section><h3 class="mb-2 text-xs font-bold uppercase tracking-wider text-cyan-300">System</h3><div class="grid grid-cols-2 gap-2"><a href="{% url 'admin_audit_logs' %}" class="rounded-xl bg-white/10 p-3 text-sm font-bold hover:bg-white/20">Audit Logs</a><a href="{% url 'admin_profile_edit' %}" class="rounded-xl bg-white/10 p-3 text-sm font-bold hover:bg-white/20">Settings</a></div></section>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% endif %}
+
     <!-- Footer -->
     {% if messages %}
     <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-3 pointer-events-none">
@@ -656,11 +699,11 @@
     </div>
     {% endif %}
 
-    <footer class="text-center text-white/60 text-xs sm:text-sm py-4 bg-black/20 border-t border-white/10 backdrop-blur-md font-medium tracking-wide">
+    <footer id="portal-footer" class="text-center text-white/60 text-xs sm:text-sm py-4 bg-black/20 border-t border-white/10 backdrop-blur-md font-medium tracking-wide">
         &copy; 2026 FUTURE LEADERS PRIVATE ACADEMY. Powered by Cleanframe Software.
     </footer>
 
-    <a href="https://wa.me/2348072956826?text=Hello%20Admin,%20I%20need%20assistance%20with%20the%20school%20portal" target="_blank" rel="noopener" title="Portal Support" class="group fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full border border-slate-200 bg-white text-emerald-600 shadow-lg shadow-slate-900/20 transition-all hover:scale-105 hover:shadow-xl">
+    <a id="portal-support-link" href="https://wa.me/2348072956826?text=Hello%20Admin,%20I%20need%20assistance%20with%20the%20school%20portal" target="_blank" rel="noopener" title="Portal Support" class="group fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full border border-slate-200 bg-white text-emerald-600 shadow-lg shadow-slate-900/20 transition-all hover:scale-105 hover:shadow-xl">
         <svg class="h-7 w-7" fill="currentColor" viewBox="0 0 24 24"><path d="M20.52 3.48A11.9 11.9 0 0012.03 0C5.46 0 .1 5.36.1 11.93c0 2.1.55 4.14 1.6 5.94L0 24l6.3-1.65a11.9 11.9 0 005.72 1.46h.01c6.57 0 11.93-5.36 11.93-11.93 0-3.19-1.24-6.19-3.44-8.4zm-8.49 18.3h-.01a9.9 9.9 0 01-5.05-1.38l-.36-.21-3.74.98 1-3.64-.24-.38a9.93 9.93 0 01-1.52-5.28c0-5.48 4.46-9.94 9.95-9.94 2.66 0 5.16 1.04 7.03 2.92a9.87 9.87 0 012.91 7.03c0 5.48-4.46 9.94-9.94 9.94zm5.45-7.45c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.25-.46-2.38-1.47-.88-.78-1.47-1.75-1.65-2.05-.17-.3-.02-.46.13-.6.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.6-.91-2.2-.24-.58-.48-.5-.67-.5-.17-.01-.37-.01-.57-.01s-.52.07-.8.37c-.27.3-1.05 1.02-1.05 2.5 0 1.48 1.07 2.9 1.22 3.1.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.69.63.71.22 1.36.19 1.87.12.57-.09 1.76-.72 2.01-1.41.25-.7.25-1.29.17-1.41-.07-.13-.27-.2-.57-.35z"/></svg>
         <span class="pointer-events-none absolute right-16 whitespace-nowrap rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100">Portal Support</span>
     </a>
@@ -1051,6 +1094,30 @@ document.addEventListener('DOMContentLoaded', function () {
             selectedInput.files = transfer.files;
             closeCropper(false);
         }, selectedFile.type);
+    });
+});
+</script>
+<script>
+function toggleAppMoreDrawer() {
+    const drawer = document.getElementById('app-more-drawer');
+    if (!drawer) return;
+    drawer.classList.toggle('hidden');
+    drawer.classList.toggle('flex');
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const preloader = document.getElementById('standalone-preloader');
+    if (preloader) {
+        requestAnimationFrame(function () { preloader.classList.add('is-ready'); });
+    }
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') {
+            const drawer = document.getElementById('app-more-drawer');
+            if (drawer) {
+                drawer.classList.add('hidden');
+                drawer.classList.remove('flex');
+            }
+        }
     });
 });
 </script>

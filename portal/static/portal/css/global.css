@@ -45,6 +45,46 @@ body {
         display: flex !important;
         padding-bottom: max(.5rem, env(safe-area-inset-bottom));
     }
+
+    #app-global-branding,
+    #portal-header,
+    #sidebar,
+    #sidebar-overlay,
+    #portal-footer,
+    #portal-support-link {
+        display: none !important;
+    }
+
+    #app-layout-wrapper {
+        margin-top: 0 !important;
+    }
+
+    #main-content-area {
+        padding: 1rem 1rem 6.5rem;
+    }
+
+    #standalone-preloader {
+        display: flex !important;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    #standalone-preloader:not(.is-ready) {
+        display: flex !important;
+        opacity: 1;
+        pointer-events: auto;
+    }
+}
+
+#standalone-preloader {
+    display: none;
+    transition: opacity 300ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #standalone-preloader {
+        transition: none;
+    }
 }
 
 .public-interior,
