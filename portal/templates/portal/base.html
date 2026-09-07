@@ -229,7 +229,15 @@
                 overflow: hidden !important;
                 overscroll-behavior: none !important;
             }
-            #sidebar #toggle-btn { display: none; }
+            #sidebar #toggle-btn {
+                display: flex;
+            }
+            #sidebar #toggle-btn #hamburger-icon {
+                opacity: 0;
+            }
+            #sidebar #toggle-btn #arrow-icon {
+                opacity: 1;
+            }
             #sidebar {
                 position: fixed;
                 top: 3.5rem;
@@ -298,7 +306,7 @@
                     <div class="h-20 px-5 flex items-center justify-between border-b border-white/10">
                         <span class="sidebar-text text-xs font-bold uppercase tracking-widest text-slate-400 truncate">Control Center</span>
                         <button id="toggle-btn" 
-                                onclick="toggleSidebar(event)" 
+                                onclick="handleSidebarToggleClick(event)"
                                 onmouseenter="handleToggleHover(true)" 
                                 onmouseleave="handleToggleHover(false)" 
                                 class="p-2 rounded-xl bg-white/10 hover:bg-white/25 active:scale-95 transition-all duration-100 ease-out text-white flex items-center justify-center relative w-10 h-10 transform active:scale-95" 
@@ -703,6 +711,14 @@
                 }
             }
             handleToggleHover(false);
+        }
+
+        function handleSidebarToggleClick(event) {
+            if (window.innerWidth < 768) {
+                closeMobileSidebar();
+                return;
+            }
+            toggleSidebar(event);
         }
 
         function toggleMobileSidebar() {
