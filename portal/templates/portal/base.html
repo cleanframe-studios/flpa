@@ -310,6 +310,14 @@
             #portal-header .profile-chip { padding: .35rem; }
         }
 
+        @media (display-mode: standalone), (display-mode: fullscreen) {
+            #main-content-area {
+                padding: 5.25rem 1rem 9rem;
+                scroll-padding-top: 5.25rem;
+                scroll-padding-bottom: 9rem;
+            }
+        }
+
         @media (min-width: 768px) {
             #sidebar-overlay, #mobile-sidebar-btn { display: none; }
         }
@@ -921,6 +929,7 @@
                 // Expand
                 section.classList.remove('max-h-0');
                 section.classList.add('max-h-full', 'py-2');
+                try { localStorage.setItem('portal-open-section', sectionId); } catch (error) {}
                 
                 items.forEach((item, index) => {
                     setTimeout(() => {
@@ -930,6 +939,12 @@
                 });
                 
                 arrow.style.transform = 'rotate(180deg)';
+            }
+
+            if (isExpanded) {
+                try {
+                    if (localStorage.getItem('portal-open-section') === sectionId) localStorage.removeItem('portal-open-section');
+                } catch (error) {}
             }
         }
 
@@ -991,6 +1006,22 @@
                     item.style.transform = 'translateY(0)';
                 });
             });
+
+            let rememberedSectionId = null;
+            try { rememberedSectionId = localStorage.getItem('portal-open-section'); } catch (error) {}
+            if (rememberedSectionId) {
+                const section = document.getElementById(rememberedSectionId);
+                const arrow = document.getElementById(rememberedSectionId.replace('-section', '-arrow'));
+                if (section && arrow) {
+                    section.classList.add('max-h-full', 'py-2');
+                    section.classList.remove('max-h-0');
+                    arrow.style.transform = 'rotate(180deg)';
+                    section.querySelectorAll('a').forEach(item => {
+                        item.style.opacity = '1';
+                        item.style.transform = 'translateY(0)';
+                    });
+                }
+            }
         });
     </script>
 <script>
