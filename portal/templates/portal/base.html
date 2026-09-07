@@ -192,6 +192,38 @@
         #sidebar.w-20 .submenu-link.submenu-active::before { left: 0.35rem; top: 0.7rem; bottom: 0.7rem; }
 
         @media (max-width: 767px) {
+            #main-content-area {
+                font-size: .95rem;
+            }
+            #main-content-area h1 {
+                font-size: 1.5rem !important;
+                line-height: 1.15 !important;
+            }
+            #main-content-area h2 {
+                font-size: 1.25rem !important;
+                line-height: 1.2 !important;
+            }
+            #main-content-area h3 {
+                font-size: 1.1rem !important;
+                line-height: 1.25 !important;
+            }
+            #sidebar .sidebar-text,
+            #sidebar button,
+            #sidebar a {
+                font-size: .9rem !important;
+            }
+            #main-content-area .overflow-x-auto,
+            #main-content-area .overflow-y-auto:has(> table),
+            #main-content-area div:has(> table),
+            #main-content-area section:has(> table) {
+                max-width: 100%;
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch;
+                overscroll-behavior-x: contain;
+            }
+            #main-content-area table {
+                min-width: 42rem;
+            }
             body.mobile-sidebar-active,
             body.mobile-sidebar-active #main-content-area {
                 overflow: hidden !important;
