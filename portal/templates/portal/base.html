@@ -176,6 +176,32 @@
         #sidebar.w-20 .submenu-link { justify-content: center; padding-left: 0 !important; padding-right: 0 !important; }
         #sidebar.w-20 .sidebar-submenu-icon { opacity: 1; width: 1.25rem !important; transform: translateX(-50%) scale(1); }
         #sidebar.w-20 .submenu-link.submenu-active::before { left: 0.35rem; top: 0.7rem; bottom: 0.7rem; }
+
+        @media (max-width: 767px) {
+            #sidebar {
+                position: fixed;
+                inset: 0 auto 0 0;
+                width: 18rem !important;
+                max-width: calc(100vw - 2.5rem);
+                transform: translateX(-105%);
+                box-shadow: 1rem 0 3rem rgba(15, 23, 42, .28);
+                transition: transform .25s ease;
+            }
+            #sidebar.mobile-open { transform: translateX(0); }
+            #sidebar.mobile-open .sidebar-text { opacity: 1; width: auto; transform: none; pointer-events: auto; }
+            #sidebar.mobile-open .section-arrow { opacity: 1; width: 1.25rem !important; transform: none; pointer-events: auto; }
+            #sidebar.mobile-open .submenu-link { justify-content: flex-start; padding-left: 3rem !important; padding-right: 3rem !important; }
+            #sidebar.mobile-open .sidebar-submenu-icon { opacity: 0; pointer-events: none; }
+            #sidebar-overlay:not(.hidden) { display: block; }
+            #main-content-area { padding: .75rem 1rem 2rem; }
+            #portal-header { height: 4.5rem; padding: 0 1rem; }
+            #portal-header > div:last-child { gap: .5rem; }
+            #portal-header .profile-chip { padding: .35rem; }
+        }
+
+        @media (min-width: 768px) {
+            #sidebar-overlay, #mobile-sidebar-btn { display: none; }
+        }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
@@ -418,9 +444,14 @@
                 </div>
             </aside>
 
+            <button id="sidebar-overlay" type="button" onclick="closeMobileSidebar()" class="fixed inset-0 z-30 hidden bg-slate-950/50" aria-label="Close navigation menu"></button>
+
             <div class="flex-grow flex flex-col min-w-0 bg-slate-100">
-                <header class="h-20 px-8 flex items-center justify-between border-b border-slate-200 bg-white shadow-sm z-10">
-                    <div>
+                <header id="portal-header" class="h-20 px-8 flex items-center justify-between border-b border-slate-200 bg-white shadow-sm z-10">
+                    <div class="flex min-w-0 items-center gap-3">
+                        <button id="mobile-sidebar-btn" type="button" onclick="toggleMobileSidebar()" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600 shadow-sm" aria-controls="sidebar" aria-expanded="false" aria-label="Open navigation menu">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                        </button>
                         <h1 id="page-title" class="text-xl font-bold text-slate-800 tracking-tight">
                             {% block page_title %}Admin Portal{% endblock %}
                         </h1>
@@ -448,7 +479,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 shadow-sm">
+                        <div class="profile-chip flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 shadow-sm">
                             {% if request.user.is_staff or request.user.is_superuser %}<a href="{% url 'admin_profile_edit' %}" class="flex items-center gap-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">{% else %}<div class="flex items-center gap-3">{% endif %}
                             {% if request.user.account_profile.role == 'student' and request.user.student_record.passport %}<img src="{{ request.user.student_record.passport.url }}" alt="Profile" class="h-10 w-10 rounded-full border-2 border-slate-200 object-cover">{% elif request.user.account_profile.role == 'teacher' and request.user.teacher_record.passport %}<img src="{{ request.user.teacher_record.passport.url }}" alt="Profile" class="h-10 w-10 rounded-full border-2 border-slate-200 object-cover">{% elif request.user.account_profile.profile_picture %}<img src="{{ request.user.account_profile.profile_picture.url }}" alt="Profile" class="h-10 w-10 rounded-full border-2 border-slate-200 object-cover">{% else %}<span class="flex h-10 w-10 items-center justify-center rounded-full border-2 border-slate-200 bg-white text-slate-400"><svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M20 21a8 8 0 0 0-16 0M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/></svg></span>{% endif %}
                             <div class="text-left hidden sm:block">
@@ -607,6 +638,32 @@
             }
             handleToggleHover(false);
         }
+
+        function toggleMobileSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            const button = document.getElementById('mobile-sidebar-btn');
+            if (!sidebar || !overlay) return;
+            const isOpen = sidebar.classList.toggle('mobile-open');
+            overlay.classList.toggle('hidden', !isOpen);
+            if (button) button.setAttribute('aria-expanded', String(isOpen));
+            document.body.classList.toggle('overflow-hidden', isOpen);
+        }
+
+        function closeMobileSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            const button = document.getElementById('mobile-sidebar-btn');
+            if (!sidebar || !overlay) return;
+            sidebar.classList.remove('mobile-open');
+            overlay.classList.add('hidden');
+            if (button) button.setAttribute('aria-expanded', 'false');
+            document.body.classList.remove('overflow-hidden');
+        }
+
+        window.addEventListener('resize', function () {
+            if (window.innerWidth >= 768) closeMobileSidebar();
+        });
 
         function handleSidebarHover(isEntering) {
             if (isSidebarOpen) return; 

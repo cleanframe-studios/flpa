@@ -21,12 +21,12 @@
     .animate-stage-3 { animation: assembleUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.25s forwards; opacity: 0; }
 </style>
 
-<div class="flex-grow flex flex-col p-8 space-y-6 max-w-7xl mx-auto w-full overflow-y-auto">
+<div class="flex-grow flex min-w-0 flex-col space-y-6 p-4 sm:p-8 max-w-7xl mx-auto w-full overflow-y-auto">
     
     <!-- Stage 1: Welcome Banner -->
     <div class="animate-stage-1 bg-gradient-to-r from-blue-900 via-blue-800 to-slate-900 text-white border border-blue-900 rounded-3xl p-8 shadow-lg flex flex-col sm:flex-row justify-between items-start sm:items-center">
         <div class="space-y-2">
-            <h2 class="text-3xl font-extrabold tracking-tight">Welcome back, {{ portal_first_name }}</h2>
+            <h2 class="text-[clamp(1.5rem,5vw,1.875rem)] font-extrabold tracking-tight">Welcome back, {{ portal_first_name }}</h2>
             <p class="text-sm text-blue-100 font-light">Here is the real-time operational overview for Future Leaders Private Academy.</p>
         </div>
         <div class="mt-4 flex items-center gap-3 sm:mt-0">
