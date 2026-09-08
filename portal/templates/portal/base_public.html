@@ -11,7 +11,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>{% block title %}FUTURE LEADERS PRIVATE ACADEMY{% endblock %}</title>
 
-    <link rel="stylesheet" href="{% static 'portal/css/global.css' %}?v=20260908-whatsapp">
+    <link rel="stylesheet" href="{% static 'portal/css/global.css' %}?v=20260908-safe-area">
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -84,6 +84,7 @@
         }
         .public-mobile-overlay { background: rgba(2, 6, 23, 0.5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
         .public-mobile-drawer { background-color: rgba(255, 255, 255, 0.98) !important; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); isolation: isolate; }
+        @media (max-width: 767px) { nav.glass-header { padding-top: env(safe-area-inset-top); } }
         @media (min-width: 768px) { .public-mobile-menu, .public-mobile-overlay { display: none; } }
 
         @keyframes pageEnter {

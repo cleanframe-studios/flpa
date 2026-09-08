@@ -20,7 +20,7 @@
     </script>
     <title>FUTURE LEADERS PRIVATE ACADEMY</title>
 
-    <link rel="stylesheet" href="{% static 'portal/css/global.css' %}?v=20260908-whatsapp">
+    <link rel="stylesheet" href="{% static 'portal/css/global.css' %}?v=20260908-safe-area">
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -330,10 +330,12 @@
             }
             #standalone-app-header {
                 display: flex !important;
+                height: calc(4rem + env(safe-area-inset-top)) !important;
+                padding-top: env(safe-area-inset-top) !important;
             }
             #main-content-area {
-                padding: 3rem 1rem 4.5rem;
-                scroll-padding-top: 3rem;
+                padding: calc(3rem + env(safe-area-inset-top)) 1rem 4.5rem;
+                scroll-padding-top: calc(3rem + env(safe-area-inset-top));
                 scroll-padding-bottom: 4.5rem;
             }
         }
