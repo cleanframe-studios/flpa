@@ -2732,7 +2732,31 @@ def registrar_dashboard_view(request):
 @login_required(login_url='login')
 @registrar_required
 def document_hub_view(request):
-    return render(request, 'portal/document_hub.html', {})
+    query = request.GET.get('q', '').strip()
+    applicants = Applicant.objects.select_related('campaign', 'intended_class', 'enrolled_student')
+    students = Student.objects.select_related('current_class', 'applicant_record')
+    if query:
+        applicants = applicants.filter(
+            Q(first_name__icontains=query)
+            | Q(last_name__icontains=query)
+            | Q(temp_reg_number__icontains=query)
+            | Q(parent_name__icontains=query)
+        )
+        students = students.filter(
+            Q(first_name__icontains=query)
+            | Q(last_name__icontains=query)
+            | Q(student_id__icontains=query)
+            | Q(lin__icontains=query)
+        )
+    applicants = applicants.order_by('-submitted_at')[:100]
+    students = students.order_by('last_name', 'first_name')[:100]
+    return render(request, 'portal/document_hub.html', {
+        'applicants': applicants,
+        'students': students,
+        'query': query,
+        'applicant_count': applicants.count() if hasattr(applicants, 'count') else len(applicants),
+        'student_count': students.count() if hasattr(students, 'count') else len(students),
+    })
 
 
 @login_required(login_url='login')
