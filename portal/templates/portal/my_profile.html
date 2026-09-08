@@ -1,0 +1,27 @@
+{% extends 'portal/base.html' %}
+{% block page_title %}My Profile{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-3xl py-6 sm:py-8">
+  <section class="overflow-hidden rounded-3xl border border-slate-200/80 bg-white/85 shadow-sm backdrop-blur-xl">
+    <div class="bg-gradient-to-r from-blue-950 via-blue-900 to-red-900 px-6 py-8 text-white sm:px-8">
+      <div class="flex flex-wrap items-center gap-5">
+        {% if profile.profile_picture %}<img src="{{ profile.profile_picture.url }}" alt="{{ portal_display_name }} profile picture" class="h-20 w-20 rounded-2xl border-2 border-white/40 object-cover shadow-xl">{% else %}<span class="flex h-20 w-20 items-center justify-center rounded-2xl border-2 border-white/30 bg-white/15 text-3xl font-black">{{ portal_first_name|slice:':1'|upper }}</span>{% endif %}
+        <div><p class="text-xs font-bold uppercase tracking-[0.2em] text-blue-200">View only</p><h2 class="mt-1 text-2xl font-black">{{ portal_display_name }}</h2><p class="mt-1 text-sm text-blue-100">{{ profile.get_role_display|default:profile.role }}</p></div>
+      </div>
+    </div>
+    <div class="space-y-6 p-6 sm:p-8">
+      <div><h3 class="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Personal and account details</h3><dl class="mt-4 grid gap-4 sm:grid-cols-2">
+        <div class="rounded-2xl bg-slate-50 p-4"><dt class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Portal ID</dt><dd class="mt-1 font-bold text-slate-900">{{ profile_identifier }}</dd></div>
+        <div class="rounded-2xl bg-slate-50 p-4"><dt class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Username</dt><dd class="mt-1 font-bold text-slate-900">{{ request.user.username }}</dd></div>
+        <div class="rounded-2xl bg-slate-50 p-4"><dt class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Email</dt><dd class="mt-1 break-words font-bold text-slate-900">{{ request.user.email|default:'Not provided' }}</dd></div>
+        <div class="rounded-2xl bg-slate-50 p-4"><dt class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Phone number</dt><dd class="mt-1 font-bold text-slate-900">{{ record.phone_number|default:'Not provided' }}</dd></div>
+        {% if record.first_name or record.last_name %}<div class="rounded-2xl bg-slate-50 p-4"><dt class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Full name</dt><dd class="mt-1 font-bold text-slate-900">{{ record.first_name }} {% if record.middle_name %}{{ record.middle_name }} {% elif record.other_name %}{{ record.other_name }} {% endif %}{{ record.last_name }}</dd></div>{% endif %}
+        {% if record.sex %}<div class="rounded-2xl bg-slate-50 p-4"><dt class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Sex</dt><dd class="mt-1 font-bold text-slate-900">{{ record.sex }}</dd></div>{% endif %}
+        {% if record.staff_type %}<div class="rounded-2xl bg-slate-50 p-4"><dt class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Staff type</dt><dd class="mt-1 font-bold text-slate-900">{{ record.staff_type }}</dd></div>{% endif %}
+        {% if record.status %}<div class="rounded-2xl bg-slate-50 p-4"><dt class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Status</dt><dd class="mt-1 font-bold text-slate-900">{{ record.status }}</dd></div>{% endif %}
+      </dl></div>
+      <div class="border-t border-slate-200 pt-6"><h3 class="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Profile picture</h3><p class="mt-2 text-sm text-slate-500">Your account details are view-only. You may update only your profile picture.</p><form method="post" enctype="multipart/form-data" class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">{% csrf_token %}<input type="file" name="profile_picture" accept="image/*" class="crop-enabled block w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-sm text-slate-500 sm:flex-1"><button type="submit" class="rounded-xl bg-blue-700 px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-800">Update Picture</button></form></div>
+    </div>
+  </section>
+</div>
+{% endblock %}

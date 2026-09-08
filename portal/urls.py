@@ -29,6 +29,7 @@ urlpatterns = [
     path('audit-logs/', views.admin_audit_logs_view, name='admin_audit_logs'),
     path('admin/users/roles/', views.admin_user_roles_view, name='admin_user_roles'),
     path('profile/', views.admin_profile_edit, name='admin_profile_edit'),
+    path('my-profile/', views.my_profile_view, name='my_profile'),
     path('lin-access-management/', views.lin_access_management_view, name='lin_access_management'),
     path('parents/', views.parents_view, name='parents'),
     path('parent/<int:pk>/', views.parent_profile_view, name='parent_profile'),

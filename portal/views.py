@@ -3802,6 +3802,7 @@ def dashboard_view(request):
 
 
 @login_required(login_url='login')
+@user_passes_test(is_admin_user, login_url='dashboard')
 def admin_profile_edit(request):
     profile, _ = AccountProfile.objects.get_or_create(user=request.user, defaults={'role': 'bursar'})
     if request.method == 'POST':
@@ -3822,6 +3823,33 @@ def admin_profile_edit(request):
         messages.success(request, 'Profile updated successfully.')
         return redirect('admin_profile_edit')
     return render(request, 'portal/admin_profile_edit.html', {'profile': profile})
+
+
+@login_required(login_url='login')
+def my_profile_view(request):
+    profile, _ = AccountProfile.objects.get_or_create(user=request.user, defaults={'role': 'student'})
+    if request.method == 'POST' and request.FILES.get('profile_picture'):
+        profile.profile_picture = request.FILES['profile_picture']
+        profile.save(update_fields=['profile_picture'])
+        messages.success(request, 'Profile picture updated successfully.')
+        return redirect('my_profile')
+
+    record = (
+        getattr(request.user, 'teacher_record', None)
+        or getattr(request.user, 'parent_record', None)
+        or getattr(request.user, 'student_record', None)
+    )
+    identifier = (
+        getattr(record, 'staff_id', None)
+        or getattr(record, 'parent_id', None)
+        or getattr(record, 'student_id', None)
+        or request.user.username
+    )
+    return render(request, 'portal/my_profile.html', {
+        'profile': profile,
+        'record': record,
+        'profile_identifier': identifier,
+    })
 
 
 @login_required(login_url='login')
