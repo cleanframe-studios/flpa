@@ -17,6 +17,7 @@
     #role-manager-page table { min-width: 52rem; }
     #role-manager-page .role-update-form { justify-content: flex-start; }
     #role-manager-page .role-update-form > div { justify-content: flex-start; max-width: 20rem; }
+    #role-confirmation-modal > div { max-height: calc(100dvh - 7.5rem); overflow-y: auto; }
   }
 </style>
 <div id="role-manager-page" class="min-h-full bg-slate-100 p-6 lg:p-8">
@@ -41,7 +42,7 @@
     </section>
   </div>
 </div>
-<div id="role-confirmation-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="role-confirmation-title">
+<div id="role-confirmation-modal" class="fixed inset-0 z-[12002] hidden items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="role-confirmation-title">
   <div class="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900/80 p-6 text-white shadow-2xl shadow-black/50 backdrop-blur-xl">
     <h2 id="role-confirmation-title" class="text-lg font-black">Confirm role changes</h2>
     <p class="mt-2 text-sm text-slate-300">Apply the selected access roles for <span id="role-confirmation-user" class="font-bold text-white"></span>?</p>
