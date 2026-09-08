@@ -2726,30 +2726,7 @@ CLASSROOM_ASSUMED_CAPACITY = 40
 @login_required(login_url='login')
 @registrar_required
 def registrar_dashboard_view(request):
-    active_session = AcademicSession.objects.filter(is_active=True).first()
-    active_term = AcademicTerm.objects.filter(is_active=True, session=active_session).first() if active_session else None
-    active_students = Student.objects.filter(status='Student')
-    total_enrolled = active_students.count()
-    session_start = active_term.start_date if active_term else None
-    new_admissions = active_students.filter(date_enrolled__gte=session_start).count() if session_start else active_students.filter(date_enrolled__year=timezone.localdate().year).count()
-    class_capacity_alerts = []
-    for classroom in ClassRoom.objects.order_by('section', 'level_number', 'name'):
-        enrolled = active_students.filter(current_class=classroom).count()
-        capacity_percent = round((enrolled / CLASSROOM_ASSUMED_CAPACITY) * 100) if CLASSROOM_ASSUMED_CAPACITY else 0
-        if capacity_percent >= 90:
-            class_capacity_alerts.append({'classroom': classroom, 'enrolled': enrolled, 'capacity_percent': capacity_percent})
-    male_count = active_students.filter(sex='Male').count()
-    female_count = active_students.filter(sex='Female').count()
-    recent_enrollments = Student.objects.order_by('-date_enrolled', '-id')[:5]
-    return render(request, 'portal/registrar_dashboard.html', {
-        'active_session': active_session,
-        'total_enrolled': total_enrolled,
-        'new_admissions': new_admissions,
-        'class_capacity_alerts': class_capacity_alerts,
-        'male_count': male_count,
-        'female_count': female_count,
-        'recent_enrollments': recent_enrollments,
-    })
+    return render(request, 'portal/registrar_home.html')
 
 
 @login_required(login_url='login')

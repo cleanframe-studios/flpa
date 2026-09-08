@@ -1338,6 +1338,14 @@ document.addEventListener('DOMContentLoaded', function () {
         bursarFinanceTab.setAttribute('aria-current', window.location.pathname === "{% url 'bursary_dashboard' %}" ? 'page' : '');
         bursarFinanceTab.classList.toggle('is-active', window.location.pathname === "{% url 'bursary_dashboard' %}");
     }
+    const registrarRecordsTab = Array.from(document.querySelectorAll('.bottom-app-nav a')).find(function (link) {
+        return link.querySelector('span') && link.querySelector('span').textContent.trim() === 'Records';
+    });
+    if (registrarRecordsTab) {
+        registrarRecordsTab.href = "{% url 'document_hub' %}";
+        registrarRecordsTab.setAttribute('aria-current', window.location.pathname === "{% url 'document_hub' %}" ? 'page' : '');
+        registrarRecordsTab.classList.toggle('is-active', window.location.pathname === "{% url 'document_hub' %}");
+    }
 });
 </script>
 <script src="{% static 'portal/js/page-transition.js' %}"></script>
