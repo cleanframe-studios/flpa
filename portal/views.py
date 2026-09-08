@@ -4276,9 +4276,21 @@ def teachers_view(request):
         phone_number = request.POST.get('phone_number', '').strip()
         email = request.POST.get('email', '').strip()
         passport = request.FILES.get('passport')
-        if not first_name or not last_name or not other_name or not email:
+        qualification_rows = list(zip(
+            request.POST.getlist('qualification_school'),
+            request.POST.getlist('qualification'),
+            request.POST.getlist('qualification_year'),
+        ))
+        if not first_name or not last_name or not other_name or not staff_type or not birth_month or not birth_day or not state_of_origin or not lga_of_origin or not phone_number or not email:
             messages.error(request, 'Please complete all required teacher fields before saving.')
             return redirect('teachers')
+        if staff_type.lower() == 'teaching':
+            if not qualification_rows or any(
+                not school.strip() or not qualification.strip() or not year.strip().isdigit()
+                for school, qualification, year in qualification_rows
+            ):
+                messages.error(request, 'Teaching staff must have complete school, qualification, and year details.')
+                return redirect('teachers')
         if Teacher.objects.filter(email__iexact=email).exists():
             messages.error(request, 'A teacher with this email already exists.')
             return redirect('teachers')

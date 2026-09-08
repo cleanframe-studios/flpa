@@ -179,8 +179,8 @@
                     <input type="text" id="last_name" name="last_name" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500" required>
                 </div>
                 <div>
-                    <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5" for="other_name">Other Name</label>
-                    <input type="text" id="other_name" name="other_name" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500">
+                    <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5" for="other_name">Other Name *</label>
+                    <input type="text" id="other_name" name="other_name" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500" required>
                 </div>
             </div>
 
@@ -264,7 +264,7 @@
                 </div>
             </div>
 
-            <div class="border-t border-slate-100 pt-5 space-y-3">
+            <div id="registration-qualification-section" class="border-t border-slate-100 pt-5 space-y-3">
                 <div class="flex items-center justify-between">
                     <div>
                         <h4 class="text-sm font-bold text-slate-900">Professional Qualifications</h4>
@@ -274,9 +274,9 @@
                 </div>
                 <div id="registration-qualifications" class="space-y-3">
                     <div class="qualification-row grid grid-cols-1 md:grid-cols-[1.3fr_1fr_0.7fr_auto] gap-3 items-end">
-                        <div><label class="block text-[10px] font-semibold uppercase text-slate-500 mb-1">School Attended</label><input name="qualification_school" type="text" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-sm" placeholder="School or institution"></div>
-                        <div><label class="block text-[10px] font-semibold uppercase text-slate-500 mb-1">Qualification</label><div class="relative qualification-select"><input name="qualification" type="text" class="qualification-input w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 pr-9 text-sm cursor-pointer" placeholder="Select Qualification..." readonly><svg class="qualification-arrow absolute right-3 top-3 w-4 h-4 text-slate-400 pointer-events-none transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9l6 6 6-6"></path></svg><div class="qualification-menu absolute z-50 hidden mt-1 w-full max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl"></div></div></div>
-                        <div><label class="block text-[10px] font-semibold uppercase text-slate-500 mb-1">Year</label><div class="relative qualification-year-select"><input name="qualification_year" type="text" class="qualification-year-input w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 pr-9 text-sm cursor-pointer" placeholder="Select Year..." readonly><svg class="qualification-year-arrow absolute right-3 top-3 w-4 h-4 text-slate-400 pointer-events-none transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9l6 6 6-6"></path></svg><div class="qualification-year-menu absolute z-50 hidden mt-1 w-full max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl"></div></div></div>
+                        <div><label class="block text-[10px] font-semibold uppercase text-slate-500 mb-1">School Attended *</label><input name="qualification_school" type="text" required class="qualification-field w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-sm" placeholder="School or institution"></div>
+                        <div><label class="block text-[10px] font-semibold uppercase text-slate-500 mb-1">Qualification *</label><div class="relative qualification-select"><input name="qualification" type="text" required class="qualification-field qualification-input w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 pr-9 text-sm" placeholder="Type or select qualification..."><svg class="qualification-arrow absolute right-3 top-3 w-4 h-4 text-slate-400 pointer-events-none transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9l6 6 6-6"></path></svg><div class="qualification-menu absolute z-50 hidden mt-1 w-full max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl"></div></div></div>
+                        <div><label class="block text-[10px] font-semibold uppercase tracking-wider mb-1">Year *</label><div class="relative qualification-year-select"><input name="qualification_year" type="text" required class="qualification-field qualification-year-input w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 pr-9 text-sm" placeholder="Type or select year..."><svg class="qualification-year-arrow absolute right-3 top-3 w-4 h-4 text-slate-400 pointer-events-none transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9l6 6 6-6"></path></svg><div class="qualification-year-menu absolute z-50 hidden mt-1 w-full max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl"></div></div></div>
                         <label class="flex items-center gap-2 pb-2 text-[10px] font-semibold text-slate-600 whitespace-nowrap"><input type="hidden" name="qualification_highest" value="0"><input type="checkbox" class="highest-qualification h-4 w-4 rounded border-slate-300 text-blue-600"> Highest</label>
                     </div>
                 </div>
@@ -305,12 +305,22 @@
     }
 
     const qualificationOptions = ["Below SSCE", "SSCE/WASSCE", "OND/Diploma", "NCE", "HND", "BSc", "MSc", "BA", "MA", "MEd", "PhD"];
+    function updateQualificationRequirement() {
+        const isTeaching = document.getElementById('staff_type').value.trim().toLowerCase() === 'teaching';
+        const section = document.getElementById('registration-qualification-section');
+        section.classList.toggle('opacity-50', !isTeaching);
+        section.classList.toggle('pointer-events-none', !isTeaching);
+        section.querySelectorAll('.qualification-field').forEach(field => { field.required = isTeaching; field.disabled = !isTeaching; });
+        section.querySelectorAll('.highest-qualification').forEach(field => { field.disabled = !isTeaching; });
+    }
     function setupQualificationRow(row) {
         const input = row.querySelector('.qualification-input');
         const menu = row.querySelector('.qualification-menu');
         const arrow = row.querySelector('.qualification-arrow');
         menu.innerHTML = qualificationOptions.map(option => `<button type="button" class="block w-full rounded-lg px-3 py-2 text-left text-xs text-slate-700 hover:bg-blue-50" data-value="${option}">${option}</button>`).join('');
-        input.addEventListener('click', event => { event.stopPropagation(); document.querySelectorAll('.qualification-menu').forEach(other => { if (other !== menu) other.classList.add('hidden'); }); menu.classList.toggle('hidden'); arrow.classList.toggle('rotate-180'); });
+        function filterQualificationMenu() { const query = input.value.trim().toLowerCase(); menu.querySelectorAll('button').forEach(option => { option.classList.toggle('hidden', query && !option.dataset.value.toLowerCase().includes(query)); }); menu.classList.remove('hidden'); arrow.classList.add('rotate-180'); }
+        input.addEventListener('click', event => { event.stopPropagation(); document.querySelectorAll('.qualification-menu').forEach(other => { if (other !== menu) other.classList.add('hidden'); }); filterQualificationMenu(); });
+        input.addEventListener('input', filterQualificationMenu);
         menu.querySelectorAll('button').forEach(option => option.addEventListener('mousedown', event => { event.preventDefault(); input.value = option.dataset.value; menu.classList.add('hidden'); arrow.classList.remove('rotate-180'); }));
         row.querySelector('.highest-qualification').addEventListener('change', event => { if (event.target.checked) document.querySelectorAll('.highest-qualification').forEach(other => { if (other !== event.target) { other.checked = false; other.previousElementSibling.value = '0'; } }); event.target.previousElementSibling.value = event.target.checked ? '1' : '0'; });
         const yearInput = row.querySelector('.qualification-year-input');
@@ -318,10 +328,12 @@
         const yearArrow = row.querySelector('.qualification-year-arrow');
         const currentYear = new Date().getFullYear();
         yearMenu.innerHTML = Array.from({length: currentYear - 1949}, (_, index) => currentYear - index).map(year => `<button type="button" class="block w-full rounded-lg px-3 py-2 text-left text-xs text-slate-700 hover:bg-blue-50" data-value="${year}">${year}</button>`).join('');
-        yearInput.addEventListener('click', event => { event.stopPropagation(); yearMenu.classList.toggle('hidden'); yearArrow.classList.toggle('rotate-180'); });
+        function filterYearMenu() { const query = yearInput.value.trim(); yearMenu.querySelectorAll('button').forEach(option => { option.classList.toggle('hidden', query && !option.dataset.value.includes(query)); }); yearMenu.classList.remove('hidden'); yearArrow.classList.add('rotate-180'); }
+        yearInput.addEventListener('click', event => { event.stopPropagation(); filterYearMenu(); });
+        yearInput.addEventListener('input', filterYearMenu);
         yearMenu.querySelectorAll('button').forEach(option => option.addEventListener('mousedown', event => { event.preventDefault(); yearInput.value = option.dataset.value; yearMenu.classList.add('hidden'); yearArrow.classList.remove('rotate-180'); }));
     }
-    function addQualificationRow(containerId) { const container = document.getElementById(containerId); const row = container.querySelector('.qualification-row').cloneNode(true); row.querySelectorAll('input').forEach(input => { if (input.type === 'hidden') input.value = '0'; else if (input.type === 'checkbox') input.checked = false; else input.value = ''; }); container.appendChild(row); setupQualificationRow(row); }
+    function addQualificationRow(containerId) { const container = document.getElementById(containerId); const row = container.querySelector('.qualification-row').cloneNode(true); row.querySelectorAll('input').forEach(input => { if (input.type === 'hidden') input.value = '0'; else if (input.type === 'checkbox') input.checked = false; else input.value = ''; }); container.appendChild(row); setupQualificationRow(row); updateQualificationRequirement(); }
     document.addEventListener('click', () => { document.querySelectorAll('.qualification-menu, .qualification-year-menu').forEach(menu => menu.classList.add('hidden')); document.querySelectorAll('.qualification-arrow, .qualification-year-arrow').forEach(arrow => arrow.classList.remove('rotate-180')); });
     document.querySelectorAll('.qualification-row').forEach(setupQualificationRow);
 
@@ -416,6 +428,9 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         populateCustomSelect('staff_type', ["Teaching", "Non-Teaching"], "Select Staff Type...");
+        document.getElementById('staff_type').addEventListener('input', updateQualificationRequirement);
+        document.getElementById('staff_type').addEventListener('change', updateQualificationRequirement);
+        updateQualificationRequirement();
         
         const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         populateCustomSelect('birth_month', months, "Select Month...");
