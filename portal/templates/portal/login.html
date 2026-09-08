@@ -16,7 +16,8 @@
     #app-splash-tagline { animation: appSplashText .55s ease 1.65s both; }
     #app-splash-loader { animation: appSplashLoader .25s ease 2.2s both; }
     #app-splash-progress { transform: scaleX(0); transform-origin: left center; animation: appSplashProgress 2.1s linear 2.45s forwards; }
-    @media (prefers-reduced-motion: reduce) { #app-splash, #app-splash-logo, #app-splash-name, #app-splash-tagline, #app-splash-loader, #app-splash-progress { animation: none; } #app-splash { visibility: hidden; } }
+    #app-splash-loading-label { opacity: 0; animation: appSplashLoader .25s ease 2.45s both; }
+    @media (prefers-reduced-motion: reduce) { #app-splash, #app-splash-logo, #app-splash-name, #app-splash-tagline, #app-splash-loader, #app-splash-progress, #app-splash-loading-label { animation: none; } #app-splash { visibility: hidden; } }
 </style>
 <div id="app-splash" class="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950 text-white" aria-label="Loading Future Leaders Private Academy">
     <div class="flex w-full max-w-sm flex-col items-center px-6 text-center">
@@ -26,7 +27,7 @@
         <h1 id="app-splash-name" class="mt-5 text-2xl font-black leading-tight tracking-[0.08em] text-transparent opacity-0 bg-gradient-to-r from-blue-300 via-white to-red-300 bg-clip-text">FUTURE LEADERS PRIVATE ACADEMY</h1>
         <p id="app-splash-tagline" class="mt-3 text-xs font-bold uppercase tracking-[0.3em] text-emerald-300 opacity-0">Excellence Through God</p>
         <div id="app-splash-loader" class="mt-8 h-1.5 w-40 overflow-hidden rounded-full bg-white/15 opacity-0" role="progressbar" aria-label="Loading portal" aria-valuemin="0" aria-valuemax="100"><div id="app-splash-progress" class="h-full w-full rounded-full bg-gradient-to-l from-emerald-300 to-cyan-300"></div></div>
-        <p class="mt-3 text-[10px] font-semibold uppercase tracking-[0.25em] text-slate-400">Loading portal</p>
+        <p id="app-splash-loading-label" class="mt-3 text-[10px] font-semibold uppercase tracking-[0.25em] text-slate-400">Loading portal</p>
     </div>
 </div>
 <div class="flex flex-col md:flex-row items-center md:items-stretch justify-center gap-6">
