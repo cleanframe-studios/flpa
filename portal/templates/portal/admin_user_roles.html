@@ -13,8 +13,10 @@
   #role-manager-page .role-update-form { min-width: 0; }
   @media (max-width: 767px) {
     #role-manager-page { padding-left: .75rem; padding-right: .75rem; }
-    #role-manager-page .role-table-scroll { margin: 0; width: 100%; }
-    #role-manager-page table { min-width: 52rem; }
+    #role-manager-page .role-table-scroll { margin: 0; width: 100%; overflow-x: hidden; }
+    #role-manager-page table { min-width: 0 !important; table-layout: fixed; }
+    #role-manager-page th,
+    #role-manager-page td { overflow-wrap: anywhere; }
     #role-manager-page .role-update-form { justify-content: flex-start; }
     #role-manager-page .role-update-form > div { justify-content: flex-start; max-width: 20rem; }
     #role-confirmation-modal > div { max-height: calc(100dvh - 7.5rem); overflow-y: auto; }

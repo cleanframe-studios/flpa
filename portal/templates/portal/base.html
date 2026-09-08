@@ -315,6 +315,20 @@
         }
 
         @media (display-mode: standalone), (display-mode: fullscreen) {
+            #app-global-branding,
+            #portal-header,
+            #sidebar,
+            #sidebar-overlay,
+            #portal-footer,
+            #portal-support-link {
+                display: none !important;
+            }
+            #app-layout-wrapper {
+                margin-top: 0 !important;
+            }
+            #standalone-app-header {
+                display: flex !important;
+            }
             #main-content-area {
                 padding: 3rem 1rem 4.5rem;
                 scroll-padding-top: 3rem;
