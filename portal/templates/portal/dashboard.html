@@ -30,7 +30,7 @@
             <p class="text-sm text-blue-100 font-light">Here is the real-time operational overview for Future Leaders Private Academy.</p>
         </div>
         <div class="mt-4 flex items-center gap-3 sm:mt-0">
-            {% if request.user.account_profile.profile_picture %}<img src="{{ request.user.account_profile.profile_picture.url }}" alt="{{ portal_display_name }} profile picture" class="h-16 w-16 rounded-full border-4 border-white/20 object-cover shadow-sm">{% endif %}
+            {% if portal_profile_picture_url %}<img src="{{ portal_profile_picture_url }}" alt="{{ portal_display_name }} profile picture" class="h-16 w-16 rounded-full border-4 border-white/20 object-cover shadow-sm">{% endif %}
             <span class="bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-semibold px-4 py-2 rounded-xl inline-block shadow-inner">System Status: Active & Secured</span>
         </div>
     </div>
