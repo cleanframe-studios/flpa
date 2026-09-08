@@ -964,7 +964,7 @@ def general_messaging_view(request):
             _send_message(request.user, subject, body, priority, recipients)
             messages.success(request, f'Message broadcast to {recipients.count()} recipient(s).')
             return redirect('general_messaging')
-    staff_users = _staff_recipient_users().order_by('first_name', 'last_name', 'username')
+    staff_users = _staff_recipient_users().select_related('teacher_record').order_by('first_name', 'last_name', 'username')
     parent_users = _parent_recipient_users().select_related('parent_record').order_by('parent_record__first_name', 'parent_record__last_name', 'username')
     parent_options = [{'pk': 'all_parents', 'name': 'All Parents', 'option_type': 'broadcast'}]
     parent_options += [
@@ -987,7 +987,21 @@ def general_messaging_view(request):
             {'pk': 'class', 'name': 'Class'},
         ],
         'staff_options': [{'pk': 'all_staff', 'name': 'All Staff'}] + [
-            {'pk': user.pk, 'name': user.get_full_name() or user.username} for user in staff_users
+            {
+                'pk': user.pk,
+                'name': (
+                    ' '.join(
+                        part for part in (
+                            getattr(getattr(user, 'teacher_record', None), 'first_name', ''),
+                            getattr(getattr(user, 'teacher_record', None), 'other_name', ''),
+                            getattr(getattr(user, 'teacher_record', None), 'last_name', ''),
+                        ) if part
+                    ).strip()
+                    or user.get_full_name()
+                    or user.username
+                ),
+            }
+            for user in staff_users
         ],
         'parent_options': parent_options,
         'priority_choices': Message.PRIORITY_CHOICES,
