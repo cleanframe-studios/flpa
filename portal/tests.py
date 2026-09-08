@@ -5,10 +5,12 @@ from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
+from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
 from .models import AcademicSession, AcademicTerm, AcademicWeek, AdmissionCampaign, Applicant, Attendance, AttendanceRegister, AccountProfile, AuditLog, CBTAttempt, CBTExam, CBTQuestion, CBTResponse, ClassRoom, ClassRoomSubject, FeeStructure, Parent, Student, StudentExamSession, Subject, SubjectResult, StudentFeeAccount, StudentTermRecord, Teacher, TermEnrollment
+from .utils import send_registration_email
 
 
 class AdmissionApprovalWorkflowTests(TestCase):
@@ -52,6 +54,14 @@ class AdmissionApprovalWorkflowTests(TestCase):
             intended_class=self.applicant.intended_class,
         )
         self.assertNotEqual(self.applicant.temp_reg_number, second_applicant.temp_reg_number)
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_registration_email_is_sent_with_application_number(self):
+        self.assertTrue(send_registration_email(self.applicant))
+        from django.core import mail
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn(self.applicant.temp_reg_number, mail.outbox[0].body)
+        self.assertEqual(mail.outbox[0].to, [self.applicant.parent_email])
 
     def test_approval_creates_and_links_parent_profile(self):
         response = self.client.post(reverse('review_applicants'), {
