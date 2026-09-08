@@ -1315,6 +1315,18 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 </script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const teacherWorkTab = Array.from(document.querySelectorAll('.bottom-app-nav a')).find(function (link) {
+        return link.querySelector('span') && link.querySelector('span').textContent.trim() === 'Work';
+    });
+    if (!teacherWorkTab) return;
+    teacherWorkTab.href = "{% url 'attendance' %}";
+    teacherWorkTab.setAttribute('aria-current', window.location.pathname === "{% url 'attendance' %}" ? 'page' : '');
+    teacherWorkTab.classList.toggle('is-active', window.location.pathname === "{% url 'attendance' %}");
+    teacherWorkTab.querySelector('span').textContent = 'Attendance';
+});
+</script>
 <script src="{% static 'portal/js/page-transition.js' %}"></script>
 <script>
 if ('serviceWorker' in navigator) {
