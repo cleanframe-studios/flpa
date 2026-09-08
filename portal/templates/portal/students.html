@@ -69,6 +69,7 @@
                     <th class="py-4 px-6">Student ID</th>
                     <th class="py-4 px-6">Full Name</th>
                     <th class="py-4 px-6">Class</th>
+                    <th class="py-4 px-6">Parent / Guardian</th>
                     <th class="py-4 px-6">State</th>
                     <th class="py-4 px-6">Status</th>
                     <th class="py-4 px-6 text-right">Actions</th>
@@ -104,6 +105,14 @@
         <span class="text-rose-500 italic">Unassigned</span>
     {% endif %}
 </td>
+                    <td class="py-4 px-6">
+                        {% if student.parent %}
+                            <p class="font-semibold text-slate-800">{{ student.parent.display_name }}</p>
+                            <p class="mt-1 text-xs text-slate-500">{{ student.parent.phone_number }}</p>
+                        {% else %}
+                            <span class="text-xs italic text-slate-400">Not linked</span>
+                        {% endif %}
+                    </td>
                     <td class="py-4 px-6">{{ student.state_of_origin }}</td>
                     
                     <td class="py-4 px-6">
@@ -128,7 +137,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="7" class="py-10 text-center text-slate-400 text-sm">No student records found in the database. Click "Register New Student" to add one!</td>
+                    <td colspan="8" class="py-10 text-center text-slate-400 text-sm">No student records found in the database. Click "Register New Student" to add one!</td>
                 </tr>
                 {% endfor %}
             </tbody>

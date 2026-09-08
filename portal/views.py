@@ -4184,9 +4184,9 @@ def students_view(request):
             messages.success(request, 'Student registered successfully with auto-generated ID!')
         return redirect('students')
 
-    students = (Student.objects.filter(current_class__in=teacher.assigned_class.all(), status='Student')
+    students = (Student.objects.filter(current_class__in=teacher.assigned_class.all(), status='Student').select_related('parent')
                 if teacher and role == 'teacher'
-                else Student.objects.all()).order_by('-id')
+                else Student.objects.select_related('parent').all()).order_by('-id')
     context = {
         'students': students,
         'can_register_students': can_register_students,
