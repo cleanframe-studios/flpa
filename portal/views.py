@@ -1741,6 +1741,8 @@ def admin_user_roles_view(request):
         staff_roles = {value for value, _ in AccountProfile.ROLE_CHOICES if value not in {'parent', 'student'}}
         if not requested_roles or not requested_roles.issubset(staff_roles):
             messages.error(request, 'Select at least one valid staff role.')
+        elif target_user == request.user and not requested_roles.intersection({'admin', 'principal'}):
+            messages.error(request, 'You cannot remove your own administrator access.')
         elif target_user.is_superuser:
             messages.error(request, 'Superuser roles cannot be changed from this dashboard.')
         else:
