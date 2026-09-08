@@ -27,7 +27,7 @@ body {
 
 #page-transition-loader {
     align-items: center;
-    background: rgb(2 6 23 / 0.98);
+    background: rgb(2 6 23 / 0.42);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
     display: flex;
