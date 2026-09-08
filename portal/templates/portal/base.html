@@ -1370,6 +1370,30 @@ document.addEventListener('DOMContentLoaded', function () {
         studentProfileTab.querySelector('span').textContent = 'Messages';
     }
     {% endif %}
+    {% if request.user.account_profile.role == 'parent' %}
+    const parentTabs = Array.from(document.querySelectorAll('.bottom-app-nav a'));
+    const parentAcademicTab = parentTabs.find(function (link) { return link.querySelector('span') && link.querySelector('span').textContent.trim() === 'Academics'; });
+    const parentMessagesTab = parentTabs.find(function (link) { return link.querySelector('span') && link.querySelector('span').textContent.trim() === 'Messages'; });
+    const parentProfileTab = parentTabs.find(function (link) { return link.querySelector('span') && link.querySelector('span').textContent.trim() === 'Profile'; });
+    if (parentAcademicTab) {
+        parentAcademicTab.href = "{% url 'parent_bursary' %}";
+        parentAcademicTab.setAttribute('aria-current', window.location.pathname === "{% url 'parent_bursary' %}" ? 'page' : '');
+        parentAcademicTab.classList.toggle('is-active', window.location.pathname === "{% url 'parent_bursary' %}");
+        parentAcademicTab.querySelector('span').textContent = 'Bursary & Payments';
+    }
+    if (parentMessagesTab) {
+        parentMessagesTab.href = "{% url 'parent_report_cards' %}";
+        parentMessagesTab.setAttribute('aria-current', window.location.pathname === "{% url 'parent_report_cards' %}" ? 'page' : '');
+        parentMessagesTab.classList.toggle('is-active', window.location.pathname === "{% url 'parent_report_cards' %}");
+        parentMessagesTab.querySelector('span').textContent = 'Report Card';
+    }
+    if (parentProfileTab) {
+        parentProfileTab.href = "{% url 'inbox' %}";
+        parentProfileTab.setAttribute('aria-current', window.location.pathname === "{% url 'inbox' %}" ? 'page' : '');
+        parentProfileTab.classList.toggle('is-active', window.location.pathname === "{% url 'inbox' %}");
+        parentProfileTab.querySelector('span').textContent = 'Messages';
+    }
+    {% endif %}
 });
 </script>
 <script src="{% static 'portal/js/page-transition.js' %}"></script>
