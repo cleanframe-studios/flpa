@@ -151,6 +151,12 @@ body {
         padding: 5.25rem 1rem 6.5rem;
     }
 
+    #toast-container,
+    #globalToastContainer {
+        top: 4.75rem !important;
+        z-index: 10002 !important;
+    }
+
 }
 
 #standalone-app-header {
