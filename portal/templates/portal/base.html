@@ -787,7 +787,15 @@
         &copy; 2026 FUTURE LEADERS PRIVATE ACADEMY. Powered by Cleanframe Software.
     </footer>
 
-    <a id="portal-support-link" href="https://wa.me/2348072956826?text=Hello%20Admin,%20I%20need%20assistance%20with%20the%20school%20portal" target="_blank" rel="noopener" title="Portal Support" class="group fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full border border-slate-200 bg-white text-emerald-600 shadow-lg shadow-slate-900/20 transition-all hover:scale-105 hover:shadow-xl">
+    <style>
+        @media (max-width: 767px) {
+            #portal-support-link { right: -1.5rem; bottom: 5.5rem; width: 3.25rem; height: 3.25rem; opacity: .38; transform: scale(.88); }
+            #portal-support-link:hover, #portal-support-link:focus, #portal-support-link:active, #portal-support-link.support-expanded { right: .75rem; opacity: 1; transform: scale(1); }
+            #portal-support-link svg { width: 1.35rem; height: 1.35rem; }
+            #portal-support-link span { display: none; }
+        }
+    </style>
+    <a id="portal-support-link" href="https://wa.me/2348072956826?text=Hello%20Admin,%20I%20need%20assistance%20with%20the%20school%20portal" onclick="this.classList.toggle('support-expanded')" target="_blank" rel="noopener" title="Portal Support" class="group fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full border border-slate-200 bg-white text-emerald-600 shadow-lg shadow-slate-900/20 transition-all hover:scale-105 hover:shadow-xl">
         <svg class="h-7 w-7" fill="currentColor" viewBox="0 0 24 24"><path d="M20.52 3.48A11.9 11.9 0 0012.03 0C5.46 0 .1 5.36.1 11.93c0 2.1.55 4.14 1.6 5.94L0 24l6.3-1.65a11.9 11.9 0 005.72 1.46h.01c6.57 0 11.93-5.36 11.93-11.93 0-3.19-1.24-6.19-3.44-8.4zm-8.49 18.3h-.01a9.9 9.9 0 01-5.05-1.38l-.36-.21-3.74.98 1-3.64-.24-.38a9.93 9.93 0 01-1.52-5.28c0-5.48 4.46-9.94 9.95-9.94 2.66 0 5.16 1.04 7.03 2.92a9.87 9.87 0 012.91 7.03c0 5.48-4.46 9.94-9.94 9.94zm5.45-7.45c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.25-.46-2.38-1.47-.88-.78-1.47-1.75-1.65-2.05-.17-.3-.02-.46.13-.6.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.6-.91-2.2-.24-.58-.48-.5-.67-.5-.17-.01-.37-.01-.57-.01s-.52.07-.8.37c-.27.3-1.05 1.02-1.05 2.5 0 1.48 1.07 2.9 1.22 3.1.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.69.63.71.22 1.36.19 1.87.12.57-.09 1.76-.72 2.01-1.41.25-.7.25-1.29.17-1.41-.07-.13-.27-.2-.57-.35z"/></svg>
         <span class="pointer-events-none absolute right-16 whitespace-nowrap rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100">Portal Support</span>
     </a>
