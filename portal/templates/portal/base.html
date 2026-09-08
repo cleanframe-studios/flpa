@@ -346,7 +346,7 @@
                     <div class="flex items-center space-x-3 sm:space-x-5">
                         <img src="{% static 'portal/logo.png' %}" alt="School Logo" class="h-5 sm:h-7 w-auto object-contain drop-shadow-md">
                         <a href="{% if request.user.account_profile.role == 'student' %}{% url 'student_dashboard' %}{% elif request.user.account_profile.role == 'teacher' %}{% url 'teacher_dashboard' %}{% elif request.user.account_profile.role == 'parent' %}{% url 'parent_dashboard' %}{% elif request.user.account_profile.role == 'bursar' and not request.user.is_staff and not request.user.is_superuser %}{% url 'bursar_dashboard' %}{% elif request.user.account_profile.role == 'registrar' and not request.user.is_staff and not request.user.is_superuser %}{% url 'registrar_dashboard' %}{% elif request.user.account_profile.role == 'principal' and not request.user.is_staff and not request.user.is_superuser %}{% url 'principal_dashboard' %}{% else %}{% url 'dashboard' %}{% endif %}" class="gradient-title text-sm leading-tight sm:text-xl font-extrabold tracking-[0.08em] uppercase drop-shadow-sm sm:tracking-widest">
-                            FUTURE LEADERS<br class="desktop-brand-break">PRIVATE ACADEMY
+                            FUTURE LEADERS<br class="desktop-brand-break">&nbsp;PRIVATE ACADEMY
                         </a>
                     </div>
                 </div>
