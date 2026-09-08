@@ -331,15 +331,15 @@
                     <p class="mt-1 text-xs leading-5 text-blue-700">Complete these fields only when creating a new parent record. Existing parents are linked from the Parents Manager using their single parent ID.</p>
                 </div>
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <label class="block"><span class="field-label">Parent first name</span><input name="parent_first_name" class="parent-field" placeholder="Required for a new parent"></label>
-                    <label class="block"><span class="field-label">Parent last name</span><input name="parent_last_name" class="parent-field"></label>
-                    <label class="block"><span class="field-label">Parent phone number</span><input name="parent_phone_number" class="parent-field"></label>
+                    <label class="block"><span class="field-label">Parent first name *</span><input name="parent_first_name" data-parent-required="true" class="parent-field" placeholder="Required for a new parent"></label>
+                    <label class="block"><span class="field-label">Parent last name *</span><input name="parent_last_name" data-parent-required="true" class="parent-field"></label>
+                    <label class="block"><span class="field-label">Parent phone number *</span><input name="parent_phone_number" data-parent-required="true" class="parent-field"></label>
                     <label class="block"><span class="field-label">Parent email</span><input type="email" name="parent_email" class="parent-field"></label>
-                    <label class="block"><span class="field-label">Parent sex</span><select name="parent_sex" class="parent-field"><option value="">Select sex</option><option value="Male">Male</option><option value="Female">Female</option></select></label>
-                    <label class="block"><span class="field-label">Marital status</span><select name="parent_marital_status" class="parent-field"><option value="">Select status</option><option value="Single">Single</option><option value="Married">Married</option><option value="Separated">Separated</option><option value="Divorced">Divorced</option><option value="Widowed">Widowed</option></select></label>
-                    <label class="block sm:col-span-2"><span class="field-label">Parent address</span><textarea name="parent_address" rows="2" class="parent-field resize-none"></textarea></label>
-                    <label class="block"><span class="field-label">Parent state</span><input name="parent_state" class="parent-field"></label>
-                    <label class="block"><span class="field-label">Parent LGA</span><input name="parent_lga" class="parent-field"></label>
+                    <div class="relative custom-select" data-name="parent_sex"><span class="field-label">Parent sex *</span><div class="select-box parent-field flex items-center justify-between"><input type="text" name="parent_sex" data-parent-required="true" class="search-input w-full bg-transparent outline-none" autocomplete="off" placeholder="Select sex"><svg class="dropdown-icon h-4 w-4 flex-shrink-0 cursor-pointer text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-width="2" d="m19 9-7 7-7-7"></path></svg></div><div class="options-container absolute left-0 top-full z-50 mt-1 hidden max-h-48 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg"><ul class="options-list py-1 text-sm text-slate-700"></ul></div></div>
+                    <div class="relative custom-select" data-name="parent_marital_status"><span class="field-label">Marital status *</span><div class="select-box parent-field flex items-center justify-between"><input type="text" name="parent_marital_status" data-parent-required="true" class="search-input w-full bg-transparent outline-none" autocomplete="off" placeholder="Select status"><svg class="dropdown-icon h-4 w-4 flex-shrink-0 cursor-pointer text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-width="2" d="m19 9-7 7-7-7"></path></svg></div><div class="options-container absolute left-0 top-full z-50 mt-1 hidden max-h-48 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg"><ul class="options-list py-1 text-sm text-slate-700"></ul></div></div>
+                    <label class="block sm:col-span-2"><span class="field-label">Parent address *</span><textarea name="parent_address" data-parent-required="true" rows="2" class="parent-field resize-none"></textarea></label>
+                    <div class="relative custom-select" data-name="parent_state"><span class="field-label">Parent state *</span><div class="select-box parent-field flex items-center justify-between"><input type="text" name="parent_state" data-parent-required="true" class="search-input w-full bg-transparent outline-none" autocomplete="off" placeholder="Select state"><svg class="dropdown-icon h-4 w-4 flex-shrink-0 cursor-pointer text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-width="2" d="m19 9-7 7-7-7"></path></svg></div><div class="options-container absolute left-0 top-full z-50 mt-1 hidden max-h-48 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg"><ul class="options-list py-1 text-sm text-slate-700"></ul></div></div>
+                    <div class="relative custom-select" data-name="parent_lga"><span class="field-label">Parent LGA *</span><div class="select-box parent-field flex items-center justify-between"><input type="text" name="parent_lga" data-parent-required="true" class="search-input w-full bg-transparent outline-none" autocomplete="off" placeholder="Select state first"><svg class="dropdown-icon h-4 w-4 flex-shrink-0 cursor-pointer text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-width="2" d="m19 9-7 7-7-7"></path></svg></div><div class="options-container absolute left-0 top-full z-50 mt-1 hidden max-h-48 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg"><ul class="options-list py-1 text-sm text-slate-700"></ul></div></div>
                 </div>
             </div>
 
@@ -463,11 +463,15 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         populateCustomSelect('sex', ["Male", "Female"], "Select Sex...");
+        populateCustomSelect('parent_sex', ["Male", "Female"], "Select Parent Sex...");
+        populateCustomSelect('parent_marital_status', ["Single", "Married", "Separated", "Divorced", "Widowed"], "Select Marital Status...");
         populateCustomSelect('religion', ["Christianity", "Islam", "Other"], "Select Religion...");
         
         const stateOptions = Object.keys(locationData).sort();
         populateCustomSelect('state_of_origin', stateOptions, "Select State...");
         populateCustomSelect('lga_of_origin', [], "Select State First...");
+        populateCustomSelect('parent_state', stateOptions, "Select Parent State...");
+        populateCustomSelect('parent_lga', [], "Select Parent State First...");
         
         const teacherProgramNames = {{ teacher_program_names_json|default:'[]'|safe }};
         const programOptions = teacherProgramNames.length ? teacherProgramNames : ["Kindergarten (KG)", "Nursery (NUR)", "Primary (PRY)"];
@@ -482,6 +486,24 @@
                 populateCustomSelect('lga_of_origin', lgas, "Select LGA...");
             });
         });
+
+        document.querySelectorAll('input[name="parent_state"]').forEach(input => {
+            input.addEventListener('change', (e) => {
+                const lgas = locationData[e.target.value] ? locationData[e.target.value].sort() : [];
+                populateCustomSelect('parent_lga', lgas, "Select Parent LGA...");
+            });
+        });
+
+        const parentFirstName = document.querySelector('input[name="parent_first_name"]');
+        const parentFields = document.querySelectorAll('[data-parent-required="true"]');
+        const syncParentRequired = () => {
+            const hasParent = parentFirstName && parentFirstName.value.trim() !== '';
+            parentFields.forEach(field => { field.required = hasParent; });
+        };
+        if (parentFirstName) {
+            parentFirstName.addEventListener('input', syncParentRequired);
+            syncParentRequired();
+        }
 
         document.querySelectorAll('input[name="program"]').forEach(input => {
             input.addEventListener('change', (e) => {
