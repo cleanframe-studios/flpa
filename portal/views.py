@@ -4107,6 +4107,14 @@ def students_view(request):
             if not current_class_obj:
                 messages.error(request, 'Please select one of your assigned classes.')
                 return redirect('students')
+            expected_program = {
+                'KG': 'Kindergarten (KG)',
+                'Nursery': 'Nursery (NUR)',
+                'Primary': 'Primary (PRY)',
+            }.get(current_class_obj.section)
+            if program != expected_program:
+                messages.error(request, 'Please select the program that matches your assigned class.')
+                return redirect('students')
 
         parent = None
         if parent_id:
@@ -4183,6 +4191,11 @@ def students_view(request):
         'students': students,
         'can_register_students': can_register_students,
         'teacher_class_names_json': json.dumps(list(teacher.assigned_class.values_list('name', flat=True))) if teacher else '[]',
+        'teacher_program_names_json': json.dumps(sorted({
+            {'KG': 'Kindergarten (KG)', 'Nursery': 'Nursery (NUR)', 'Primary': 'Primary (PRY)'}.get(classroom.section)
+            for classroom in teacher.assigned_class.all()
+            if classroom.section in {'KG', 'Nursery', 'Primary'}
+        })) if teacher else '[]',
         'available_parents': Parent.objects.filter(status='Active').order_by('last_name', 'first_name'),
         'student_counts': {
             'total': students.count(),

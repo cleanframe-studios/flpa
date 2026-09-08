@@ -450,7 +450,9 @@
         populateCustomSelect('state_of_origin', stateOptions, "Select State...");
         populateCustomSelect('lga_of_origin', [], "Select State First...");
         
-        populateCustomSelect('program', ["Kindergarten (KG)", "Nursery (NUR)", "Primary (PRY)"], "Select Program...");
+        const teacherProgramNames = {{ teacher_program_names_json|default:'[]'|safe }};
+        const programOptions = teacherProgramNames.length ? teacherProgramNames : ["Kindergarten (KG)", "Nursery (NUR)", "Primary (PRY)"];
+        populateCustomSelect('program', programOptions, "Select Program...");
         const teacherClassNames = {{ teacher_class_names_json|default:'[]'|safe }};
         populateCustomSelect('student_class', [], "Select Program First...");
 
