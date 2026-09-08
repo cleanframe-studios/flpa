@@ -13,10 +13,26 @@ def _portal_name_parts(user):
     return user.first_name.strip(), user.last_name.strip()
 
 
+def _portal_picture_url(user):
+    candidates = [
+        getattr(getattr(user, 'account_profile', None), 'profile_picture', None),
+        getattr(getattr(user, 'student_record', None), 'passport', None),
+        getattr(getattr(user, 'teacher_record', None), 'passport', None),
+    ]
+    for picture in candidates:
+        if picture:
+            try:
+                return picture.url
+            except ValueError:
+                continue
+    return ''
+
+
 def notifications(request):
     if not request.user.is_authenticated:
         return {}
     first_name, last_name = _portal_name_parts(request.user)
+    picture_url = _portal_picture_url(request.user)
     display_name = ' '.join(part for part in (last_name, first_name) if part) or request.user.username
     recipients = MessageRecipient.objects.filter(recipient_user=request.user).select_related('message', 'message__sender')
     alerts = Notification.objects.filter(recipient=request.user)
@@ -27,4 +43,5 @@ def notifications(request):
         'recent_alerts': alerts[:6],
         'portal_display_name': display_name,
         'portal_first_name': first_name or display_name,
+        'portal_profile_picture_url': picture_url,
     }

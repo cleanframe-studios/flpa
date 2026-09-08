@@ -360,7 +360,7 @@
             </a>
             <div class="ml-3 flex shrink-0 items-center overflow-hidden rounded-full border border-white/70 bg-white/45 p-1 shadow-lg shadow-slate-900/10 backdrop-blur-xl">
                 <a href="{% if request.user.is_superuser or request.user.account_profile.role == 'admin' %}{% url 'admin_profile_edit' %}{% else %}{% url 'my_profile' %}{% endif %}" class="flex items-center gap-2 rounded-full px-1.5 py-1 transition hover:bg-white/70 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="View your profile" title="View your profile">
-                    {% if request.user.account_profile.profile_picture %}<img src="{{ request.user.account_profile.profile_picture.url }}" alt="{{ portal_display_name }} profile picture" class="h-8 w-8 rounded-full border border-white object-cover shadow-sm">{% elif request.user.student_record.passport %}<img src="{{ request.user.student_record.passport.url }}" alt="{{ portal_display_name }} profile picture" class="h-8 w-8 rounded-full border border-white object-cover shadow-sm">{% elif request.user.teacher_record.passport %}<img src="{{ request.user.teacher_record.passport.url }}" alt="{{ portal_display_name }} profile picture" class="h-8 w-8 rounded-full border border-white object-cover shadow-sm">{% else %}<span class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-xs font-black text-blue-800">{{ portal_first_name|slice:':1'|upper }}</span>{% endif %}
+                    {% if portal_profile_picture_url %}<img src="{{ portal_profile_picture_url }}" alt="{{ portal_display_name }} profile picture" class="h-8 w-8 rounded-full border border-white object-cover shadow-sm">{% else %}<span class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-xs font-black text-blue-800">{{ portal_first_name|slice:':1'|upper }}</span>{% endif %}
                     <span class="hidden max-w-24 truncate text-[10px] font-bold uppercase tracking-wider text-slate-600 sm:inline">{{ portal_display_name }}</span>
                 </a>
                 <a href="{% url 'logout' %}" class="flex h-8 w-9 items-center justify-center rounded-full text-slate-500 transition hover:bg-red-50 hover:text-red-600" aria-label="Sign out" title="Sign out"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4m7 14 5-5m0 0-5-5m5 5H9"/></svg></a>
@@ -633,7 +633,7 @@
                         </div>
                         <div class="profile-chip flex items-center gap-2 rounded-full border border-white/70 bg-white/50 px-2 py-1.5 shadow-lg shadow-slate-900/10 backdrop-blur-xl">
                             <a href="{% if request.user.is_superuser or request.user.account_profile.role == 'admin' %}{% url 'admin_profile_edit' %}{% else %}{% url 'my_profile' %}{% endif %}" class="flex items-center gap-3 rounded-full px-1.5 py-1 transition hover:bg-white/70 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="View your profile" title="View your profile">
-                            {% if request.user.account_profile.profile_picture %}<img src="{{ request.user.account_profile.profile_picture.url }}" alt="{{ portal_display_name }} profile picture" class="h-9 w-9 rounded-full border-2 border-white object-cover shadow-sm">{% elif request.user.student_record.passport %}<img src="{{ request.user.student_record.passport.url }}" alt="{{ portal_display_name }} profile picture" class="h-9 w-9 rounded-full border-2 border-white object-cover shadow-sm">{% elif request.user.teacher_record.passport %}<img src="{{ request.user.teacher_record.passport.url }}" alt="{{ portal_display_name }} profile picture" class="h-9 w-9 rounded-full border-2 border-white object-cover shadow-sm">{% else %}<span class="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-blue-800"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M20 21a8 8 0 0 0-16 0M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/></svg></span>{% endif %}
+                            {% if portal_profile_picture_url %}<img src="{{ portal_profile_picture_url }}" alt="{{ portal_display_name }} profile picture" class="h-9 w-9 rounded-full border-2 border-white object-cover shadow-sm">{% else %}<span class="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-blue-800"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M20 21a8 8 0 0 0-16 0M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/></svg></span>{% endif %}
                             <div class="text-left hidden sm:block">
                                 <p class="text-xs font-bold text-slate-800 tracking-wider">{{ portal_display_name }}</p>
                                 <p class="text-[10px] text-slate-500 uppercase tracking-widest">{% if request.user.is_superuser %}Super Admin{% elif request.user.is_staff %}Admin{% elif request.user.account_profile.role == 'teacher' %}Teacher{% if request.user.teacher_record.assigned_class.exists %} · {{ request.user.teacher_record.assigned_class.all|join:', ' }}{% endif %}{% elif request.user.account_profile.role == 'parent' %}Parent{% elif request.user.account_profile.role == 'student' %}Student{% elif request.user.account_profile.role == 'bursar' %}Bursar{% elif request.user.account_profile.role == 'registrar' %}Registrar{% elif request.user.account_profile.role == 'principal' %}Principal{% else %}Portal User{% endif %}</p>
@@ -1321,6 +1321,12 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    function setTabIcon(tab, path) {
+        const icon = tab && tab.querySelector('svg');
+        if (!icon) return;
+        icon.setAttribute('fill', 'none');
+        icon.innerHTML = '<path stroke-width="1.8" d="' + path + '"></path>';
+    }
     const teacherWorkTab = Array.from(document.querySelectorAll('.bottom-app-nav a')).find(function (link) {
         return link.querySelector('span') && link.querySelector('span').textContent.trim() === 'Work';
     });
@@ -1329,6 +1335,7 @@ document.addEventListener('DOMContentLoaded', function () {
         teacherWorkTab.setAttribute('aria-current', window.location.pathname === "{% url 'attendance' %}" ? 'page' : '');
         teacherWorkTab.classList.toggle('is-active', window.location.pathname === "{% url 'attendance' %}");
         teacherWorkTab.querySelector('span').textContent = 'Attendance';
+        setTabIcon(teacherWorkTab, 'M6 4h12v16H6zM9 8h6M9 12h6M9 16h3');
     }
     const bursarFinanceTab = Array.from(document.querySelectorAll('.bottom-app-nav a')).find(function (link) {
         return link.querySelector('span') && link.querySelector('span').textContent.trim() === 'Finance';
@@ -1337,6 +1344,7 @@ document.addEventListener('DOMContentLoaded', function () {
         bursarFinanceTab.href = "{% url 'bursary_dashboard' %}";
         bursarFinanceTab.setAttribute('aria-current', window.location.pathname === "{% url 'bursary_dashboard' %}" ? 'page' : '');
         bursarFinanceTab.classList.toggle('is-active', window.location.pathname === "{% url 'bursary_dashboard' %}");
+        setTabIcon(bursarFinanceTab, 'M4 7h16M6 7v12h12V7M8 4h8v3H8z');
     }
     const registrarRecordsTab = Array.from(document.querySelectorAll('.bottom-app-nav a')).find(function (link) {
         return link.querySelector('span') && link.querySelector('span').textContent.trim() === 'Records';
@@ -1345,6 +1353,7 @@ document.addEventListener('DOMContentLoaded', function () {
         registrarRecordsTab.href = "{% url 'document_hub' %}";
         registrarRecordsTab.setAttribute('aria-current', window.location.pathname === "{% url 'document_hub' %}" ? 'page' : '');
         registrarRecordsTab.classList.toggle('is-active', window.location.pathname === "{% url 'document_hub' %}");
+        setTabIcon(registrarRecordsTab, 'M6 4h12v16H6zM9 8h6M9 12h6M9 16h4');
     }
     {% if request.user.account_profile.role == 'student' %}
     const studentTabs = Array.from(document.querySelectorAll('.bottom-app-nav a'));
@@ -1356,18 +1365,21 @@ document.addEventListener('DOMContentLoaded', function () {
         studentAcademicTab.setAttribute('aria-current', window.location.pathname === "{% url 'cbt_center' %}" ? 'page' : '');
         studentAcademicTab.classList.toggle('is-active', window.location.pathname === "{% url 'cbt_center' %}");
         studentAcademicTab.querySelector('span').textContent = 'CBT';
+        setTabIcon(studentAcademicTab, 'M4 5h16v11H4zM8 20h8M12 16v4');
     }
     if (studentMessagesTab) {
         studentMessagesTab.href = "{% url 'student_report_hub' %}";
         studentMessagesTab.setAttribute('aria-current', window.location.pathname === "{% url 'student_report_hub' %}" ? 'page' : '');
         studentMessagesTab.classList.toggle('is-active', window.location.pathname === "{% url 'student_report_hub' %}");
         studentMessagesTab.querySelector('span').textContent = 'Report Card';
+        setTabIcon(studentMessagesTab, 'M5 4h14v16H5zM8 8h8M8 12h5M8 16h8');
     }
     if (studentProfileTab) {
         studentProfileTab.href = "{% url 'inbox' %}";
         studentProfileTab.setAttribute('aria-current', window.location.pathname === "{% url 'inbox' %}" ? 'page' : '');
         studentProfileTab.classList.toggle('is-active', window.location.pathname === "{% url 'inbox' %}");
         studentProfileTab.querySelector('span').textContent = 'Messages';
+        setTabIcon(studentProfileTab, 'M4 5h16v14H4zM4 8l8 5 8-5');
     }
     {% endif %}
     {% if request.user.account_profile.role == 'parent' %}
@@ -1380,18 +1392,21 @@ document.addEventListener('DOMContentLoaded', function () {
         parentAcademicTab.setAttribute('aria-current', window.location.pathname === "{% url 'parent_bursary' %}" ? 'page' : '');
         parentAcademicTab.classList.toggle('is-active', window.location.pathname === "{% url 'parent_bursary' %}");
         parentAcademicTab.querySelector('span').textContent = 'Bursary & Payments';
+        setTabIcon(parentAcademicTab, 'M4 7h16M6 7v12h12V7M8 4h8v3H8z');
     }
     if (parentMessagesTab) {
         parentMessagesTab.href = "{% url 'parent_report_cards' %}";
         parentMessagesTab.setAttribute('aria-current', window.location.pathname === "{% url 'parent_report_cards' %}" ? 'page' : '');
         parentMessagesTab.classList.toggle('is-active', window.location.pathname === "{% url 'parent_report_cards' %}");
         parentMessagesTab.querySelector('span').textContent = 'Report Card';
+        setTabIcon(parentMessagesTab, 'M5 4h14v16H5zM8 8h8M8 12h5M8 16h8');
     }
     if (parentProfileTab) {
         parentProfileTab.href = "{% url 'inbox' %}";
         parentProfileTab.setAttribute('aria-current', window.location.pathname === "{% url 'inbox' %}" ? 'page' : '');
         parentProfileTab.classList.toggle('is-active', window.location.pathname === "{% url 'inbox' %}");
         parentProfileTab.querySelector('span').textContent = 'Messages';
+        setTabIcon(parentProfileTab, 'M4 5h16v14H4zM4 8l8 5 8-5');
     }
     {% endif %}
 });

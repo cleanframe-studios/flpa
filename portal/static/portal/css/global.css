@@ -97,6 +97,11 @@ body {
     display: none;
 }
 
+.standalone-app-tab {
+    justify-content: center;
+    text-align: center;
+}
+
 @keyframes standaloneNavGradient {
     0%, 100% { background-position: 0% 50%; }
     50% { background-position: 100% 50%; }
