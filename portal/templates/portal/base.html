@@ -1499,5 +1499,12 @@ if ('serviceWorker' in navigator) {
 </style>
 {% endif %}{% endwith %}{% endif %}
 {% block extra_js %}{% endblock %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('#staff-more-drawer .app-command-section button').forEach(function (button) {
+        if (button.textContent.trim() === 'Class Work') button.firstChild.textContent = 'Class Management';
+    });
+});
+</script>
 </body>
 </html>
