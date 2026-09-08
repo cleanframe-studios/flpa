@@ -102,6 +102,26 @@ body {
     text-align: center;
 }
 
+@media (max-width: 767px) {
+    #main-content-area {
+        padding-left: .5rem !important;
+        padding-right: .5rem !important;
+    }
+
+    #main-content-area > * {
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    #main-content-area .p-6 {
+        padding: 1rem;
+    }
+
+    #main-content-area .p-8 {
+        padding: 1.25rem;
+    }
+}
+
 @keyframes standaloneNavGradient {
     0%, 100% { background-position: 0% 50%; }
     50% { background-position: 100% 50%; }
