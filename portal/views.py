@@ -4643,6 +4643,9 @@ def staff_class_allocation_view(request):
     
     context = {
         'classrooms': classrooms,
-        'teachers': Teacher.objects.filter(staff_type__iexact='Teaching').order_by('last_name', 'first_name'),
+        'teachers': Teacher.objects.filter(
+            staff_type__iexact='Teaching',
+            status__iexact='Active',
+        ).order_by('last_name', 'first_name'),
     }
     return render(request, 'portal/staff_class_allocation.html', context)
