@@ -1456,6 +1456,13 @@ if ('serviceWorker' in navigator) {
     });
 }
 </script>
+{% if request.user.account_profile.role == 'teacher' %}{% with teacher_classes=request.user.teacher_record.assigned_class.all %}{% if not teacher_classes|has_cbt_eligible_class %}
+<style>
+    #teacher-cbt-section,
+    button[onclick="toggleSection('teacher-cbt-section')"],
+    a[href="{% url 'cbt_results' %}"] { display: none !important; }
+</style>
+{% endif %}{% endwith %}{% endif %}
 {% block extra_js %}{% endblock %}
 </body>
 </html>

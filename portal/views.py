@@ -1801,7 +1801,7 @@ def cbt_results_eligible_classrooms():
 
 def teacher_cbt_results_classes(user):
     teacher = getattr(user, 'teacher_record', None)
-    return teacher.assigned_class.all() if teacher else ClassRoom.objects.none()
+    return teacher_eligible_classes(user) if teacher else ClassRoom.objects.none()
 
 
 def can_manage_cbt(user):
@@ -4039,10 +4039,14 @@ def parent_profile_view(request, pk):
 def students_view(request):
     role = getattr(getattr(request.user, 'account_profile', None), 'role', None)
     teacher = getattr(request.user, 'teacher_record', None) if role == 'teacher' else None
-    if role not in (None,) and not request.user.is_staff and not request.user.is_superuser and role not in ('teacher', 'registrar'):
+    can_register_students = bool(
+        request.user.is_staff or request.user.is_superuser or role == 'registrar' or
+        (role == 'teacher' and teacher and teacher.assigned_class.exists())
+    )
+    if role not in (None,) and not can_register_students:
         return redirect('dashboard')
     if request.method == 'POST':
-        if not request.user.is_staff and not request.user.is_superuser and role != 'registrar':
+        if not can_register_students:
             return redirect('dashboard')
         first_name = request.POST.get('first_name')
         last_name = request.POST.get('last_name')
@@ -4059,10 +4063,6 @@ def students_view(request):
         email = request.POST.get('email', '')
         passport = request.FILES.get('passport')
         physically_challenged = True if request.POST.get('physically_challenged') == 'on' else False
-
-        if not lin:
-            messages.error(request, "Please provide the Learner's Identification Number (LIN).")
-            return redirect('students')
 
         # Validate Email
         if email:
@@ -4097,9 +4097,15 @@ def students_view(request):
             messages.error(request, 'A student with this email already exists.')
             return redirect('students')
 
-        if Student.objects.filter(lin__iexact=lin).exists():
+        if lin and Student.objects.filter(lin__iexact=lin).exists():
             messages.error(request, 'A student with this LIN already exists.')
             return redirect('students')
+
+        if role == 'teacher' and teacher:
+            current_class_obj = teacher.assigned_class.filter(name=class_id).first()
+            if not current_class_obj:
+                messages.error(request, 'Please select one of your assigned classes.')
+                return redirect('students')
 
         try:
             student = Student.objects.create(
@@ -4108,7 +4114,7 @@ def students_view(request):
                 other_name=other_name,
                 sex=sex,
                 date_of_birth=date_of_birth,
-                lin=lin,
+                lin=lin or None,
                 state_of_origin=state_of_origin,
                 lga_of_origin=lga_of_origin,
                 program=program,
@@ -4136,6 +4142,8 @@ def students_view(request):
                 else Student.objects.all()).order_by('-id')
     context = {
         'students': students,
+        'can_register_students': can_register_students,
+        'teacher_class_names_json': json.dumps(list(teacher.assigned_class.values_list('name', flat=True))) if teacher else '[]',
         'student_counts': {
             'total': students.count(),
             'Student': students.filter(status='Student').count(),

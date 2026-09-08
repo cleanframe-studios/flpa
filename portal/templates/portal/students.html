@@ -26,7 +26,7 @@
         <h2 class="text-2xl font-extrabold tracking-tight">Student Directory</h2>
         <p class="text-sm text-blue-100 font-light">Register new students with auto-generated IDs and manage all academy records.</p>
     </div>
-    {% if request.user.is_staff or request.user.is_superuser or request.user.account_profile.role == 'registrar' %}
+    {% if can_register_students %}
     <div class="flex gap-3">
         <button onclick="openStudentPrintModal()" class="bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold text-xs py-3 px-4 rounded-xl transition-all flex items-center space-x-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"></path></svg>
@@ -40,7 +40,7 @@
     {% endif %}
 </div>
 
-{% if request.user.is_staff or request.user.is_superuser or request.user.account_profile.role == 'registrar' %}<div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mt-5">
+    {% if can_register_students %}<div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mt-5">
     <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm"><p class="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Total Students</p><p class="text-2xl font-black text-slate-900 mt-1">{{ student_counts.total }}</p></div>
     <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 shadow-sm"><p class="text-[10px] uppercase tracking-wider text-emerald-700 font-bold">Students</p><p class="text-2xl font-black text-emerald-800 mt-1">{{ student_counts.Student }}</p></div>
     <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 shadow-sm"><p class="text-[10px] uppercase tracking-wider text-amber-700 font-bold">Transferred</p><p class="text-2xl font-black text-amber-800 mt-1">{{ student_counts.Transferred }}</p></div>
@@ -214,8 +214,8 @@
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5" for="lin">LIN (Learner's Identification Number) *</label>
-                    <input class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500 transition-all" id="lin" name="lin" type="text" required>
+                    <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5" for="lin">LIN (Learner's Identification Number)</label>
+                    <input class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500 transition-all" id="lin" name="lin" type="text">
                 </div>
             </div>
 
@@ -435,6 +435,7 @@
         populateCustomSelect('lga_of_origin', [], "Select State First...");
         
         populateCustomSelect('program', ["Kindergarten (KG)", "Nursery (NUR)", "Primary (PRY)"], "Select Program...");
+        const teacherClassNames = {{ teacher_class_names_json|default:'[]'|safe }};
         populateCustomSelect('student_class', [], "Select Program First...");
 
         document.querySelectorAll('input[name="state_of_origin"]').forEach(input => {
@@ -448,7 +449,7 @@
         document.querySelectorAll('input[name="program"]').forEach(input => {
             input.addEventListener('change', (e) => {
                 const prog = e.target.value;
-                const classes = classData[prog] || [];
+                const classes = teacherClassNames.length ? (classData[prog] || []).filter(className => teacherClassNames.includes(className)) : (classData[prog] || []);
                 populateCustomSelect('student_class', classes, "Select Class...");
             });
         });
