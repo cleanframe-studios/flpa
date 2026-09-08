@@ -1324,11 +1324,20 @@ document.addEventListener('DOMContentLoaded', function () {
     const teacherWorkTab = Array.from(document.querySelectorAll('.bottom-app-nav a')).find(function (link) {
         return link.querySelector('span') && link.querySelector('span').textContent.trim() === 'Work';
     });
-    if (!teacherWorkTab) return;
-    teacherWorkTab.href = "{% url 'attendance' %}";
-    teacherWorkTab.setAttribute('aria-current', window.location.pathname === "{% url 'attendance' %}" ? 'page' : '');
-    teacherWorkTab.classList.toggle('is-active', window.location.pathname === "{% url 'attendance' %}");
-    teacherWorkTab.querySelector('span').textContent = 'Attendance';
+    if (teacherWorkTab) {
+        teacherWorkTab.href = "{% url 'attendance' %}";
+        teacherWorkTab.setAttribute('aria-current', window.location.pathname === "{% url 'attendance' %}" ? 'page' : '');
+        teacherWorkTab.classList.toggle('is-active', window.location.pathname === "{% url 'attendance' %}");
+        teacherWorkTab.querySelector('span').textContent = 'Attendance';
+    }
+    const bursarFinanceTab = Array.from(document.querySelectorAll('.bottom-app-nav a')).find(function (link) {
+        return link.querySelector('span') && link.querySelector('span').textContent.trim() === 'Finance';
+    });
+    if (bursarFinanceTab) {
+        bursarFinanceTab.href = "{% url 'bursary_dashboard' %}";
+        bursarFinanceTab.setAttribute('aria-current', window.location.pathname === "{% url 'bursary_dashboard' %}" ? 'page' : '');
+        bursarFinanceTab.classList.toggle('is-active', window.location.pathname === "{% url 'bursary_dashboard' %}");
+    }
 });
 </script>
 <script src="{% static 'portal/js/page-transition.js' %}"></script>

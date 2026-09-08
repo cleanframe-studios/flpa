@@ -2644,25 +2644,7 @@ def bursary_dashboard(request):
 @login_required(login_url='login')
 @bursar_required
 def bursar_dashboard_view(request):
-    active_term = AcademicTerm.objects.select_related('session').filter(is_active=True).first()
-    accounts = StudentFeeAccount.objects.filter(term=active_term) if active_term else StudentFeeAccount.objects.none()
-    totals = accounts.aggregate(billed=Sum('total_billed'), paid=Sum('amount_paid'))
-    total_expected = totals['billed'] or Decimal('0')
-    total_collected = totals['paid'] or Decimal('0')
-    outstanding_balance = max(total_expected - total_collected, Decimal('0'))
-    collection_rate = round((total_collected / total_expected) * 100) if total_expected else 0
-    today = timezone.localdate()
-    todays_inflows = FeePayment.objects.filter(paid_at__date=today).aggregate(total=Sum('amount'))['total'] or Decimal('0')
-    recent_payments = FeePayment.objects.select_related('account__student', 'account__term').order_by('-paid_at')[:5]
-    return render(request, 'portal/bursar_dashboard.html', {
-        'active_term': active_term,
-        'total_expected': total_expected,
-        'total_collected': total_collected,
-        'outstanding_balance': outstanding_balance,
-        'collection_rate': collection_rate,
-        'todays_inflows': todays_inflows,
-        'recent_payments': recent_payments,
-    })
+    return render(request, 'portal/bursar_home.html')
 
 
 @login_required(login_url='login')
