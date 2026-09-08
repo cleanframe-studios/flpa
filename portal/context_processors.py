@@ -22,8 +22,9 @@ def _portal_picture_url(user):
     for picture in candidates:
         if picture:
             try:
-                return picture.url
-            except ValueError:
+                if picture.storage.exists(picture.name):
+                    return picture.url
+            except (OSError, ValueError):
                 continue
     return ''
 
