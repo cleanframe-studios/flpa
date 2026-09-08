@@ -308,13 +308,14 @@ def contact_page(request):
         email = request.POST.get('email', '').strip()
         message = request.POST.get('message', '').strip()
         try:
-            validate_email(email)
+            if email:
+                validate_email(email)
             enquiry = EmailMessage(
                 subject=f'Website enquiry from {name}',
-                body=f'Name: {name}\nEmail: {email}\n\nMessage:\n{message}',
+                body=f'Name: {name}\nEmail: {email or "Not provided"}\n\nMessage:\n{message}',
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[settings.CONTACT_EMAIL],
-                reply_to=[email],
+                reply_to=[email] if email else [],
             )
             enquiry.send(fail_silently=False)
         except (ValidationError, SMTPException):
@@ -438,9 +439,7 @@ def apply_admission_view(request):
             errors.append(f'The phone number {duplicate_parent_phone} is already registered. Please provide a different number.')
         elif duplicate_application_phone:
             errors.append('A parent phone number is already linked to another admission application. Please provide a different number.')
-        if not parent_email:
-            errors.append('A valid email address is required to receive your Registration Number and admission updates.')
-        else:
+        if parent_email:
             try:
                 validate_email(parent_email)
             except ValidationError:
@@ -585,7 +584,6 @@ def admission_profile_gaps(applicant, parent_choice=None):
     field_values = {
         'guardian_name': guardian['name'],
         'guardian_phone': guardian['phone'],
-        'guardian_email': guardian['email'],
         'guardian_address': guardian['address'],
         'state_of_origin': applicant.state_of_origin,
         'lga': applicant.lga,
@@ -593,7 +591,6 @@ def admission_profile_gaps(applicant, parent_choice=None):
     labels = {
         'guardian_name': 'Parent or guardian full name',
         'guardian_phone': 'Parent or guardian phone number',
-        'guardian_email': 'Parent or guardian email address',
         'guardian_address': 'Parent or guardian home address',
         'state_of_origin': 'State of origin',
         'lga': 'LGA of origin',
@@ -650,10 +647,11 @@ def provision_admission_accounts(applicant, parent_choice=None):
         student.save(update_fields=['parent'])
     if applicant.provisioned_parent_id != parent.pk:
         applicant.provisioned_parent = parent
-        applicant.save(update_fields=['provisioned_parent'])
+    applicant.parent_id = parent.parent_id
     if applicant.enrolled_student_id != student.pk:
         applicant.enrolled_student = student
-        applicant.save(update_fields=['enrolled_student'])
+    applicant.student_id = student.student_id
+    applicant.save(update_fields=['provisioned_parent', 'enrolled_student', 'parent_id', 'student_id'])
     create_portal_account(student, 'student', student.last_name)
     create_portal_account(parent, 'parent', parent.last_name or parent.first_name)
     return student, parent
@@ -1650,8 +1648,8 @@ def can_view_audit_logs(user):
 
 
 @login_required(login_url='login')
-@role_required(['Admin', 'Principal'])
 @user_passes_test(can_view_audit_logs, login_url='dashboard')
+@role_required(['Admin', 'Principal'])
 def admin_audit_logs_view(request):
     logs = AuditLog.objects.select_related('user')
     action_type = request.GET.get('action_type', '')
@@ -1836,6 +1834,13 @@ def cbt_setup_view(request):
         return redirect('dashboard')
     classrooms = cbt_eligible_classrooms() if is_admin_user(request.user) else teacher_eligible_classes(request.user)
     subjects = valid_subjects().order_by('name')
+    classroom_subjects_map = {
+        classroom.pk: list(
+            ClassRoomSubject.objects.filter(class_room=classroom)
+            .values_list('subject_id', flat=True)
+        )
+        for classroom in classrooms
+    }
     active_session = AcademicSession.objects.filter(is_active=True).first()
     active_term = AcademicTerm.objects.filter(is_active=True).first()
     session_id = request.GET.get('session') or (active_session.pk if active_session else '')
@@ -1865,7 +1870,7 @@ def cbt_setup_view(request):
         'selected_class': selected_class,
         'selected_subject': selected_subject,
         'subjects_json': json.dumps([{'pk': subject.pk, 'name': subject.name} for subject in subjects]),
-        'classroom_subjects_map': '{}',
+        'classroom_subjects_map': json.dumps(classroom_subjects_map),
         'exam_filter_data': '[]',
         'is_cbt_admin': is_admin_user(request.user),
     })
@@ -4058,7 +4063,6 @@ def students_view(request):
         lga_of_origin = request.POST.get('lga_of_origin')
         program = request.POST.get('program')
         class_id = request.POST.get('current_class')
-        parent_id = request.POST.get('parent_id', '').strip()
         phone_number = request.POST.get('phone_number', '')
         religion = request.POST.get('religion', '')
         email = request.POST.get('email', '')
@@ -4117,12 +4121,7 @@ def students_view(request):
                 return redirect('students')
 
         parent = None
-        if parent_id:
-            parent = Parent.objects.filter(pk=parent_id).first()
-            if not parent:
-                messages.error(request, 'Please select a valid parent.')
-                return redirect('students')
-        elif request.POST.get('parent_first_name', '').strip():
+        if request.POST.get('parent_first_name', '').strip():
             parent_required_fields = {
                 'parent_first_name': 'first name',
                 'parent_last_name': 'last name',
@@ -4139,7 +4138,7 @@ def students_view(request):
                 return redirect('students')
         try:
             with transaction.atomic():
-                if not parent and request.POST.get('parent_first_name', '').strip():
+                if request.POST.get('parent_first_name', '').strip():
                     parent = Parent.objects.create(
                         first_name=request.POST.get('parent_first_name', '').strip(),
                         last_name=request.POST.get('parent_last_name', '').strip(),
@@ -4196,7 +4195,6 @@ def students_view(request):
             for classroom in teacher.assigned_class.all()
             if classroom.section in {'KG', 'Nursery', 'Primary'}
         })) if teacher else '[]',
-        'available_parents': Parent.objects.filter(status='Active').order_by('last_name', 'first_name'),
         'student_counts': {
             'total': students.count(),
             'Student': students.filter(status='Student').count(),
@@ -4344,7 +4342,7 @@ def teachers_view(request):
             request.POST.getlist('qualification'),
             request.POST.getlist('qualification_year'),
         ))
-        if not first_name or not last_name or not other_name or not staff_type or not birth_month or not birth_day or not state_of_origin or not lga_of_origin or not phone_number or not email:
+        if not first_name or not last_name or not staff_type or not birth_month or not birth_day or not state_of_origin or not lga_of_origin or not phone_number:
             messages.error(request, 'Please complete all required teacher fields before saving.')
             return redirect('teachers')
         if staff_type.lower() == 'teaching':
@@ -4409,11 +4407,12 @@ def teacher_profile_view(request, pk):
         email = request.POST.get('email', teacher.email)
         
         # Validate Email
-        try:
-            validate_email(email)
-        except ValidationError:
-            messages.error(request, "Please enter a valid email address.")
-            return redirect('teacher_profile', pk=teacher.pk)
+        if email:
+            try:
+                validate_email(email)
+            except ValidationError:
+                messages.error(request, "Please enter a valid email address.")
+                return redirect('teacher_profile', pk=teacher.pk)
 
         teacher.first_name = request.POST.get('first_name', teacher.first_name)
         teacher.last_name = request.POST.get('last_name', teacher.last_name)

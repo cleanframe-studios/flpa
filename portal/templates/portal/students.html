@@ -174,7 +174,12 @@
 
         <form method="POST" action="" enctype="multipart/form-data" class="space-y-6">
             {% csrf_token %}
-            
+
+            <div class="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                <p class="text-xs font-black uppercase tracking-wider text-slate-700">1. Student details</p>
+                <p class="mt-1 text-xs leading-5 text-slate-500">Enter the learner's personal, contact, and class information first.</p>
+            </div>
+
             <div class="flex flex-col items-center justify-center bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl p-6 relative hover:border-blue-500 transition-all group cursor-pointer" onclick="document.getElementById('passport').click()">
                 <div id="passport-preview-container" class="w-24 h-32 rounded-2xl bg-slate-200 overflow-hidden flex items-center justify-center shadow-inner relative mb-3">
                     <svg id="upload-placeholder-icon" class="w-10 h-10 text-slate-400 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -222,9 +227,11 @@
             </div>
 
             <div class="border-t border-slate-100 pt-5">
-                <p class="text-xs font-bold uppercase tracking-wider text-slate-500">Parent / Guardian (Optional)</p>
+                <div class="mb-4 rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
+                    <p class="text-xs font-black uppercase tracking-wider text-blue-800">2. New Parent / Guardian (Optional)</p>
+                    <p class="mt-1 text-xs leading-5 text-blue-700">Create a new parent record for this student, or leave this section blank to register the student without a parent link.</p>
+                </div>
                 <div class="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <label class="block sm:col-span-2"><span class="field-label">Link existing parent</span><select name="parent_id" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-sm"><option value="">Create new parent below or leave unlinked</option>{% for parent in available_parents %}<option value="{{ parent.pk }}">{{ parent.first_name }} {{ parent.last_name }} ({{ parent.phone_number }})</option>{% endfor %}</select></label>
                     <label class="block"><span class="field-label">Parent first name</span><input name="parent_first_name" class="parent-field" placeholder="Required for a new parent"></label>
                     <label class="block"><span class="field-label">Parent last name</span><input name="parent_last_name" class="parent-field"></label>
                     <label class="block"><span class="field-label">Parent phone number</span><input name="parent_phone_number" class="parent-field"></label>

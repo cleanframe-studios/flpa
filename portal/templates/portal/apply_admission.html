@@ -202,7 +202,7 @@
           </div>
           <div>
             <label class="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-300">Notification Email *</label>
-            <input type="email" name="parent_email" id="parent-email" required
+            <input type="email" name="parent_email" id="parent-email"
                    pattern="^[a-zA-Z0-9.!#$%&amp;'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$"
                    title="Enter a valid email address, e.g. name@example.com"
                    value="{{ form_data.parent_email|default:'' }}" class="glass-input">
@@ -215,7 +215,7 @@
             <input type="text" name="father_phone" required placeholder="Father's Phone" value="{{ form_data.father_phone|default:'' }}" class="glass-input">
             <input type="text" name="father_occupation" required placeholder="Occupation" value="{{ form_data.father_occupation|default:'' }}" class="glass-input">
             <input type="text" name="father_job_title" required placeholder="Job Title" value="{{ form_data.father_job_title|default:'' }}" class="glass-input">
-            <input type="email" name="father_email" required placeholder="Father's Email" value="{{ form_data.father_email|default:'' }}" class="glass-input">
+            <input type="email" name="father_email" placeholder="Father's Email" value="{{ form_data.father_email|default:'' }}" class="glass-input">
             <input type="text" name="father_address" required placeholder="Home Address" value="{{ form_data.father_address|default:'' }}" class="glass-input">
           </div>
 
@@ -225,7 +225,7 @@
             <input type="text" name="mother_phone" required placeholder="Mother's Phone" value="{{ form_data.mother_phone|default:'' }}" class="glass-input">
             <input type="text" name="mother_occupation" required placeholder="Occupation" value="{{ form_data.mother_occupation|default:'' }}" class="glass-input">
             <input type="text" name="mother_job_title" required placeholder="Job Title" value="{{ form_data.mother_job_title|default:'' }}" class="glass-input">
-            <input type="email" name="mother_email" required placeholder="Mother's Email" value="{{ form_data.mother_email|default:'' }}" class="glass-input">
+            <input type="email" name="mother_email" placeholder="Mother's Email" value="{{ form_data.mother_email|default:'' }}" class="glass-input">
             <input type="text" name="mother_address" required placeholder="Home Address" value="{{ form_data.mother_address|default:'' }}" class="glass-input">
           </div>
 

@@ -60,6 +60,16 @@ class AdmissionApprovalWorkflowTests(TestCase):
         })
 
         self.assertRedirects(response, reverse('review_applicants'))
+        self.client.post(reverse('admission_complete_profile'), {
+            'temp_reg_number': self.applicant.temp_reg_number,
+            'parent_choice': 'father',
+            'guardian_name': 'Grace Lovelace',
+            'guardian_phone': '08012345678',
+            'guardian_email': 'grace@example.com',
+            'guardian_address': 'One Main Street',
+            'state_of_origin': 'Lagos',
+            'lga': 'Ikeja',
+        })
         applicant = Applicant.objects.get(pk=self.applicant.pk)
         parent = applicant.provisioned_parent
         student = applicant.enrolled_student
@@ -98,6 +108,7 @@ class AdmissionApprovalWorkflowTests(TestCase):
 class AcademicCalendarGuardTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(username='admin', password='adminpass123', is_staff=True)
+        AccountProfile.objects.create(user=self.user, role='admin')
         self.client.force_login(self.user)
 
     def test_duplicate_session_creation_shows_error_message(self):
@@ -146,7 +157,7 @@ class AcademicCalendarGuardTests(TestCase):
         results_response = self.client.get(reverse('results_process'))
 
         self.assertEqual(audit_response.status_code, 200)
-        self.assertNotRedirects(results_response, reverse('dashboard'))
+        self.assertNotEqual(results_response.status_code, 302)
 
     def test_admin_user_roles_updates_profile_and_creates_audit_log(self):
         superuser = get_user_model().objects.create_superuser(username='role-superuser', password='pass', email='roles@example.com')
@@ -436,9 +447,10 @@ class AcademicCalendarGuardTests(TestCase):
         self.assertEqual(student.user.account_profile.role, 'student')
 
     def test_backfill_accounts_links_existing_student_and_login_routes(self):
+        classroom = ClassRoom.objects.create(name='Primary 4', section='Primary', level_number=4)
         student = Student.objects.create(
             first_name='Ada', last_name='Lovelace', sex='Female', date_of_birth='2015-01-01',
-            state_of_origin='Lagos', lga_of_origin='Ikeja', program='Primary (PRY)',
+            state_of_origin='Lagos', lga_of_origin='Ikeja', program='Primary (PRY)', current_class=classroom,
         )
         self.assertIsNone(student.user)
 
