@@ -4381,8 +4381,8 @@ def teacher_profile_view(request, pk):
             with transaction.atomic():
                 teacher.save()
                 save_teacher_qualifications(teacher, request)
-        except (IntegrityError, ValidationError):
-            messages.error(request, 'This teacher profile conflicts with an existing record.')
+        except (IntegrityError, ValidationError, OSError):
+            messages.error(request, 'This teacher profile could not be saved. Check the image file and try again.')
             return redirect('teacher_profile', pk=teacher.pk)
         messages.success(request, "Teacher profile updated successfully!")
         return redirect('teacher_profile', pk=teacher.pk)

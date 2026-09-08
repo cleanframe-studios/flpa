@@ -138,6 +138,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 MEDIA_URL = os.environ.get('MEDIA_URL', '/media/')
 default_media_root = '/var/data/media' if os.environ.get('RENDER') else str(BASE_DIR / 'media')
 MEDIA_ROOT = Path(os.environ.get('MEDIA_ROOT', default_media_root))
+MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
 
 # Email configuration
 # Defaults to printing emails to the console in development. Set real SMTP
