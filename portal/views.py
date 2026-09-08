@@ -4482,6 +4482,10 @@ def attendance_view(request):
     selected_class_id = request.POST.get('classroom') or request.GET.get('classroom')
     selected_week_id = request.POST.get('week') or request.GET.get('week')
     selected_day_value = request.POST.get('day') or request.GET.get('day')
+    if not selected_class_id and role_profile and role_profile.role == 'teacher' and teacher_record:
+        assigned_classrooms = teacher_record.assigned_class.all()
+        if assigned_classrooms.count() == 1:
+            selected_class_id = str(assigned_classrooms.first().pk)
     selected_class = None
     selected_week = None
     selected_date = None

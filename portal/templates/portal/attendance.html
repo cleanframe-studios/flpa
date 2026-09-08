@@ -54,13 +54,15 @@
 <style>
     .select-menu { display: block; }
     .select-menu.hidden { display: none; }
+    .profile-menu { display: block; }
+    .profile-menu.hidden { display: none; }
     .select-option:focus-visible { outline: 2px solid #2563eb; outline-offset: 1px; }
 </style>
 <script>
 function openClearAttendanceModal(){const modal=document.getElementById('clearAttendanceModal');modal.classList.remove('hidden');modal.classList.add('flex');}
 function closeClearAttendanceModal(){const modal=document.getElementById('clearAttendanceModal');modal.classList.add('hidden');modal.classList.remove('flex');}
 document.getElementById('clearAttendanceModal')?.addEventListener('click',event=>{if(event.target.id==='clearAttendanceModal')closeClearAttendanceModal();});
-    const classroomCombobox = document.querySelector('.profile-select-wrap');
+    const classroomCombobox = document.querySelector('input[name="classroom"]')?.closest('.profile-select-wrap');
     if (classroomCombobox) {
         const hiddenInput = classroomCombobox.querySelector('input[type="hidden"]');
         const legacyButton = classroomCombobox.querySelector('.select-button');
