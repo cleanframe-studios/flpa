@@ -212,6 +212,22 @@
                 </div>
             </div>
 
+            <div class="border-t border-slate-100 pt-5">
+                <p class="text-xs font-bold uppercase tracking-wider text-slate-500">Parent / Guardian (Optional)</p>
+                <div class="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <label class="block sm:col-span-2"><span class="field-label">Link existing parent</span><select name="parent_id" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-sm"><option value="">Create new parent below or leave unlinked</option>{% for parent in available_parents %}<option value="{{ parent.pk }}">{{ parent.first_name }} {{ parent.last_name }} ({{ parent.phone_number }})</option>{% endfor %}</select></label>
+                    <label class="block"><span class="field-label">Parent first name</span><input name="parent_first_name" class="parent-field" placeholder="Required for a new parent"></label>
+                    <label class="block"><span class="field-label">Parent last name</span><input name="parent_last_name" class="parent-field"></label>
+                    <label class="block"><span class="field-label">Parent phone number</span><input name="parent_phone_number" class="parent-field"></label>
+                    <label class="block"><span class="field-label">Parent email</span><input type="email" name="parent_email" class="parent-field"></label>
+                    <label class="block"><span class="field-label">Parent sex</span><select name="parent_sex" class="parent-field"><option value="">Select sex</option><option value="Male">Male</option><option value="Female">Female</option></select></label>
+                    <label class="block"><span class="field-label">Marital status</span><select name="parent_marital_status" class="parent-field"><option value="">Select status</option><option value="Single">Single</option><option value="Married">Married</option><option value="Separated">Separated</option><option value="Divorced">Divorced</option><option value="Widowed">Widowed</option></select></label>
+                    <label class="block sm:col-span-2"><span class="field-label">Parent address</span><textarea name="parent_address" rows="2" class="parent-field resize-none"></textarea></label>
+                    <label class="block"><span class="field-label">Parent state</span><input name="parent_state" class="parent-field"></label>
+                    <label class="block"><span class="field-label">Parent LGA</span><input name="parent_lga" class="parent-field"></label>
+                </div>
+            </div>
+
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5" for="lin">LIN (Learner's Identification Number)</label>

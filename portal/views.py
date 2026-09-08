@@ -4058,6 +4058,7 @@ def students_view(request):
         lga_of_origin = request.POST.get('lga_of_origin')
         program = request.POST.get('program')
         class_id = request.POST.get('current_class')
+        parent_id = request.POST.get('parent_id', '').strip()
         phone_number = request.POST.get('phone_number', '')
         religion = request.POST.get('religion', '')
         email = request.POST.get('email', '')
@@ -4107,28 +4108,66 @@ def students_view(request):
                 messages.error(request, 'Please select one of your assigned classes.')
                 return redirect('students')
 
+        parent = None
+        if parent_id:
+            parent = Parent.objects.filter(pk=parent_id).first()
+            if not parent:
+                messages.error(request, 'Please select a valid parent.')
+                return redirect('students')
+        elif request.POST.get('parent_first_name', '').strip():
+            parent_required_fields = {
+                'parent_first_name': 'first name',
+                'parent_last_name': 'last name',
+                'parent_phone_number': 'phone number',
+                'parent_sex': 'sex',
+                'parent_marital_status': 'marital status',
+                'parent_address': 'address',
+                'parent_state': 'state',
+                'parent_lga': 'LGA',
+            }
+            missing_parent_fields = [label for field, label in parent_required_fields.items() if not request.POST.get(field, '').strip()]
+            if missing_parent_fields:
+                messages.error(request, f"Please complete the new parent's {', '.join(missing_parent_fields)}.")
+                return redirect('students')
         try:
-            student = Student.objects.create(
-                first_name=cleaned_first_name,
-                last_name=cleaned_last_name,
-                other_name=other_name,
-                sex=sex,
-                date_of_birth=date_of_birth,
-                lin=lin or None,
-                state_of_origin=state_of_origin,
-                lga_of_origin=lga_of_origin,
-                program=program,
-                current_class=current_class_obj,
-                physically_challenged=physically_challenged,
-                phone_number=phone_number,
-                religion=religion,
-                email=cleaned_email or None,
-                passport=passport,
-                status='Student'
-            )
-            create_portal_account(student, 'student', student.last_name)
-        except IntegrityError:
-            messages.error(request, 'A student with this profile already exists.')
+            with transaction.atomic():
+                if not parent and request.POST.get('parent_first_name', '').strip():
+                    parent = Parent.objects.create(
+                        first_name=request.POST.get('parent_first_name', '').strip(),
+                        last_name=request.POST.get('parent_last_name', '').strip(),
+                        phone_number=request.POST.get('parent_phone_number', '').strip(),
+                        sex=request.POST.get('parent_sex', '').strip(),
+                        marital_status=request.POST.get('parent_marital_status', '').strip(),
+                        address=request.POST.get('parent_address', '').strip(),
+                        state=request.POST.get('parent_state', '').strip(),
+                        lga=request.POST.get('parent_lga', '').strip(),
+                        email=request.POST.get('parent_email', '').strip() or None,
+                        status='Active',
+                    )
+                    create_portal_account(parent, 'parent', parent.last_name)
+
+                student = Student.objects.create(
+                    first_name=cleaned_first_name,
+                    last_name=cleaned_last_name,
+                    other_name=other_name,
+                    sex=sex,
+                    date_of_birth=date_of_birth,
+                    lin=lin or None,
+                    state_of_origin=state_of_origin,
+                    lga_of_origin=lga_of_origin,
+                    program=program,
+                    current_class=current_class_obj,
+                    parent=parent,
+                    physically_challenged=physically_challenged,
+                    phone_number=phone_number,
+                    religion=religion,
+                    email=cleaned_email or None,
+                    passport=passport,
+                    status='Student'
+                )
+                create_portal_account(student, 'student', student.last_name)
+        except (IntegrityError, ValidationError, OSError, ValueError):
+            messages.error(request, 'The student, parent, or uploaded file could not be saved. Please check the details and try again.')
             return redirect('students')
 
         if current_class_obj:
@@ -4138,12 +4177,13 @@ def students_view(request):
         return redirect('students')
 
     students = (Student.objects.filter(current_class__in=teacher.assigned_class.all(), status='Student')
-                if teacher and not request.user.is_staff and not request.user.is_superuser
+                if teacher and role == 'teacher'
                 else Student.objects.all()).order_by('-id')
     context = {
         'students': students,
         'can_register_students': can_register_students,
         'teacher_class_names_json': json.dumps(list(teacher.assigned_class.values_list('name', flat=True))) if teacher else '[]',
+        'available_parents': Parent.objects.filter(status='Active').order_by('last_name', 'first_name'),
         'student_counts': {
             'total': students.count(),
             'Student': students.filter(status='Student').count(),
@@ -4381,7 +4421,7 @@ def teacher_profile_view(request, pk):
             with transaction.atomic():
                 teacher.save()
                 save_teacher_qualifications(teacher, request)
-        except (IntegrityError, ValidationError, OSError):
+        except (IntegrityError, ValidationError, OSError, ValueError):
             messages.error(request, 'This teacher profile could not be saved. Check the image file and try again.')
             return redirect('teacher_profile', pk=teacher.pk)
         messages.success(request, "Teacher profile updated successfully!")
