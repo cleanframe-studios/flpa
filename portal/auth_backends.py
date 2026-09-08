@@ -1,6 +1,6 @@
 from django.contrib.auth.backends import ModelBackend
 
-from .models import Parent
+from .models import Parent, Teacher, normalize_phone_number
 
 
 class ParentPhoneOrUsernameBackend(ModelBackend):
@@ -10,7 +10,10 @@ class ParentPhoneOrUsernameBackend(ModelBackend):
         user = super().authenticate(request, username=username, password=password, **kwargs)
         if user or not username or password is None:
             return user
-        parent = Parent.objects.filter(phone_number=username, user__isnull=False).select_related('user').first()
-        if parent and parent.user.check_password(password) and self.user_can_authenticate(parent.user):
-            return parent.user
+        phone_number = normalize_phone_number(username)
+        parent = Parent.objects.filter(phone_number=phone_number, user__isnull=False).select_related('user').first()
+        teacher = Teacher.objects.filter(phone_number=phone_number, user__isnull=False).select_related('user').first()
+        for record in (parent, teacher):
+            if record and record.user.check_password(password) and self.user_can_authenticate(record.user):
+                return record.user
         return None

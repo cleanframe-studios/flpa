@@ -3922,8 +3922,8 @@ def parents_view(request):
                 )
                 create_portal_account(parent, 'parent', parent.last_name)
                 messages.success(request, f'{parent.display_name} was added to the Parents Manager.')
-            except IntegrityError:
-                messages.error(request, 'This parent could not be saved because of a duplicate or data conflict.')
+            except (IntegrityError, ValidationError):
+                messages.error(request, 'This phone number is already registered or the parent data conflicts with an existing record.')
                 parent_context.update({'parent_form': request.POST, 'open_parent_modal': True})
                 return render(request, 'portal/parents.html', parent_context)
             return redirect('parents')
@@ -4014,7 +4014,7 @@ def parent_profile_view(request, pk):
             parent.status = 'Active' if parent.children.exists() else 'Inactive'
             try:
                 parent.save()
-            except IntegrityError:
+            except (IntegrityError, ValidationError):
                 messages.error(request, 'This parent could not be saved because of a duplicate or data conflict.')
                 profile_context['open_edit_modal'] = True
                 return render(request, 'portal/parent_profile.html', profile_context)
@@ -4296,8 +4296,8 @@ def teachers_view(request):
                 passport=passport,
             )
             create_portal_account(teacher, 'teacher', teacher.last_name)
-        except IntegrityError:
-            messages.error(request, 'A teacher with this email already exists.')
+        except (IntegrityError, ValidationError):
+            messages.error(request, 'This teacher could not be saved because the email or phone number is already registered.')
             return redirect('teachers')
 
         save_teacher_qualifications(teacher, request)
@@ -4348,7 +4348,7 @@ def teacher_profile_view(request, pk):
             with transaction.atomic():
                 teacher.save()
                 save_teacher_qualifications(teacher, request)
-        except IntegrityError:
+        except (IntegrityError, ValidationError):
             messages.error(request, 'This teacher profile conflicts with an existing record.')
             return redirect('teacher_profile', pk=teacher.pk)
         messages.success(request, "Teacher profile updated successfully!")

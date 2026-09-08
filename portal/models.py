@@ -146,6 +146,23 @@ class Student(models.Model):
         return any(label in class_name for label in ('primary 4', 'primary 5', 'primary 6', 'basic 4', 'basic 5', 'basic 6'))
 
 
+def normalize_phone_number(value):
+    return ''.join(character for character in str(value or '') if character.isdigit() or character == '+')
+
+
+def phone_number_conflict(phone_number, parent=None, teacher=None):
+    normalized = normalize_phone_number(phone_number)
+    if not normalized:
+        return False
+    parent_query = Parent.objects.filter(phone_number=normalized)
+    teacher_query = Teacher.objects.filter(phone_number=normalized)
+    if parent and parent.pk:
+        parent_query = parent_query.exclude(pk=parent.pk)
+    if teacher and teacher.pk:
+        teacher_query = teacher_query.exclude(pk=teacher.pk)
+    return parent_query.exists() or teacher_query.exists()
+
+
 class Parent(models.Model):
     SEX_CHOICES = [('Male', 'Male'), ('Female', 'Female')]
     MARITAL_STATUS_CHOICES = [
@@ -177,6 +194,9 @@ class Parent(models.Model):
         ordering = ['name']
 
     def save(self, *args, **kwargs):
+        self.phone_number = normalize_phone_number(self.phone_number)
+        if phone_number_conflict(self.phone_number, parent=self):
+            raise ValidationError('This phone number is already registered to another portal account.')
         if not self.parent_id:
             year = timezone.now().year
             prefix = f'FLA/PAR/{year}/'
@@ -213,13 +233,16 @@ class Teacher(models.Model):
     lga_of_origin = models.CharField(max_length=50, blank=True, null=True)
     status = models.CharField(max_length=100, default='Active') # Active or Inactive
     
-    phone_number = models.CharField(max_length=100)
+    phone_number = models.CharField(max_length=100, unique=True)
     email = models.EmailField(unique=True)
     passport = models.ImageField(upload_to='teacher_passports/', max_length=255, blank=True, null=True)
     date_joined = models.DateField(auto_now_add=True)
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='teacher_record')
 
     def save(self, *args, **kwargs):
+        self.phone_number = normalize_phone_number(self.phone_number)
+        if phone_number_conflict(self.phone_number, teacher=self):
+            raise ValidationError('This phone number is already registered to another portal account.')
         if not self.staff_id:
             current_year = timezone.now().year
             count = Teacher.objects.count() + 1
