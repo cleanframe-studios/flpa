@@ -31,7 +31,7 @@
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function () {
-                navigator.serviceWorker.register('{% static "portal/sw.js" %}')
+                navigator.serviceWorker.register('{% static "portal/sw.js" %}?v=20260908-notifications')
                     .then(function (registration) { console.log('Service worker registered. Scope:', registration.scope); })
                     .catch(function (error) { console.log('Service worker registration failed:', error); });
             });

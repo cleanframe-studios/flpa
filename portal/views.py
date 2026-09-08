@@ -1035,6 +1035,9 @@ def result_messaging_view(request):
 
 @login_required(login_url='login')
 def inbox_view(request):
+    if request.method == 'GET':
+        MessageRecipient.objects.filter(recipient_user=request.user, is_read=False).update(is_read=True)
+        Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
     if request.method == 'POST':
         action = request.POST.get('action')
         if action == 'mark_read':
@@ -1046,6 +1049,22 @@ def inbox_view(request):
         return redirect('inbox')
     recipients = MessageRecipient.objects.filter(recipient_user=request.user).select_related('message', 'message__sender').order_by('-message__timestamp')
     return render(request, 'portal/inbox.html', {'recipients': recipients})
+
+
+@login_required(login_url='login')
+def notification_feed_view(request):
+    notifications = Notification.objects.filter(
+        recipient=request.user,
+        is_read=False,
+    ).order_by('created_at')[:10]
+    return JsonResponse({
+        'notifications': [{
+            'id': notification.pk,
+            'title': notification.title,
+            'message': notification.message,
+            'link': notification.link or reverse('inbox'),
+        } for notification in notifications],
+    })
 
 
 MONTH_CHOICES = PayrollRun.MONTH_CHOICES
