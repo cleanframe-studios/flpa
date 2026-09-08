@@ -172,8 +172,7 @@ body {
     #portal-header,
     #sidebar,
     #sidebar-overlay,
-    #portal-footer,
-    #portal-support-link {
+    #portal-footer {
         display: none !important;
     }
 
