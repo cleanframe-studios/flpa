@@ -136,7 +136,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Media files configuration for uploaded passports
 MEDIA_URL = os.environ.get('MEDIA_URL', '/media/')
-MEDIA_ROOT = Path(os.environ.get('MEDIA_ROOT', str(BASE_DIR / 'media')))
+default_media_root = '/var/data/media' if os.environ.get('RENDER') else str(BASE_DIR / 'media')
+MEDIA_ROOT = Path(os.environ.get('MEDIA_ROOT', default_media_root))
 
 # Email configuration
 # Defaults to printing emails to the console in development. Set real SMTP
