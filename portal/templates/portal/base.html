@@ -679,6 +679,118 @@
             <div class="{% block content_width %}max-w-md{% endblock %} w-full">
     {% endif %}
 
+                <!-- Web Push Notification Script & UI -->
+                <script src="{% static 'portal/push-notifications.js' %}"></script>
+                
+                <!-- Notification Permission Banner -->
+                <div id="notification-permission-banner" class="notification-banner" style="display: none; margin-bottom: 16px;">
+                  <div class="notification-banner-content">
+                    <div class="notification-banner-text">
+                      <h4 style="margin: 0 0 4px 0; font-weight: 600; color: white;">Enable Lock-Screen Notifications</h4>
+                      <p style="margin: 0; font-size: 12px; opacity: 0.8; color: rgba(255,255,255,0.9);">Get instant alerts about assignments, messages, and important school updates</p>
+                    </div>
+                    <div class="notification-banner-actions">
+                      <button id="enable-notifications-btn" class="btn btn-sm btn-primary" style="padding: 6px 12px; background: white; color: #667eea; border: none; border-radius: 4px; font-weight: 600; cursor: pointer;">
+                        Enable
+                      </button>
+                      <button id="dismiss-notification-banner-btn" class="btn btn-sm btn-secondary" style="padding: 6px 12px; background: rgba(255,255,255,0.2); color: white; border: none; border-radius: 4px; font-weight: 600; cursor: pointer;">
+                        Not Now
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                
+                <style>
+                .notification-banner {
+                  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                  color: white;
+                  padding: 12px 16px;
+                  border-radius: 8px;
+                  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                }
+                
+                .notification-banner-content {
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  gap: 16px;
+                }
+                
+                .notification-banner-text {
+                  flex: 1;
+                }
+                
+                .notification-banner-actions {
+                  display: flex;
+                  gap: 8px;
+                  flex-shrink: 0;
+                }
+                
+                @media (max-width: 640px) {
+                  .notification-banner-content {
+                    flex-direction: column;
+                    align-items: flex-start;
+                  }
+                  
+                  .notification-banner-actions {
+                    width: 100%;
+                  }
+                  
+                  .notification-banner-actions .btn {
+                    flex: 1;
+                  }
+                }
+                </style>
+                
+                <script>
+                /**
+                 * Initialize Notification Permission UI for Existing Users
+                 * 
+                 * This shows a banner to users who haven't enabled notifications yet.
+                 * The banner only appears once per session.
+                 */
+                function initializeNotificationUI() {
+                  if (!window.pushNotifications || !pushNotifications.isSupported) {
+                    console.log('Web Push not supported in this browser');
+                    return;
+                  }
+
+                  // Check if user already has subscription
+                  pushNotifications.isSubscribed().then(function(isSubscribed) {
+                    const banner = document.getElementById('notification-permission-banner');
+                    
+                    // Show banner only if not subscribed and haven't dismissed recently
+                    if (!isSubscribed && !sessionStorage.getItem('notification-banner-dismissed')) {
+                      banner.style.display = 'block';
+                      
+                      // Enable button click handler
+                      document.getElementById('enable-notifications-btn').addEventListener('click', function() {
+                        pushNotifications.requestPermission().then(function() {
+                          banner.style.display = 'none';
+                          sessionStorage.setItem('notification-banner-dismissed', 'true');
+                          console.log('Push notifications enabled successfully');
+                        }).catch(function(error) {
+                          console.error('Failed to enable notifications:', error);
+                        });
+                      });
+                      
+                      // Dismiss button click handler
+                      document.getElementById('dismiss-notification-banner-btn').addEventListener('click', function() {
+                        banner.style.display = 'none';
+                        sessionStorage.setItem('notification-banner-dismissed', 'true');
+                      });
+                    }
+                  });
+                }
+
+                // Initialize when DOM is ready
+                if (document.readyState === 'loading') {
+                  document.addEventListener('DOMContentLoaded', initializeNotificationUI);
+                } else {
+                  initializeNotificationUI();
+                }
+                </script>
+
                 <!-- SINGLE CONTENT BLOCK -->
                 {% block content %}
                 {% endblock %}
