@@ -134,6 +134,10 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # AUTH_USER_MODEL = 'portal.CustomUser'
 
+# Keep explicitly remembered portal sessions across browser restarts.
+SESSION_COOKIE_AGE = int(os.environ.get('SESSION_COOKIE_AGE', 31536000))
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+
 # Media files configuration for uploaded passports
 MEDIA_URL = os.environ.get('MEDIA_URL', '/media/')
 MEDIA_ROOT = Path(os.environ.get('MEDIA_ROOT', str(BASE_DIR / 'media')))

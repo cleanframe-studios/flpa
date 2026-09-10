@@ -1227,7 +1227,7 @@ function toggleAppMoreDrawer() {
             const menu = section.querySelector('[id$="-menu"]');
             if (menu && (menu.id === 'app-users-menu' || menu.id === 'app-system-menu')) section.remove();
         });
-        order.slice().reverse().forEach(function (menuId) {
+        order.forEach(function (menuId) {
             const menu = document.getElementById(menuId);
             if (menu && menu.parentElement && menu.parentElement.classList.contains('app-command-section')) commandSections.appendChild(menu.parentElement);
         });
@@ -1464,6 +1464,7 @@ if ('serviceWorker' in navigator) {
                 console.log('Service worker registered. Scope:', registration.scope);
                 if (!window.fetch || !('Notification' in window)) return;
                 var seenKey = 'portal-notifications-shown-' + '{{ request.user.pk }}';
+                if (Notification.permission === 'default') Notification.requestPermission().catch(function () {});
                 var shown = {};
                 try { shown = JSON.parse(localStorage.getItem(seenKey) || '{}'); } catch (error) {}
                 function checkPortalNotifications() {

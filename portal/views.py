@@ -353,7 +353,7 @@ def login_view(request):
                 messages.warning(request, 'Login access is restricted to Primary 4 and above.')
                 return redirect('login')
             login(request, user)
-            request.session.set_expiry(1209600 if remember_me else 0)
+            request.session.set_expiry(settings.SESSION_COOKIE_AGE if remember_me else 0)
             return redirect(_login_destination(user))
         else:
             messages.error(request, 'Invalid username or password.')
@@ -1061,7 +1061,10 @@ def inbox_view(request):
         elif action == 'mark_all_read':
             MessageRecipient.objects.filter(recipient_user=request.user, is_read=False).update(is_read=True)
         return redirect('inbox')
-    recipients = MessageRecipient.objects.filter(recipient_user=request.user).select_related('message', 'message__sender').order_by('-message__timestamp')
+    recipients = MessageRecipient.objects.filter(
+        recipient_user=request.user,
+        message__timestamp__gte=request.user.date_joined,
+    ).select_related('message', 'message__sender').order_by('-message__timestamp')
     return render(request, 'portal/inbox.html', {'recipients': recipients})
 
 
@@ -1069,6 +1072,7 @@ def inbox_view(request):
 def notification_feed_view(request):
     notifications = Notification.objects.filter(
         recipient=request.user,
+        created_at__gte=request.user.date_joined,
         is_read=False,
     ).order_by('created_at')[:10]
     return JsonResponse({

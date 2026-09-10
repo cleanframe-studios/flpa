@@ -35,8 +35,11 @@ def notifications(request):
     first_name, last_name = _portal_name_parts(request.user)
     picture_url = _portal_picture_url(request.user)
     display_name = ' '.join(part for part in (last_name, first_name) if part) or request.user.username
-    recipients = MessageRecipient.objects.filter(recipient_user=request.user).select_related('message', 'message__sender')
-    alerts = Notification.objects.filter(recipient=request.user)
+    recipients = MessageRecipient.objects.filter(
+        recipient_user=request.user,
+        message__timestamp__gte=request.user.date_joined,
+    ).select_related('message', 'message__sender')
+    alerts = Notification.objects.filter(recipient=request.user, created_at__gte=request.user.date_joined)
     return {
         'unread_message_count': recipients.filter(is_read=False).count(),
         'recent_notifications': recipients.order_by('-message__timestamp')[:6],

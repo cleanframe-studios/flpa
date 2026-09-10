@@ -237,6 +237,19 @@ body {
     transform: translateY(0);
 }
 
+@media (display-mode: standalone), (display-mode: fullscreen) {
+    #app-more-drawer,
+    #staff-more-drawer {
+        padding-bottom: 0 !important;
+    }
+
+    #app-more-drawer > div,
+    #staff-more-drawer > div {
+        max-height: none !important;
+        height: 100% !important;
+    }
+}
+
 .app-command-link {
     display: block;
     border-radius: .75rem;

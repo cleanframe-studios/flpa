@@ -8,9 +8,12 @@
         <p class="text-xs font-bold uppercase tracking-[0.2em] text-blue-200">Notifications</p>
         <h1 class="mt-2 text-2xl font-black">My Inbox</h1>
       </div>
+      <div class="flex flex-wrap gap-2">
+        {% if request.user.is_staff or request.user.is_superuser or request.user.account_profile.role == 'admin' or request.user.account_profile.role == 'principal' %}<a href="{% url 'general_messaging' %}" class="rounded-full bg-emerald-500 px-4 py-2 text-xs font-bold text-white transition hover:bg-emerald-400">Send message</a>{% endif %}
       {% if recipients %}
-      <form method="post"><input type="hidden" name="action" value="mark_all_read">{% csrf_token %}<button type="submit" class="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-bold text-white transition hover:bg-white/20">Mark all as read</button></form>
+        <form method="post"><input type="hidden" name="action" value="mark_all_read">{% csrf_token %}<button type="submit" class="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-bold text-white transition hover:bg-white/20">Mark all as read</button></form>
       {% endif %}
+      </div>
     </header>
 
     <section class="space-y-3">
