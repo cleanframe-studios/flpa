@@ -116,6 +116,9 @@ def send_push_notification_to_user(user, title, body, link='/inbox/', tag=None):
                 vapid_private_key=settings.VAPID_PRIVATE_KEY,
                 vapid_claims={
                     'sub': f'mailto:{settings.VAPID_ADMIN_EMAIL}',
+                },
+                headers={
+                    'Urgency': 'high',
                 }
             )
             successful += 1

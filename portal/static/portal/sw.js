@@ -28,7 +28,8 @@ self.addEventListener('push', function (event) {
     badge: '/static/portal/images/logo.png',
     tag: notificationData.tag || 'push-notification',
     renotify: notificationData.renotify || false,
-    vibrate: [120, 60, 120],
+    vibrate: [300, 100, 300],
+    requireInteraction: true,
     data: {
       link: notificationData.link || '/inbox/',
       id: notificationData.id || null,
@@ -57,7 +58,8 @@ self.addEventListener('message', function (event) {
     badge: '/static/portal/images/logo.png',
     tag: 'portal-notification-' + notification.id,
     renotify: true,
-    vibrate: [120, 60, 120],
+    vibrate: [300, 100, 300],
+    requireInteraction: true,
     data: { link: notification.link || '/inbox/' },
     actions: [{ action: 'open', title: 'Open message' }],
   }));

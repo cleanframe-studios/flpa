@@ -1,5 +1,6 @@
 import json
 import csv
+import logging
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponseForbidden, JsonResponse, HttpResponse
 from django.urls import reverse
@@ -71,6 +72,7 @@ from .decorators import bursar_required, registrar_required, role_required, teac
 from .utils import log_security_action, send_registration_email, send_admission_approval_email
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 def create_portal_account(record, role, password_seed):
@@ -903,6 +905,8 @@ def _primary_login_classrooms():
 
 
 def _send_message(sender, subject, body, priority, recipient_users):
+    from .utils import send_push_notification_to_user
+    
     recipient_users = list(recipient_users)
     message = Message.objects.create(sender=sender, subject=subject, body=body, priority=priority)
     MessageRecipient.objects.bulk_create([
@@ -912,14 +916,44 @@ def _send_message(sender, subject, body, priority, recipient_users):
         Notification(recipient=user, title=subject, message=body, link=reverse('inbox'))
         for user in recipient_users
     ])
+    
+    # Explicitly send push notifications (bulk_create doesn't trigger signal handlers)
+    for user in recipient_users:
+        try:
+            send_push_notification_to_user(
+                user=user,
+                title=subject,
+                body=body,
+                link=reverse('inbox'),
+                tag=f'message-{message.id}',
+            )
+        except Exception as e:
+            logger.error(f'Failed to send push for message {message.id} to {user.username}: {str(e)}')
+    
     return message
 
 
 def _notify_users(recipient_users, title, message, link=''):
+    from .utils import send_push_notification_to_user
+    
+    recipient_users = list(recipient_users)
     Notification.objects.bulk_create([
         Notification(recipient=user, title=title, message=message, link=link)
         for user in recipient_users
     ])
+    
+    # Explicitly send push notifications (bulk_create doesn't trigger signal handlers)
+    for user in recipient_users:
+        try:
+            send_push_notification_to_user(
+                user=user,
+                title=title,
+                body=message,
+                link=link,
+                tag=f'notification-{title}-{user.id}',
+            )
+        except Exception as e:
+            logger.error(f'Failed to send push notification to {user.username}: {str(e)}')
 
 
 @login_required(login_url='login')
