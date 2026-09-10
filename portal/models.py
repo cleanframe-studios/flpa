@@ -933,3 +933,26 @@ class Payslip(models.Model):
 
     def __str__(self):
         return f"Payslip - {self.salary_profile.user.username} ({self.payroll_run})"
+
+
+class PushSubscription(models.Model):
+    """
+    Stores Web Push notification subscriptions linked to users.
+    Each subscription contains endpoint, p256dh key, and auth key provided by the browser.
+    """
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='push_subscriptions')
+    endpoint = models.URLField(max_length=500, unique=True)  # Browser's push service endpoint
+    p256dh = models.TextField()  # Elliptic curve Diffie–Hellman public key
+    auth = models.CharField(max_length=255)  # Authentication key for decryption
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'endpoint'], name='unique_user_endpoint'),
+        ]
+
+    def __str__(self):
+        return f'Push Subscription for {self.user.username} - {self.endpoint[:50]}'

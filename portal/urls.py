@@ -97,4 +97,9 @@ urlpatterns = [
     path('results/<int:student_pk>/', views.report_card_view, name='report_card'),
     path('class-subjects/', views.class_subjects_view, name='class_subjects'),
     path('manage-classes/', views.manage_classes_view, name='manage_classes'),
+    
+    # Web Push Notification endpoints
+    path('push/vapid-public-key/', views.get_vapid_public_key_view, name='get_vapid_public_key'),
+    path('push/subscribe/', views.register_push_subscription_view, name='register_push_subscription'),
+    path('push/unsubscribe/', views.unregister_push_subscription_view, name='unregister_push_subscription'),
 ]

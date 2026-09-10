@@ -64,6 +64,7 @@ from .models import (
     StaffSalaryProfile,
     PayrollRun,
     Payslip,
+    PushSubscription,
 )
 from django.db.models import Case, When, Value, IntegerField, Q, Max, Min, Exists, OuterRef, Sum, Avg, F
 from .decorators import bursar_required, registrar_required, role_required, teacher_required, principal_required
@@ -4752,3 +4753,88 @@ def staff_class_allocation_view(request):
         ).order_by('last_name', 'first_name'),
     }
     return render(request, 'portal/staff_class_allocation.html', context)
+
+
+# ============================================================================
+# Web Push Notification Endpoints
+# ============================================================================
+
+@login_required(login_url='login')
+@require_POST
+def register_push_subscription_view(request):
+    """
+    Register a new push subscription for the current user.
+    Expects JSON POST with: endpoint, p256dh, auth
+    """
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Invalid JSON'}, status=400)
+
+    endpoint = data.get('endpoint')
+    p256dh = data.get('p256dh')
+    auth = data.get('auth')
+
+    if not all([endpoint, p256dh, auth]):
+        return JsonResponse({'success': False, 'error': 'Missing required fields'}, status=400)
+
+    try:
+        subscription, created = PushSubscription.objects.update_or_create(
+            user=request.user,
+            endpoint=endpoint,
+            defaults={
+                'p256dh': p256dh,
+                'auth': auth,
+                'is_active': True,
+            }
+        )
+        return JsonResponse({
+            'success': True,
+            'message': 'Push subscription registered' if created else 'Push subscription updated',
+            'subscription_id': subscription.id,
+        })
+    except IntegrityError:
+        return JsonResponse({'success': False, 'error': 'Subscription endpoint already registered'}, status=400)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required(login_url='login')
+@require_POST
+def unregister_push_subscription_view(request):
+    """
+    Unregister a push subscription for the current user.
+    Expects JSON POST with: endpoint
+    """
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Invalid JSON'}, status=400)
+
+    endpoint = data.get('endpoint')
+    if not endpoint:
+        return JsonResponse({'success': False, 'error': 'Missing endpoint'}, status=400)
+
+    try:
+        subscription = PushSubscription.objects.get(user=request.user, endpoint=endpoint)
+        subscription.delete()
+        return JsonResponse({'success': True, 'message': 'Push subscription removed'})
+    except PushSubscription.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Subscription not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required(login_url='login')
+def get_vapid_public_key_view(request):
+    """
+    Retrieve the VAPID public key for client-side subscription.
+    This is needed by the service worker to request push notifications.
+    """
+    vapid_public_key = settings.VAPID_PUBLIC_KEY
+    if not vapid_public_key:
+        return JsonResponse(
+            {'error': 'VAPID public key not configured'},
+            status=500
+        )
+    return JsonResponse({'vapid_public_key': vapid_public_key})

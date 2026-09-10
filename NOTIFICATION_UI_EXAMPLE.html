@@ -1,0 +1,256 @@
+<!-- Web Push Notification UI Example
+
+This is a complete, ready-to-use HTML snippet that can be added to any 
+template to enable Web Push notifications. It includes:
+- Permission request button
+- Status display
+- Unsubscribe button
+- Example implementation
+
+Add this to your portal/templates/portal/base.html or any page template.
+-->
+
+<!-- Include the Push Notification Manager Script -->
+<script src="{% static 'portal/push-notifications.js' %}"></script>
+
+<!-- Notification Permission UI Component -->
+<div id="notification-permission-banner" class="notification-banner" style="display: none;">
+  <div class="notification-banner-content">
+    <div class="notification-banner-text">
+      <h4 style="margin: 0 0 4px 0; font-weight: 600;">Enable Lock-Screen Notifications</h4>
+      <p style="margin: 0; font-size: 12px; opacity: 0.8;">Get instant alerts about assignments, messages, and important school updates</p>
+    </div>
+    <div class="notification-banner-actions">
+      <button id="enable-notifications-btn" class="btn btn-sm btn-primary">
+        Enable
+      </button>
+      <button id="dismiss-notification-banner-btn" class="btn btn-sm btn-secondary">
+        Not Now
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+.notification-banner {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.notification-banner-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.notification-banner-text {
+  flex: 1;
+}
+
+.notification-banner-text h4 {
+  color: white;
+}
+
+.notification-banner-text p {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.notification-banner-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.notification-banner-actions .btn {
+  white-space: nowrap;
+}
+
+.notification-status {
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  display: inline-block;
+}
+
+.notification-status.enabled {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.notification-status.disabled {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+@media (max-width: 640px) {
+  .notification-banner-content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .notification-banner-actions {
+    width: 100%;
+  }
+  
+  .notification-banner-actions .btn {
+    flex: 1;
+  }
+}
+</style>
+
+<script>
+/**
+ * Initialize Notification Permission UI
+ * 
+ * This script handles:
+ * - Showing the permission banner on first visit
+ * - Remembering user's preference
+ * - Updating UI based on subscription status
+ * - Handling subscription/unsubscription
+ */
+
+// Check if we should show the notification banner
+function initializeNotificationUI() {
+  if (!pushNotifications.isSupported) {
+    console.log('Web Push not supported');
+    return;
+  }
+
+  // Check if user already has subscription
+  pushNotifications.isSubscribed().then(function(isSubscribed) {
+    const banner = document.getElementById('notification-permission-banner');
+    
+    // Show banner only if not subscribed and haven't dismissed recently
+    if (!isSubscribed && !sessionStorage.getItem('notification-banner-dismissed')) {
+      banner.style.display = 'block';
+    } else if (isSubscribed) {
+      updateNotificationStatus(true);
+    }
+  });
+}
+
+// Update UI status
+function updateNotificationStatus(isEnabled) {
+  const statusEl = document.getElementById('notification-status');
+  if (statusEl) {
+    if (isEnabled) {
+      statusEl.className = 'notification-status enabled';
+      statusEl.textContent = '✓ Notifications Enabled';
+    } else {
+      statusEl.className = 'notification-status disabled';
+      statusEl.textContent = '✗ Notifications Disabled';
+    }
+  }
+}
+
+// Handle enable notifications button
+document.getElementById('enable-notifications-btn').addEventListener('click', function() {
+  const btn = this;
+  btn.disabled = true;
+  btn.textContent = '⏳ Enabling...';
+
+  pushNotifications.requestPermission()
+    .then(function(subscription) {
+      console.log('✓ Notifications enabled');
+      document.getElementById('notification-permission-banner').style.display = 'none';
+      updateNotificationStatus(true);
+      
+      // Show success message
+      showNotificationMessage('✓ Notifications enabled! You will receive lock-screen alerts.', 'success');
+    })
+    .catch(function(error) {
+      btn.disabled = false;
+      btn.textContent = 'Enable';
+      
+      if (error === 'Permission denied') {
+        showNotificationMessage('✗ Notifications blocked. Enable in browser settings.', 'error');
+      } else {
+        showNotificationMessage('✗ Failed to enable notifications: ' + error, 'error');
+      }
+      console.error('Error enabling notifications:', error);
+    });
+});
+
+// Handle dismiss banner button
+document.getElementById('dismiss-notification-banner-btn').addEventListener('click', function() {
+  document.getElementById('notification-permission-banner').style.display = 'none';
+  sessionStorage.setItem('notification-banner-dismissed', 'true');
+});
+
+// Optional: Add unsubscribe functionality if you have a settings page
+if (document.getElementById('disable-notifications-btn')) {
+  document.getElementById('disable-notifications-btn').addEventListener('click', function() {
+    if (confirm('Disable notifications? You won\'t receive lock-screen alerts.')) {
+      pushNotifications.unsubscribeFromPushNotifications()
+        .then(function() {
+          updateNotificationStatus(false);
+          showNotificationMessage('✓ Notifications disabled', 'success');
+        })
+        .catch(function(error) {
+          showNotificationMessage('✗ Failed to disable: ' + error, 'error');
+        });
+    }
+  });
+}
+
+// Helper function to show temporary messages
+function showNotificationMessage(message, type) {
+  const messageEl = document.createElement('div');
+  messageEl.className = 'alert alert-' + (type === 'success' ? 'success' : 'danger');
+  messageEl.textContent = message;
+  messageEl.style.marginBottom = '16px';
+  
+  const container = document.querySelector('main') || document.body;
+  container.insertBefore(messageEl, container.firstChild);
+  
+  setTimeout(function() {
+    messageEl.remove();
+  }, 5000);
+}
+
+// Initialize on page load
+window.addEventListener('load', initializeNotificationUI);
+</script>
+
+<!-- Alternative: Simplified Example (without banner) -->
+<!--
+<button id="notifications-toggle" class="btn btn-primary">
+  <span id="notification-state-text">Enable Notifications</span>
+</button>
+
+<script>
+document.getElementById('notifications-toggle').addEventListener('click', function() {
+  pushNotifications.isSubscribed().then(function(isSubscribed) {
+    if (isSubscribed) {
+      pushNotifications.unsubscribeFromPushNotifications()
+        .then(() => updateToggleButton(false))
+        .catch(e => alert('Error: ' + e));
+    } else {
+      pushNotifications.requestPermission()
+        .then(() => updateToggleButton(true))
+        .catch(e => alert('Error: ' + e));
+    }
+  });
+});
+
+function updateToggleButton(isSubscribed) {
+  const btn = document.getElementById('notifications-toggle');
+  const text = document.getElementById('notification-state-text');
+  if (isSubscribed) {
+    btn.className = 'btn btn-success';
+    text.textContent = '✓ Notifications Enabled';
+  } else {
+    btn.className = 'btn btn-primary';
+    text.textContent = 'Enable Notifications';
+  }
+}
+</script>
+-->

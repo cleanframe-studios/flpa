@@ -61,6 +61,102 @@ def get_client_ip(request):
     return request.META.get('REMOTE_ADDR')
 
 
+# ============================================================================
+# Web Push Notification Utilities
+# ============================================================================
+
+def send_push_notification_to_user(user, title, body, link='/inbox/', tag=None):
+    """
+    Send a Web Push notification to a specific user.
+    
+    Args:
+        user: Django User instance
+        title: Notification title
+        body: Notification body/message
+        link: URL to navigate to when notification is clicked
+        tag: Unique tag to prevent duplicate notifications
+    
+    Returns:
+        tuple: (successful_count, failed_count)
+    """
+    from pywebpush import webpush
+    from .models import PushSubscription
+    
+    if not settings.VAPID_PUBLIC_KEY or not settings.VAPID_PRIVATE_KEY:
+        logger.warning('VAPID keys not configured, cannot send push notifications')
+        return (0, 0)
+    
+    subscriptions = PushSubscription.objects.filter(user=user, is_active=True)
+    
+    payload = {
+        'title': title,
+        'body': body,
+        'link': link,
+        'tag': tag or f'notification-{user.id}',
+        'id': None,
+    }
+    
+    import json
+    payload_json = json.dumps(payload)
+    
+    successful = 0
+    failed = 0
+    
+    for subscription in subscriptions:
+        try:
+            webpush(
+                subscription_info={
+                    'endpoint': subscription.endpoint,
+                    'keys': {
+                        'p256dh': subscription.p256dh,
+                        'auth': subscription.auth,
+                    }
+                },
+                data=payload_json,
+                vapid_private_key=settings.VAPID_PRIVATE_KEY,
+                vapid_claims={
+                    'sub': f'mailto:{settings.VAPID_ADMIN_EMAIL}',
+                }
+            )
+            successful += 1
+        except Exception as e:
+            logger.error(f'Failed to send push notification to {user.username}: {str(e)}')
+            # Mark subscription as inactive if endpoint is no longer valid
+            if 'Endpoint' in str(e) or '404' in str(e) or '410' in str(e):
+                subscription.is_active = False
+                subscription.save()
+            failed += 1
+    
+    return (successful, failed)
+
+
+def send_push_notification_to_multiple_users(users, title, body, link='/inbox/', tag=None):
+    """
+    Send a Web Push notification to multiple users.
+    
+    Args:
+        users: Queryset or list of Django User instances
+        title: Notification title
+        body: Notification body/message
+        link: URL to navigate to when notification is clicked
+        tag: Unique tag to prevent duplicate notifications
+    
+    Returns:
+        tuple: (total_successful, total_failed)
+    """
+    total_successful = 0
+    total_failed = 0
+    
+    for user in users:
+        successful, failed = send_push_notification_to_user(
+            user, title, body, link, tag
+        )
+        total_successful += successful
+        total_failed += failed
+    
+    return (total_successful, total_failed)
+
+
 def log_security_action(request, action_type, target, changes=None):
     if not request.user.is_authenticated:
         return None

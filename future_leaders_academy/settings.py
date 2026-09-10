@@ -156,3 +156,8 @@ EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', 10))
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'Future Leaders Academy <no-reply@futureleadersacademy.local>')
 CONTACT_EMAIL = os.environ.get('CONTACT_EMAIL', 'futureleadersacademy.fle10@gmail.com')
+
+# Web Push Notification Configuration (VAPID)
+VAPID_PUBLIC_KEY = os.environ.get('VAPID_PUBLIC_KEY', '')
+VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY', '')
+VAPID_ADMIN_EMAIL = os.environ.get('VAPID_ADMIN_EMAIL', 'admin@futureleadersacademy.local')
