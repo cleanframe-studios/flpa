@@ -771,6 +771,7 @@
                           console.log('Push notifications enabled successfully');
                         }).catch(function(error) {
                           console.error('Failed to enable notifications:', error);
+                          alert('Could not enable notifications: ' + (error && error.message ? error.message : error));
                         });
                       });
                       

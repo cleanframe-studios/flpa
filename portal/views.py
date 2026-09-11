@@ -4829,6 +4829,7 @@ def register_push_subscription_view(request):
                 'is_active': True,
             }
         )
+        print(f'PushSubscription saved for {request.user.username} (created={created})', flush=True)
         return JsonResponse({
             'success': True,
             'message': 'Push subscription registered' if created else 'Push subscription updated',
@@ -4873,6 +4874,7 @@ def get_vapid_public_key_view(request):
     This is needed by the service worker to request push notifications.
     """
     vapid_public_key = settings.VAPID_PUBLIC_KEY
+    print(f'VAPID key requested by {request.user.username}. Configured: {bool(vapid_public_key)}', flush=True)
     if not vapid_public_key:
         return JsonResponse(
             {'error': 'VAPID public key not configured'},
