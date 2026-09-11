@@ -13,7 +13,7 @@
 
 class PushNotificationManager {
   constructor() {
-    this.serviceWorkerPath = '/static/portal/sw.js';
+    this.serviceWorkerPath = '/static/portal/sw.js?v=3';
     this.vapidPublicKeyUrl = '/push/vapid-public-key/';
     this.subscribeUrl = '/push/subscribe/';
     this.unsubscribeUrl = '/push/unsubscribe/';
@@ -261,6 +261,18 @@ if (pushNotifications.isSupported && 'serviceWorker' in navigator) {
       scope: '/',
     }).then((registration) => {
       console.log('Service Worker registered automatically:', registration);
+
+      // Ensure any existing browser subscription is synced with the backend.
+      // Handles cases where the subscription exists in the browser but was
+      // never saved (or got lost) in the PushSubscription table.
+      return navigator.serviceWorker.ready.then((readyRegistration) => {
+        return readyRegistration.pushManager.getSubscription();
+      });
+    }).then((subscription) => {
+      if (!subscription) return;
+      return pushNotifications.sendSubscriptionToServer(subscription).then(() => {
+        console.log('Subscription sent to backend');
+      });
     }).catch((error) => {
       console.error('Service Worker registration failed:', error);
     });

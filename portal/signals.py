@@ -79,18 +79,26 @@ def send_push_notification_on_message_received(sender, instance, created, **kwar
     """
     if not created:
         return  # Only send push on creation
-    
+
+    from .models import PushSubscription
     from .utils import send_push_notification_to_user
-    
+
+    recipient = instance.recipient_user
+    print(f"Message saved. Checking subscriptions for {recipient.username}...")
+    subscriptions = PushSubscription.objects.filter(user=recipient, is_active=True)
+    print(f"Found {subscriptions.count()} subscriptions.")
+
     try:
         send_push_notification_to_user(
-            user=instance.recipient_user,
+            user=recipient,
             title=instance.message.subject,
             body=instance.message.body[:100],  # First 100 chars
             link='/inbox/',
             tag=f'message-{instance.message.id}',
         )
+        print("Push successful!")
     except Exception as e:
+        print(f"Push failed: {e}")
         import logging
         logger = logging.getLogger(__name__)
         logger.error(f'Failed to send push for message {instance.message.id}: {str(e)}')
