@@ -13,7 +13,7 @@
 
 class PushNotificationManager {
   constructor() {
-    this.serviceWorkerPath = '/static/portal/sw.js?v=3';
+    this.serviceWorkerPath = '/sw.js';
     this.vapidPublicKeyUrl = '/push/vapid-public-key/';
     this.subscribeUrl = '/push/subscribe/';
     this.unsubscribeUrl = '/push/unsubscribe/';

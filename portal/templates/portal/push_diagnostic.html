@@ -33,7 +33,7 @@
     log('Step 2: Current permission = ' + Notification.permission);
 
     log('Step 3: Registering service worker...');
-    navigator.serviceWorker.register('/static/portal/sw.js?v=3', { scope: '/' }).then(function (registration) {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(function (registration) {
       log('OK: Service worker registered. Scope = ' + registration.scope);
 
       log('Step 4: Requesting notification permission...');

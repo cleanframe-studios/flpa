@@ -1,6 +1,7 @@
 import json
 import csv
 import logging
+import os
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponseForbidden, JsonResponse, HttpResponse
 from django.urls import reverse
@@ -4887,3 +4888,16 @@ def get_vapid_public_key_view(request):
 def push_diagnostic_view(request):
     """Standalone page that walks through the push subscribe flow with on-screen logging (no devtools needed)."""
     return render(request, 'portal/push_diagnostic.html')
+
+
+def service_worker_view(request):
+    """
+    Serve sw.js from the site root so its default scope covers '/', not just '/static/portal/'.
+    Browsers reject `scope: '/'` registration for a script served from a static subpath.
+    """
+    sw_path = os.path.join(settings.BASE_DIR, 'portal', 'static', 'portal', 'sw.js')
+    with open(sw_path, 'rb') as f:
+        content = f.read()
+    response = HttpResponse(content, content_type='application/javascript')
+    response['Service-Worker-Allowed'] = '/'
+    return response
