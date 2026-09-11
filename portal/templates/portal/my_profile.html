@@ -12,7 +12,6 @@
     <div class="space-y-6 p-6 sm:p-8">
       <div><h3 class="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Personal and account details</h3><dl class="mt-4 grid gap-4 sm:grid-cols-2">
         <div class="rounded-2xl bg-slate-50 p-4"><dt class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Portal ID</dt><dd class="mt-1 font-bold text-slate-900">{{ profile_identifier }}</dd></div>
-        <div class="rounded-2xl bg-slate-50 p-4"><dt class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Username</dt><dd class="mt-1 font-bold text-slate-900">{{ request.user.username }}</dd></div>
         <div class="rounded-2xl bg-slate-50 p-4"><dt class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Email</dt><dd class="mt-1 break-words font-bold text-slate-900">{{ request.user.email|default:'Not provided' }}</dd></div>
         <div class="rounded-2xl bg-slate-50 p-4"><dt class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Phone number</dt><dd class="mt-1 font-bold text-slate-900">{{ record.phone_number|default:'Not provided' }}</dd></div>
         {% if record.first_name or record.last_name %}<div class="rounded-2xl bg-slate-50 p-4"><dt class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Full name</dt><dd class="mt-1 font-bold text-slate-900">{{ record.first_name }} {% if record.middle_name %}{{ record.middle_name }} {% elif record.other_name %}{{ record.other_name }} {% endif %}{{ record.last_name }}</dd></div>{% endif %}

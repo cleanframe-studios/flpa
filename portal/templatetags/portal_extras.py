@@ -48,6 +48,21 @@ def split(value, separator=','):
     return value.split(separator) if value else []
 
 
+@register.filter
+def user_display_name(user):
+    """Prefer the linked Teacher/Parent record's real name over the login username/ID."""
+    if not user:
+        return 'System'
+    teacher = getattr(user, 'teacher_record', None)
+    if teacher and (teacher.first_name or teacher.last_name):
+        return ' '.join(part for part in (teacher.first_name, teacher.last_name) if part).strip()
+    parent = getattr(user, 'parent_record', None)
+    if parent and getattr(parent, 'display_name', None):
+        return parent.display_name
+    full_name = user.get_full_name()
+    return full_name or user.username
+
+
 def _format_audit_value(value):
     if value is None or value == '':
         return None
