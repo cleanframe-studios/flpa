@@ -1574,33 +1574,7 @@ if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('{% static "portal/sw.js" %}?v=20260908-notifications')
             .then(function (registration) {
                 console.log('Service worker registered. Scope:', registration.scope);
-                if (!window.fetch || !('Notification' in window)) return;
-                var seenKey = 'portal-notifications-shown-' + '{{ request.user.pk }}';
                 if (Notification.permission === 'default') Notification.requestPermission().catch(function () {});
-                var shown = {};
-                try { shown = JSON.parse(localStorage.getItem(seenKey) || '{}'); } catch (error) {}
-                function checkPortalNotifications() {
-                    fetch('{% url "notification_feed" %}', { credentials: 'same-origin' })
-                        .then(function (response) { return response.ok ? response.json() : null; })
-                        .then(function (data) {
-                            if (!data || !data.notifications || !data.notifications.length) return;
-                            var fresh = data.notifications.filter(function (item) { return !shown[item.id]; });
-                            if (!fresh.length) return;
-                            var show = function () {
-                                if (!registration.active) return;
-                                fresh.forEach(function (item) {
-                                    shown[item.id] = true;
-                                    registration.active.postMessage({ type: 'portal-notification', notification: item });
-                                });
-                                try { localStorage.setItem(seenKey, JSON.stringify(shown)); } catch (error) {}
-                            };
-                            if (Notification.permission === 'granted') show();
-                            else if (Notification.permission === 'default') Notification.requestPermission().then(function (permission) { if (permission === 'granted') show(); });
-                        })
-                        .catch(function () {});
-                }
-                checkPortalNotifications();
-                window.setInterval(checkPortalNotifications, 30000);
             })
             .catch(function (error) { console.log('Service worker registration failed:', error); });
     });

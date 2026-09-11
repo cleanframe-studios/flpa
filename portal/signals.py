@@ -1,7 +1,7 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-from .models import AcademicTerm, FeeStructure, Student, StudentFeeAccount, TermEnrollment, Notification
+from .models import AcademicTerm, FeeStructure, Student, StudentFeeAccount, TermEnrollment, Notification, MessageRecipient
 
 
 @receiver(post_save, sender=AcademicTerm)
@@ -69,3 +69,28 @@ def send_push_notification_on_notification_created(sender, instance, created, **
         import logging
         logger = logging.getLogger(__name__)
         logger.error(f'Failed to send push notification for notification {instance.id}: {str(e)}')
+
+
+@receiver(post_save, sender=MessageRecipient)
+def send_push_notification_on_message_received(sender, instance, created, **kwargs):
+    """
+    Automatically send a Web Push notification when a message is sent to a user.
+    This triggers the millisecond the message recipient is saved to the database.
+    """
+    if not created:
+        return  # Only send push on creation
+    
+    from .utils import send_push_notification_to_user
+    
+    try:
+        send_push_notification_to_user(
+            user=instance.recipient_user,
+            title=instance.message.subject,
+            body=instance.message.body[:100],  # First 100 chars
+            link='/inbox/',
+            tag=f'message-{instance.message.id}',
+        )
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f'Failed to send push for message {instance.message.id}: {str(e)}')

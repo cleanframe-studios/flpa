@@ -48,23 +48,6 @@ self.addEventListener('push', function (event) {
   );
 });
 
-// Handle message events from client (polling-based notifications)
-self.addEventListener('message', function (event) {
-  if (!event.data || event.data.type !== 'portal-notification') return;
-  var notification = event.data.notification || {};
-  event.waitUntil(self.registration.showNotification(notification.title || 'Future Leaders Academy', {
-    body: notification.message || 'You have a new portal message.',
-    icon: '/static/portal/images/logo.png',
-    badge: '/static/portal/images/logo.png',
-    tag: 'portal-notification-' + notification.id,
-    renotify: true,
-    vibrate: [300, 100, 300],
-    requireInteraction: true,
-    data: { link: notification.link || '/inbox/' },
-    actions: [{ action: 'open', title: 'Open message' }],
-  }));
-});
-
 // Handle notification clicks
 self.addEventListener('notificationclick', function (event) {
   event.notification.close();
