@@ -1,0 +1,81 @@
+{% extends 'portal/base.html' %}
+{% load static %}
+{% block content %}
+<div style="max-width: 640px; margin: 0 auto; padding: 16px;">
+  <h2 style="margin-bottom: 8px;">Push Notification Diagnostic</h2>
+  <p style="opacity: 0.8; font-size: 14px;">Tap the button below. Every step will print here on screen so you can read exactly what happens.</p>
+
+  <button id="diag-run-btn" style="width: 100%; padding: 14px; font-size: 16px; font-weight: 700; background: #667eea; color: white; border: none; border-radius: 8px; margin: 12px 0; cursor: pointer;">
+    Run Full Diagnostic &amp; Enable Push
+  </button>
+
+  <div id="diag-log" style="background: #0f172a; color: #a3e635; font-family: monospace; font-size: 13px; padding: 12px; border-radius: 8px; min-height: 200px; white-space: pre-wrap; word-break: break-word;"></div>
+</div>
+
+<script src="{% static 'portal/push-notifications.js' %}"></script>
+<script>
+(function () {
+  var logEl = document.getElementById('diag-log');
+  function log(message) {
+    logEl.textContent += message + '\n';
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  document.getElementById('diag-run-btn').addEventListener('click', function () {
+    logEl.textContent = '';
+    log('Step 1: Checking browser support...');
+
+    if (!('serviceWorker' in navigator)) { log('FAILED: serviceWorker not supported in this browser.'); return; }
+    if (!('PushManager' in window)) { log('FAILED: PushManager not supported in this browser.'); return; }
+    if (!('Notification' in window)) { log('FAILED: Notification API not supported in this browser.'); return; }
+    log('OK: Browser supports Service Worker, PushManager, and Notification.');
+
+    log('Step 2: Current permission = ' + Notification.permission);
+
+    log('Step 3: Registering service worker...');
+    navigator.serviceWorker.register('/static/portal/sw.js?v=3', { scope: '/' }).then(function (registration) {
+      log('OK: Service worker registered. Scope = ' + registration.scope);
+
+      log('Step 4: Requesting notification permission...');
+      return Notification.requestPermission().then(function (permission) {
+        log('Permission result = ' + permission);
+        if (permission !== 'granted') {
+          throw new Error('Permission not granted (' + permission + '). Check phone Settings > Apps > Chrome > Notifications, and site settings for this URL.');
+        }
+        return registration;
+      });
+    }).then(function (registration) {
+      log('Step 5: Fetching VAPID public key from server...');
+      return fetch('/push/vapid-public-key/', { credentials: 'same-origin' }).then(function (response) {
+        log('Server responded with status ' + response.status);
+        return response.json().then(function (data) {
+          if (!response.ok) throw new Error('Server error: ' + (data.error || response.status));
+          if (!data.vapid_public_key) throw new Error('Server returned an empty VAPID public key. VAPID_PUBLIC_KEY env var is likely missing on the server.');
+          log('OK: Got VAPID public key (starts with ' + data.vapid_public_key.substring(0, 8) + '...)');
+          return { registration: registration, vapidKey: data.vapid_public_key };
+        });
+      });
+    }).then(function (ctx) {
+      log('Step 6: Subscribing to push manager...');
+      return ctx.registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: pushNotifications.urlBase64ToUint8Array(ctx.vapidKey),
+      }).then(function (subscription) {
+        log('OK: Browser subscription created. Endpoint = ' + subscription.endpoint.substring(0, 50) + '...');
+        return subscription;
+      });
+    }).then(function (subscription) {
+      log('Step 7: Sending subscription to server...');
+      return pushNotifications.sendSubscriptionToServer(subscription).then(function (result) {
+        log('OK: Server saved subscription. Response = ' + JSON.stringify(result));
+        log('');
+        log('SUCCESS! Push notifications are now enabled on this device.');
+      });
+    }).catch(function (error) {
+      log('');
+      log('ERROR: ' + (error && error.message ? error.message : error));
+    });
+  });
+})();
+</script>
+{% endblock %}

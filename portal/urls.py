@@ -102,4 +102,5 @@ urlpatterns = [
     path('push/vapid-public-key/', views.get_vapid_public_key_view, name='get_vapid_public_key'),
     path('push/subscribe/', views.register_push_subscription_view, name='register_push_subscription'),
     path('push/unsubscribe/', views.unregister_push_subscription_view, name='unregister_push_subscription'),
+    path('push/diagnostic/', views.push_diagnostic_view, name='push_diagnostic'),
 ]

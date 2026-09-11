@@ -4881,3 +4881,9 @@ def get_vapid_public_key_view(request):
             status=500
         )
     return JsonResponse({'vapid_public_key': vapid_public_key})
+
+
+@login_required(login_url='login')
+def push_diagnostic_view(request):
+    """Standalone page that walks through the push subscribe flow with on-screen logging (no devtools needed)."""
+    return render(request, 'portal/push_diagnostic.html')
