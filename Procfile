@@ -1,1 +1,1 @@
-web: gunicorn future_leaders_academy.wsgi --log-file -
+web: PYTHONUNBUFFERED=1 gunicorn future_leaders_academy.wsgi --log-file -

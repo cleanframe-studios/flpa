@@ -919,7 +919,7 @@ def _send_message(sender, subject, body, priority, recipient_users):
     
     # Explicitly send push notifications (bulk_create doesn't trigger signal handlers)
     for user in recipient_users:
-        print(f'Message saved. Checking subscriptions for {user.username}...')
+        print(f'Message saved. Checking subscriptions for {user.username}...', flush=True)
         try:
             send_push_notification_to_user(
                 user=user,
@@ -928,10 +928,10 @@ def _send_message(sender, subject, body, priority, recipient_users):
                 link=reverse('inbox'),
                 tag=f'message-{message.id}',
             )
-            print('Push successful!')
+            print('Push successful!', flush=True)
         except Exception as e:
             logger.error(f'Failed to send push for message {message.id} to {user.username}: {str(e)}')
-            print(f'Push failed: {e}')
+            print(f'Push failed: {e}', flush=True)
     
     return message
 
@@ -947,7 +947,7 @@ def _notify_users(recipient_users, title, message, link=''):
     
     # Explicitly send push notifications (bulk_create doesn't trigger signal handlers)
     for user in recipient_users:
-        print(f'Message saved. Checking subscriptions for {user.username}...')
+        print(f'Message saved. Checking subscriptions for {user.username}...', flush=True)
         try:
             send_push_notification_to_user(
                 user=user,
@@ -956,9 +956,10 @@ def _notify_users(recipient_users, title, message, link=''):
                 link=link,
                 tag=f'notification-{title}-{user.id}',
             )
-            print('Push successful!')
+            print('Push successful!', flush=True)
         except Exception as e:
             logger.error(f'Failed to send push notification to {user.username}: {str(e)}')
+            print(f'Push failed: {e}', flush=True)
             print(f'Push failed: {e}')
 
 
