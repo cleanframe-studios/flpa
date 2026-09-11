@@ -975,6 +975,12 @@ def notification_view(request, pk):
 @login_required(login_url='login')
 @role_required(['Admin', 'Principal'])
 def general_messaging_view(request):
+    if request.method == 'POST' and request.POST.get('action') == 'delete_message':
+        Message.objects.filter(pk=request.POST.get('message_id'), sender=request.user).delete()
+        return redirect('general_messaging')
+    if request.method == 'POST' and request.POST.get('action') == 'clear_all':
+        Message.objects.filter(sender=request.user).delete()
+        return redirect('general_messaging')
     if request.method == 'POST':
         subject = request.POST.get('subject', '').strip()
         body = request.POST.get('body', '').strip()
@@ -1103,6 +1109,8 @@ def inbox_view(request):
             recipient.save(update_fields=['is_read'])
         elif action == 'mark_all_read':
             MessageRecipient.objects.filter(recipient_user=request.user, is_read=False).update(is_read=True)
+        elif action == 'clear_all':
+            MessageRecipient.objects.filter(recipient_user=request.user).delete()
         return redirect('inbox')
     recipients = MessageRecipient.objects.filter(
         recipient_user=request.user,
