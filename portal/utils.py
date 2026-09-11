@@ -87,6 +87,8 @@ def send_push_notification_to_user(user, title, body, link='/inbox/', tag=None):
         return (0, 0)
     
     subscriptions = PushSubscription.objects.filter(user=user, is_active=True)
+    print(f'Message saved. Checking subscriptions for {user.username}...')
+    print(f'Found {subscriptions.count()} subscriptions.')
     
     payload = {
         'title': title,
@@ -122,8 +124,10 @@ def send_push_notification_to_user(user, title, body, link='/inbox/', tag=None):
                 }
             )
             successful += 1
+            print('Push successful!')
         except Exception as e:
             logger.error(f'Failed to send push notification to {user.username}: {str(e)}')
+            print(f'Push failed: {e}')
             # Mark subscription as inactive if endpoint is no longer valid
             if 'Endpoint' in str(e) or '404' in str(e) or '410' in str(e):
                 subscription.is_active = False
