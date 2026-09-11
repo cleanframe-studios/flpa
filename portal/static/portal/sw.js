@@ -24,12 +24,13 @@ self.addEventListener('push', function (event) {
 
   var options = {
     body: notificationData.body || 'You have a new notification.',
-    icon: '/static/portal/images/logo.png',
-    badge: '/static/portal/images/logo.png',
+    icon: '/static/portal/logo.png',
+    badge: '/static/portal/logo.png',
     tag: notificationData.tag || 'push-notification',
     renotify: notificationData.renotify || false,
     vibrate: [300, 100, 300],
     requireInteraction: true,
+    silent: false,
     data: {
       link: notificationData.link || '/inbox/',
       id: notificationData.id || null,
