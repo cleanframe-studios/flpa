@@ -42,6 +42,10 @@ BOOK_DATA = {
 # Basic 1-4 share the same list as Primary 1
 for classroom_name in ('Primary 2', 'Primary 3', 'Primary 4'):
     BOOK_DATA[classroom_name] = BOOK_DATA['Primary 1']
+# KG 1 shares the same list as KG 2
+BOOK_DATA['KG 1'] = BOOK_DATA['KG 2']
+# Nursery 2 shares the same list as Nursery 1
+BOOK_DATA['Nursery 2'] = BOOK_DATA['Nursery 1']
 
 
 class Command(BaseCommand):

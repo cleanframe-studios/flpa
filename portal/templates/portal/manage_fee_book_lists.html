@@ -11,11 +11,16 @@
 
     <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
       <form method="GET" class="flex flex-wrap items-end gap-3">
-        <div class="flex flex-col space-y-1.5">
+        <div class="flex flex-col space-y-1.5 w-full sm:w-64">
           <label for="id_classroom_select" class="text-xs font-bold uppercase tracking-wider text-slate-500">Class</label>
-          <select name="classroom" id="id_classroom_select" onchange="this.form.submit()" class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700">
-            {% for classroom in classrooms %}<option value="{{ classroom.id }}" {% if selected_classroom and classroom.id == selected_classroom.id %}selected{% endif %}>{{ classroom.name }}</option>{% endfor %}
-          </select>
+          <div class="relative">
+            <select name="classroom" id="id_classroom_select" onchange="this.form.submit()" class="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-semibold text-slate-700 shadow-sm transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 cursor-pointer">
+              {% for classroom in classrooms %}<option value="{{ classroom.id }}" {% if selected_classroom and classroom.id == selected_classroom.id %}selected{% endif %}>{{ classroom.name }}</option>{% endfor %}
+            </select>
+            <div class="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400">
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </div>
+          </div>
         </div>
       </form>
     </section>
@@ -28,19 +33,35 @@
       </div>
       <div class="mt-4 divide-y divide-slate-100 rounded-2xl border border-slate-100">
         {% for item in book_items %}
-        <form method="POST" class="flex flex-wrap items-center gap-3 px-4 py-3">{% csrf_token %}<input type="hidden" name="action" value="edit_book_item"><input type="hidden" name="item_id" value="{{ item.pk }}">
-          <input type="text" name="title" value="{{ item.title }}" required class="flex-1 min-w-[140px] rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold">
-          <input type="number" step="0.01" name="price" value="{{ item.price }}" required class="w-32 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold">
-          <button type="submit" class="rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700">Save</button>
-          <button type="submit" formaction="{% url 'manage_fee_book_lists' %}?classroom={{ selected_classroom.pk }}" name="action" value="delete_book_item" onclick="return confirm('Delete this book?');" class="rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-100">Delete</button>
-        </form>
-        {% empty %}<p class="p-4 text-sm text-slate-500">No books added yet for this class.</p>
+        <div class="flex flex-wrap items-center gap-3 px-4 py-3">
+          <form method="POST" class="flex flex-1 flex-wrap items-center gap-3 min-w-[240px]">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="edit_book_item">
+            <input type="hidden" name="item_id" value="{{ item.pk }}">
+            <input type="hidden" name="classroom" value="{{ selected_classroom.pk }}">
+            <input type="text" name="title" value="{{ item.title }}" required class="flex-1 min-w-[140px] rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold">
+            <input type="number" step="0.01" name="price" value="{{ item.price }}" required class="w-32 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold">
+            <button type="submit" class="rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700 active:scale-95 transition-transform">Save</button>
+          </form>
+          <form id="delete-form-{{ item.pk }}" method="POST" action="{% url 'manage_fee_book_lists' %}?classroom={{ selected_classroom.pk }}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="delete_book_item">
+            <input type="hidden" name="item_id" value="{{ item.pk }}">
+            <input type="hidden" name="classroom" value="{{ selected_classroom.pk }}">
+            <button type="button" onclick="openDeleteBookModal(document.getElementById('delete-form-{{ item.pk }}'), '{{ item.title|escapejs }}')" class="rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-100 active:scale-95 transition-all">Delete</button>
+          </form>
+        </div>
+        {% empty %}
+        <p class="p-4 text-sm text-slate-500">No books added yet for this class.</p>
         {% endfor %}
       </div>
-      <form method="POST" class="mt-4 flex flex-wrap items-end gap-3 rounded-2xl border border-dashed border-slate-300 p-4">{% csrf_token %}<input type="hidden" name="action" value="add_book_item"><input type="hidden" name="classroom" value="{{ selected_classroom.pk }}">
+      <form method="POST" class="mt-4 flex flex-wrap items-end gap-3 rounded-2xl border border-dashed border-slate-300 p-4">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add_book_item">
+        <input type="hidden" name="classroom" value="{{ selected_classroom.pk }}">
         <input type="text" name="title" placeholder="e.g. Mathematics" required class="flex-1 min-w-[140px] rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
         <input type="number" step="0.01" name="price" placeholder="Price" required class="w-32 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-        <button type="submit" class="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700">Add Book</button>
+        <button type="submit" class="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 active:scale-95 transition-transform">Add Book</button>
       </form>
     </section>
     {% else %}
@@ -48,4 +69,68 @@
     {% endif %}
   </div>
 </div>
+
+<!-- CUSTOM DELETE CONFIRMATION MODAL CARD -->
+<div id="deleteBookModal" class="fixed inset-0 z-[12000] hidden items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm transition-opacity" role="dialog" aria-modal="true" aria-labelledby="deleteBookModalTitle">
+  <div class="bg-slate-900/90 border border-white/10 rounded-3xl p-6 max-h-[90vh] max-w-sm w-full overflow-y-auto shadow-2xl shadow-black/50 backdrop-blur-xl space-y-4 transform transition-all scale-95 duration-200 text-center" id="deleteBookModalCard">
+    <div class="w-12 h-12 rounded-2xl bg-red-500/20 text-red-300 flex items-center justify-center font-bold text-xl mx-auto shadow-inner">
+      ⚠️
+    </div>
+    <div class="space-y-1">
+      <h3 class="text-base font-bold text-white" id="deleteBookModalTitle">Delete Book?</h3>
+      <p class="text-xs text-slate-300 leading-relaxed" id="deleteBookModalDesc">Are you sure you want to remove this book from the list?</p>
+    </div>
+    <div class="flex space-x-3 pt-2">
+      <button type="button" onclick="closeDeleteBookModal()" class="flex-1 rounded-full border border-slate-600 bg-transparent hover:bg-slate-700 active:scale-95 text-slate-300 font-semibold py-2.5 text-xs transition-all">Cancel</button>
+      <button type="button" id="confirmDeleteBookBtn" class="flex-1 rounded-full bg-red-600 hover:bg-red-500 active:scale-95 text-white font-semibold py-2.5 text-xs transition-all shadow-lg shadow-red-600/30">Yes, Delete</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentDeleteForm = null;
+
+function openDeleteBookModal(form, bookTitle) {
+  currentDeleteForm = form;
+  const modal = document.getElementById('deleteBookModal');
+  const card = document.getElementById('deleteBookModalCard');
+  const desc = document.getElementById('deleteBookModalDesc');
+  if (bookTitle) {
+    desc.textContent = 'Are you sure you want to delete "' + bookTitle + '"? This action cannot be undone.';
+  } else {
+    desc.textContent = 'Are you sure you want to delete this book? This action cannot be undone.';
+  }
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  setTimeout(() => {
+    card.classList.remove('scale-95', 'opacity-0');
+    card.classList.add('scale-100', 'opacity-100');
+  }, 10);
+}
+
+function closeDeleteBookModal() {
+  const modal = document.getElementById('deleteBookModal');
+  const card = document.getElementById('deleteBookModalCard');
+  card.classList.remove('scale-100', 'opacity-100');
+  card.classList.add('scale-95', 'opacity-0');
+  setTimeout(() => {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    currentDeleteForm = null;
+  }, 150);
+}
+
+document.getElementById('confirmDeleteBookBtn').addEventListener('click', function() {
+  if (currentDeleteForm) {
+    currentDeleteForm.submit();
+  }
+});
+
+// Close on backdrop click
+document.getElementById('deleteBookModal').addEventListener('click', function(e) {
+  if (e.target === this) {
+    closeDeleteBookModal();
+  }
+});
+</script>
 {% endblock %}
