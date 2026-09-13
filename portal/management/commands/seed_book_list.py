@@ -52,7 +52,14 @@ class Command(BaseCommand):
         updated_count = 0
         skipped_classes = []
         for classroom_name, items in BOOK_DATA.items():
-            classroom = ClassRoom.objects.filter(name=classroom_name).first()
+            classroom = (
+                ClassRoom.objects.filter(name__iexact=classroom_name).first()
+                or ClassRoom.objects.filter(name__icontains=classroom_name).first()
+            )
+            # If "Primary X", also try searching for "Basic X"
+            if not classroom and 'Primary' in classroom_name:
+                alt_name = classroom_name.replace('Primary', 'Basic')
+                classroom = ClassRoom.objects.filter(name__iexact=alt_name).first() or ClassRoom.objects.filter(name__icontains=alt_name).first()
             if not classroom:
                 skipped_classes.append(classroom_name)
                 continue

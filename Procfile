@@ -1,1 +1,1 @@
-web: PYTHONUNBUFFERED=1 gunicorn future_leaders_academy.wsgi --log-file -
+web: python manage.py migrate --noinput && PYTHONUNBUFFERED=1 gunicorn future_leaders_academy.wsgi --log-file -
