@@ -67,7 +67,6 @@ from .models import (
     PayrollRun,
     Payslip,
     PushSubscription,
-    FeeItem,
     BookItem,
 )
 from django.db.models import Case, When, Value, IntegerField, Q, Max, Min, Exists, OuterRef, Sum, Avg, F
@@ -1570,22 +1569,12 @@ def parent_bursary_view(request):
 
 
 def classroom_fee_book_breakdown(classroom):
-    """Return the itemized fee/book breakdown for a classroom, split into compulsory/optional with totals."""
+    """Return the itemized book list for a classroom, with a computed total."""
     if not classroom:
-        return {
-            'compulsory_fee_items': [], 'optional_fee_items': [], 'book_items': [],
-            'total_compulsory_fees': Decimal('0'), 'total_optional_fees': Decimal('0'), 'total_books': Decimal('0'),
-        }
-    fee_items = list(classroom.fee_items.order_by('is_optional', 'id'))
-    compulsory_fee_items = [item for item in fee_items if not item.is_optional]
-    optional_fee_items = [item for item in fee_items if item.is_optional]
+        return {'book_items': [], 'total_books': Decimal('0')}
     book_items = list(classroom.book_items.order_by('id'))
     return {
-        'compulsory_fee_items': compulsory_fee_items,
-        'optional_fee_items': optional_fee_items,
         'book_items': book_items,
-        'total_compulsory_fees': sum((item.amount for item in compulsory_fee_items), Decimal('0')),
-        'total_optional_fees': sum((item.amount for item in optional_fee_items), Decimal('0')),
         'total_books': sum((item.price for item in book_items), Decimal('0')),
     }
 
@@ -2655,25 +2644,7 @@ def manage_fee_book_lists(request):
     if request.method == 'POST':
         action = request.POST.get('action')
         try:
-            if action == 'add_fee_item':
-                FeeItem.objects.create(
-                    target_class=get_object_or_404(ClassRoom, pk=request.POST.get('classroom')),
-                    description=request.POST.get('description', '').strip(),
-                    amount=Decimal(request.POST.get('amount', '0')),
-                    is_optional=request.POST.get('is_optional') == 'on',
-                )
-                messages.success(request, 'Fee item added successfully.')
-            elif action == 'edit_fee_item':
-                item = get_object_or_404(FeeItem, pk=request.POST.get('item_id'))
-                item.description = request.POST.get('description', '').strip()
-                item.amount = Decimal(request.POST.get('amount', '0'))
-                item.is_optional = request.POST.get('is_optional') == 'on'
-                item.save()
-                messages.success(request, 'Fee item updated successfully.')
-            elif action == 'delete_fee_item':
-                get_object_or_404(FeeItem, pk=request.POST.get('item_id')).delete()
-                messages.success(request, 'Fee item deleted successfully.')
-            elif action == 'add_book_item':
+            if action == 'add_book_item':
                 BookItem.objects.create(
                     target_class=get_object_or_404(ClassRoom, pk=request.POST.get('classroom')),
                     title=request.POST.get('title', '').strip(),

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Student, Teacher, AttendanceRecord, Parent, Subject, ClassRoom, ClassRoomSubject, CBTExam, CBTQuestion, CBTAttempt, CBTResponse, SubjectResult, AccountProfile, StudentTermRecord, FeeStructure, StudentFeeAccount, FeePayment, SchoolPaymentAccount, AdmissionCampaign, Applicant, Message, MessageRecipient, Notification, StaffSalaryProfile, PayrollRun, Payslip, FeeItem, BookItem
+from .models import Student, Teacher, AttendanceRecord, Parent, Subject, ClassRoom, ClassRoomSubject, CBTExam, CBTQuestion, CBTAttempt, CBTResponse, SubjectResult, AccountProfile, StudentTermRecord, FeeStructure, StudentFeeAccount, FeePayment, SchoolPaymentAccount, AdmissionCampaign, Applicant, Message, MessageRecipient, Notification, StaffSalaryProfile, PayrollRun, Payslip, BookItem
 
 admin.site.register(Student)
 admin.site.register(Teacher)
@@ -41,14 +41,6 @@ admin.site.register(Notification)
 admin.site.register(StaffSalaryProfile)
 admin.site.register(PayrollRun)
 admin.site.register(Payslip)
-
-
-@admin.register(FeeItem)
-class FeeItemAdmin(admin.ModelAdmin):
-	list_display = ('target_class', 'description', 'amount', 'is_optional')
-	list_filter = ('target_class', 'is_optional')
-	search_fields = ('description',)
-	list_editable = ('amount', 'is_optional')
 
 
 @admin.register(BookItem)
