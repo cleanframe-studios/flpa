@@ -67,6 +67,8 @@ from .models import (
     PayrollRun,
     Payslip,
     PushSubscription,
+    FeeItem,
+    BookItem,
 )
 from django.db.models import Case, When, Value, IntegerField, Q, Max, Min, Exists, OuterRef, Sum, Avg, F
 from .decorators import bursar_required, registrar_required, role_required, teacher_required, principal_required
@@ -1459,6 +1461,8 @@ def teacher_dashboard_view(request):
     if not teacher:
         return redirect('dashboard')
     classes = teacher.assigned_class.all()
+    for classroom in classes:
+        classroom.fee_book_breakdown = classroom_fee_book_breakdown(classroom)
     return render(request, 'portal/teacher_dashboard.html', {
         'teacher': teacher,
         'classes': classes,
@@ -1551,6 +1555,7 @@ def parent_bursary_view(request):
         child.fee_accounts_list = list(child.fee_accounts.select_related('term', 'session').prefetch_related('payments').order_by('-term__start_date'))
         child.outstanding_balance = student_outstanding_balance(child, active_term)
         child.is_cleared = child.outstanding_balance <= 0
+        child.fee_book_breakdown = classroom_fee_book_breakdown(child.current_class)
         for account in child.fee_accounts_list:
             account.is_current_term = bool(active_term and account.term_id == active_term.pk)
             account.is_rollover_debt = bool(not account.is_current_term and account.balance > 0)
@@ -1562,6 +1567,27 @@ def parent_bursary_view(request):
             ('Books / Uniform', 'Providus Bank', '6507146199', 'Funmilayo Fasina'),
         ],
     })
+
+
+def classroom_fee_book_breakdown(classroom):
+    """Return the itemized fee/book breakdown for a classroom, split into compulsory/optional with totals."""
+    if not classroom:
+        return {
+            'compulsory_fee_items': [], 'optional_fee_items': [], 'book_items': [],
+            'total_compulsory_fees': Decimal('0'), 'total_optional_fees': Decimal('0'), 'total_books': Decimal('0'),
+        }
+    fee_items = list(classroom.fee_items.order_by('is_optional', 'id'))
+    compulsory_fee_items = [item for item in fee_items if not item.is_optional]
+    optional_fee_items = [item for item in fee_items if item.is_optional]
+    book_items = list(classroom.book_items.order_by('id'))
+    return {
+        'compulsory_fee_items': compulsory_fee_items,
+        'optional_fee_items': optional_fee_items,
+        'book_items': book_items,
+        'total_compulsory_fees': sum((item.amount for item in compulsory_fee_items), Decimal('0')),
+        'total_optional_fees': sum((item.amount for item in optional_fee_items), Decimal('0')),
+        'total_books': sum((item.price for item in book_items), Decimal('0')),
+    }
 
 
 def student_outstanding_balance(student, through_term=None):
@@ -2618,6 +2644,62 @@ def manage_fee_structures(request):
         'active_term': active_term,
         'classrooms': ClassRoom.objects.order_by('section', 'sequence', 'name'),
         'terms': AcademicTerm.objects.select_related('session').order_by('-session__name', 'term_name'),
+    })
+
+
+@login_required(login_url='login')
+def manage_fee_book_lists(request):
+    if not is_finance_user(request.user):
+        return redirect('dashboard')
+    classrooms = ClassRoom.objects.order_by('section', 'sequence', 'name')
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        try:
+            if action == 'add_fee_item':
+                FeeItem.objects.create(
+                    target_class=get_object_or_404(ClassRoom, pk=request.POST.get('classroom')),
+                    description=request.POST.get('description', '').strip(),
+                    amount=Decimal(request.POST.get('amount', '0')),
+                    is_optional=request.POST.get('is_optional') == 'on',
+                )
+                messages.success(request, 'Fee item added successfully.')
+            elif action == 'edit_fee_item':
+                item = get_object_or_404(FeeItem, pk=request.POST.get('item_id'))
+                item.description = request.POST.get('description', '').strip()
+                item.amount = Decimal(request.POST.get('amount', '0'))
+                item.is_optional = request.POST.get('is_optional') == 'on'
+                item.save()
+                messages.success(request, 'Fee item updated successfully.')
+            elif action == 'delete_fee_item':
+                get_object_or_404(FeeItem, pk=request.POST.get('item_id')).delete()
+                messages.success(request, 'Fee item deleted successfully.')
+            elif action == 'add_book_item':
+                BookItem.objects.create(
+                    target_class=get_object_or_404(ClassRoom, pk=request.POST.get('classroom')),
+                    title=request.POST.get('title', '').strip(),
+                    price=Decimal(request.POST.get('price', '0')),
+                )
+                messages.success(request, 'Book added successfully.')
+            elif action == 'edit_book_item':
+                item = get_object_or_404(BookItem, pk=request.POST.get('item_id'))
+                item.title = request.POST.get('title', '').strip()
+                item.price = Decimal(request.POST.get('price', '0'))
+                item.save()
+                messages.success(request, 'Book updated successfully.')
+            elif action == 'delete_book_item':
+                get_object_or_404(BookItem, pk=request.POST.get('item_id')).delete()
+                messages.success(request, 'Book deleted successfully.')
+        except (InvalidOperation, TypeError, ValueError):
+            messages.error(request, 'Enter a valid non-negative amount.')
+        redirect_url = reverse('manage_fee_book_lists')
+        classroom_id = request.POST.get('classroom') or request.GET.get('classroom')
+        return redirect(f"{redirect_url}?classroom={classroom_id}" if classroom_id else redirect_url)
+    selected_classroom = classrooms.filter(pk=request.GET.get('classroom')).first() or classrooms.first()
+    breakdown = classroom_fee_book_breakdown(selected_classroom)
+    return render(request, 'portal/manage_fee_book_lists.html', {
+        'classrooms': classrooms,
+        'selected_classroom': selected_classroom,
+        **breakdown,
     })
 
 

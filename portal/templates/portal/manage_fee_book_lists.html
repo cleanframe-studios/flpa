@@ -1,0 +1,85 @@
+{% extends 'portal/base.html' %}
+{% block page_title %}Fee &amp; Book List{% endblock %}
+{% block content %}
+<div class="min-h-full bg-slate-100 p-6 lg:p-8">
+  <div class="mx-auto max-w-5xl space-y-6">
+    <header class="rounded-3xl bg-gradient-to-r from-blue-950 via-blue-900 to-slate-900 p-8 text-white shadow-lg">
+      <p class="text-xs font-bold uppercase tracking-[0.2em] text-blue-200">Bursary &amp; Finance</p>
+      <h1 class="mt-2 text-2xl font-black">Fee &amp; Book List</h1>
+      <p class="mt-1 text-sm text-blue-100">Edit the itemized bill breakdown and book list prices per class. Parents and teachers see these values automatically.</p>
+    </header>
+
+    <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <form method="GET" class="flex flex-wrap items-end gap-3">
+        <div class="flex flex-col space-y-1.5">
+          <label for="id_classroom_select" class="text-xs font-bold uppercase tracking-wider text-slate-500">Class</label>
+          <select name="classroom" id="id_classroom_select" onchange="this.form.submit()" class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700">
+            {% for classroom in classrooms %}<option value="{{ classroom.id }}" {% if selected_classroom and classroom.id == selected_classroom.id %}selected{% endif %}>{{ classroom.name }}</option>{% endfor %}
+          </select>
+        </div>
+      </form>
+    </section>
+
+    {% if selected_classroom %}
+    <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-bold text-slate-900">Fee Items — {{ selected_classroom.name }}</h2>
+        <div class="flex gap-3 text-xs font-bold"><span class="rounded-full bg-emerald-50 px-3 py-1.5 text-emerald-700">Compulsory: ₦{{ total_compulsory_fees|floatformat:'2g' }}</span><span class="rounded-full bg-amber-50 px-3 py-1.5 text-amber-700">Optional: ₦{{ total_optional_fees|floatformat:'2g' }}</span></div>
+      </div>
+      <div class="mt-4 divide-y divide-slate-100 rounded-2xl border border-slate-100">
+        {% for item in compulsory_fee_items %}
+        <form method="POST" class="flex flex-wrap items-center gap-3 px-4 py-3">{% csrf_token %}<input type="hidden" name="action" value="edit_fee_item"><input type="hidden" name="item_id" value="{{ item.pk }}">
+          <input type="text" name="description" value="{{ item.description }}" required class="flex-1 min-w-[140px] rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold">
+          <input type="number" step="0.01" name="amount" value="{{ item.amount }}" required class="w-32 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold">
+          <label class="flex items-center gap-1.5 text-xs font-bold text-slate-500"><input type="checkbox" name="is_optional" {% if item.is_optional %}checked{% endif %}> Optional</label>
+          <button type="submit" class="rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700">Save</button>
+          <button type="submit" formaction="{% url 'manage_fee_book_lists' %}?classroom={{ selected_classroom.pk }}" name="action" value="delete_fee_item" onclick="return confirm('Delete this fee item?');" class="rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-100">Delete</button>
+        </form>
+        {% endfor %}
+        {% for item in optional_fee_items %}
+        <form method="POST" class="flex flex-wrap items-center gap-3 px-4 py-3 bg-amber-50/40">{% csrf_token %}<input type="hidden" name="action" value="edit_fee_item"><input type="hidden" name="item_id" value="{{ item.pk }}">
+          <input type="text" name="description" value="{{ item.description }}" required class="flex-1 min-w-[140px] rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold">
+          <input type="number" step="0.01" name="amount" value="{{ item.amount }}" required class="w-32 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold">
+          <label class="flex items-center gap-1.5 text-xs font-bold text-slate-500"><input type="checkbox" name="is_optional" {% if item.is_optional %}checked{% endif %}> Optional</label>
+          <button type="submit" class="rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700">Save</button>
+          <button type="submit" formaction="{% url 'manage_fee_book_lists' %}?classroom={{ selected_classroom.pk }}" name="action" value="delete_fee_item" onclick="return confirm('Delete this fee item?');" class="rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-100">Delete</button>
+        </form>
+        {% empty %}{% if not compulsory_fee_items %}<p class="p-4 text-sm text-slate-500">No fee items yet for this class.</p>{% endif %}
+        {% endfor %}
+      </div>
+      <form method="POST" class="mt-4 flex flex-wrap items-end gap-3 rounded-2xl border border-dashed border-slate-300 p-4">{% csrf_token %}<input type="hidden" name="action" value="add_fee_item"><input type="hidden" name="classroom" value="{{ selected_classroom.pk }}">
+        <input type="text" name="description" placeholder="e.g. School Fees" required class="flex-1 min-w-[140px] rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+        <input type="number" step="0.01" name="amount" placeholder="Amount" required class="w-32 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+        <label class="flex items-center gap-1.5 text-xs font-bold text-slate-500"><input type="checkbox" name="is_optional"> Optional</label>
+        <button type="submit" class="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700">Add Fee Item</button>
+      </form>
+    </section>
+
+    <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-bold text-slate-900">Book List — {{ selected_classroom.name }}</h2>
+        <span class="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700">Total: ₦{{ total_books|floatformat:'2g' }}</span>
+      </div>
+      <div class="mt-4 divide-y divide-slate-100 rounded-2xl border border-slate-100">
+        {% for item in book_items %}
+        <form method="POST" class="flex flex-wrap items-center gap-3 px-4 py-3">{% csrf_token %}<input type="hidden" name="action" value="edit_book_item"><input type="hidden" name="item_id" value="{{ item.pk }}">
+          <input type="text" name="title" value="{{ item.title }}" required class="flex-1 min-w-[140px] rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold">
+          <input type="number" step="0.01" name="price" value="{{ item.price }}" required class="w-32 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold">
+          <button type="submit" class="rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700">Save</button>
+          <button type="submit" formaction="{% url 'manage_fee_book_lists' %}?classroom={{ selected_classroom.pk }}" name="action" value="delete_book_item" onclick="return confirm('Delete this book?');" class="rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-100">Delete</button>
+        </form>
+        {% empty %}<p class="p-4 text-sm text-slate-500">No books added yet for this class.</p>
+        {% endfor %}
+      </div>
+      <form method="POST" class="mt-4 flex flex-wrap items-end gap-3 rounded-2xl border border-dashed border-slate-300 p-4">{% csrf_token %}<input type="hidden" name="action" value="add_book_item"><input type="hidden" name="classroom" value="{{ selected_classroom.pk }}">
+        <input type="text" name="title" placeholder="e.g. Mathematics" required class="flex-1 min-w-[140px] rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+        <input type="number" step="0.01" name="price" placeholder="Price" required class="w-32 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+        <button type="submit" class="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700">Add Book</button>
+      </form>
+    </section>
+    {% else %}
+    <section class="rounded-3xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500 shadow-sm">No classes available. Create a class first.</section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

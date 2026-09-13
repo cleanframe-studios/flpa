@@ -376,6 +376,33 @@ class FeeStructure(models.Model):
         constraints = [models.UniqueConstraint(fields=['classroom', 'term', 'session'], name='unique_classroom_term_session_fee_structure')]
 
 
+class FeeItem(models.Model):
+    """A single line item on a class's bill breakdown, e.g. 'School Fees', 'Christmas', 'Excursion'."""
+    target_class = models.ForeignKey(ClassRoom, on_delete=models.CASCADE, related_name='fee_items')
+    description = models.CharField(max_length=150)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    is_optional = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['target_class__section', 'target_class__sequence', 'is_optional', 'id']
+
+    def __str__(self):
+        return f"{self.target_class.name} - {self.description} (₦{self.amount})"
+
+
+class BookItem(models.Model):
+    """A single book/exercise book line item for a class's book list."""
+    target_class = models.ForeignKey(ClassRoom, on_delete=models.CASCADE, related_name='book_items')
+    title = models.CharField(max_length=150)
+    price = models.DecimalField(max_digits=12, decimal_places=2)
+
+    class Meta:
+        ordering = ['target_class__section', 'target_class__sequence', 'id']
+
+    def __str__(self):
+        return f"{self.target_class.name} - {self.title} (₦{self.price})"
+
+
 class StudentFeeAccount(models.Model):
     student = models.ForeignKey(Student, on_delete=models.PROTECT, related_name='fee_accounts')
     term = models.ForeignKey(AcademicTerm, on_delete=models.PROTECT, related_name='student_fee_accounts')

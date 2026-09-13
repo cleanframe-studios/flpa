@@ -87,6 +87,7 @@ urlpatterns = [
     path('principal-dashboard/', views.principal_dashboard_view, name='principal_dashboard'),
     path('principal/school-wide-analytics/', views.school_wide_analytics_view, name='school_wide_analytics'),
     path('fee-structures/', views.manage_fee_structures, name='manage_fee_structures'),
+    path('fee-book-lists/', views.manage_fee_book_lists, name='manage_fee_book_lists'),
     path('results/preview/<int:student_id>/<int:session_id>/<int:term_id>/', views.preview_report_card_view, name='preview_report_card'),
     path('results/uploads/', views.results_uploads_view, name='results_uploads'),
     path('results/uploads/', views.results_uploads_view, name='ca_results_uploads'),
