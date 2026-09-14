@@ -83,7 +83,10 @@ def create_portal_account(record, role, password_seed):
         return
     user, _ = User.objects.get_or_create(username=identifier)
     user.set_password((password_seed or identifier).strip().lower())
-    user.save(update_fields=['password'])
+    record_email = getattr(record, 'email', None)
+    if record_email:
+        user.email = record_email
+    user.save(update_fields=['password', 'email'])
     record.user = user
     record.save(update_fields=['user'])
     AccountProfile.objects.update_or_create(user=user, defaults={'role': role})
