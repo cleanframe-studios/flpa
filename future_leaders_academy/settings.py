@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
+import sys
 from pathlib import Path
 
 import dj_database_url
@@ -131,7 +132,6 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -153,7 +153,25 @@ CLOUDINARY_STORAGE = {
     'API_KEY': os.environ.get('CLOUDINARY_API_KEY', ''),
     'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET', ''),
 }
+
+# Django 5.1+ reads storage backends exclusively from STORAGES; the legacy
+# DEFAULT_FILE_STORAGE / STATICFILES_STORAGE settings are silently ignored by
+# Django itself, but django-cloudinary-storage's collectstatic override still
+# reads settings.STATICFILES_STORAGE directly, so both must be kept in sync.
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STORAGES = {
+    'default': {
+        'BACKEND': DEFAULT_FILE_STORAGE,
+    },
+    'staticfiles': {
+        'BACKEND': STATICFILES_STORAGE,
+    },
+}
+
+# Keep automated test runs hermetic: never upload real files to Cloudinary.
+if 'test' in sys.argv:
+    STORAGES['default'] = {'BACKEND': 'django.core.files.storage.FileSystemStorage'}
 
 # Email configuration
 # Defaults to printing emails to the console in development. Set real SMTP

@@ -1,0 +1,23 @@
+{
+  "name": "Future Leaders Private Academy",
+  "short_name": "FLPA",
+  "start_url": "/login/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "description": "Future Leaders Private Academy portal",
+  "icons": [
+    {
+      "src": "/static/portal/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/portal/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
