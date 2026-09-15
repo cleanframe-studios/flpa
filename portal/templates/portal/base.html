@@ -199,8 +199,7 @@
         .submenu-link .sidebar-text { white-space: normal; line-height: 1.25; overflow: visible; }
         #sidebar.w-20 .sidebar-text { opacity: 0; width: 0; transform: translateX(-8px); pointer-events: none; white-space: nowrap; overflow: hidden; }
         #sidebar.w-20 .submenu-link .sidebar-text { white-space: nowrap; overflow: hidden; }
-        .sidebar-accordion, #sidebar .sidebar-accordion { transition: max-height 0.32s cubic-bezier(.4,0,.2,1), opacity 0.28s ease, transform 0.32s cubic-bezier(.4,0,.2,1) !important; transform-origin: top; }
-        .sidebar-accordion:not(.section-expanded) { opacity: 0; transform: translateY(-6px); }
+        .sidebar-accordion, #sidebar .sidebar-accordion { transition: max-height 0.32s cubic-bezier(.4,0,.2,1) !important; }
         .sidebar-submenu-icon { position: absolute; left: 50%; opacity: 0; width: 1.25rem !important; transform: translateX(-50%) scale(0.7); transition: opacity 0.3s ease, transform 0.35s ease; pointer-events: none; }
         .submenu-link { position: relative; width: 100% !important; display: flex !important; align-items: center; gap: 0.75rem; padding: 0.75rem 3rem !important; font-size: 0.875rem !important; font-weight: 500 !important; color: #94a3b8 !important; transition: background-color 0.3s ease, color 0.3s ease, padding 0.35s ease !important; }
         .submenu-link:hover { background-color: rgba(255, 255, 255, 0.1) !important; color: #fff !important; }
@@ -1125,23 +1124,29 @@
             if (!section || !arrow) return;
 
             section.classList.add('sidebar-accordion');
+            // Cancel any cleanup still pending from an interrupted previous toggle so it can't fire mid-transition.
+            if (section._accordionCleanup) {
+                section.removeEventListener('transitionend', section._accordionCleanup);
+                section._accordionCleanup = null;
+            }
             const isExpanded = section.classList.contains('section-expanded');
             const items = section.querySelectorAll('a');
 
             if (isExpanded) {
-                // Collapse: lock in the real current height first, then fade + shrink it back under the header.
+                // Collapse: start from the real current height, then shrink it back under the header.
                 section.style.maxHeight = section.scrollHeight + 'px';
-                section.offsetHeight; // force layout so the browser commits the starting height before animating away
+                section.classList.remove('section-expanded');
                 requestAnimationFrame(() => {
-                    section.classList.remove('section-expanded');
                     section.style.maxHeight = '0px';
                 });
-                section.addEventListener('transitionend', function onCollapseEnd(event) {
+                section._accordionCleanup = function onCollapseEnd(event) {
                     if (event.propertyName !== 'max-height') return;
                     section.classList.remove('py-2', 'max-h-full');
                     section.classList.add('max-h-0');
                     section.removeEventListener('transitionend', onCollapseEnd);
-                });
+                    section._accordionCleanup = null;
+                };
+                section.addEventListener('transitionend', section._accordionCleanup);
 
                 items.forEach((item) => {
                     item.style.opacity = '0';
@@ -1153,21 +1158,23 @@
                     if (localStorage.getItem('portal-open-section') === sectionId) localStorage.removeItem('portal-open-section');
                 } catch (error) {}
             } else {
-                // Expand: start from the collapsed baseline, then fade + slide the panel out from under the header.
+                // Expand: keep the panel pinned at its current height, then grow it to its real content height.
+                const currentHeight = section.style.maxHeight && section.style.maxHeight !== 'none' ? section.style.maxHeight : '0px';
+                section.style.maxHeight = currentHeight;
                 section.classList.remove('max-h-0');
                 section.classList.add('py-2');
                 const targetHeight = section.scrollHeight;
-                section.style.maxHeight = '0px';
-                section.offsetHeight; // force layout so the browser commits the collapsed baseline before animating open
                 requestAnimationFrame(() => {
                     section.classList.add('max-h-full', 'section-expanded');
                     section.style.maxHeight = targetHeight + 'px';
                 });
-                section.addEventListener('transitionend', function onExpandEnd(event) {
+                section._accordionCleanup = function onExpandEnd(event) {
                     if (event.propertyName !== 'max-height') return;
                     section.style.maxHeight = 'none';
                     section.removeEventListener('transitionend', onExpandEnd);
-                });
+                    section._accordionCleanup = null;
+                };
+                section.addEventListener('transitionend', section._accordionCleanup);
                 try { localStorage.setItem('portal-open-section', sectionId); } catch (error) {}
 
                 items.forEach((item, index) => {
