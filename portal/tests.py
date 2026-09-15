@@ -435,6 +435,28 @@ class AcademicCalendarGuardTests(TestCase):
         student.refresh_from_db()
         self.assertEqual(student.parent, parent)
 
+    def test_total_parents_metric_counts_only_parents_with_linked_students(self):
+        classroom = ClassRoom.objects.create(name='Primary 1', section='Primary', level_number=1)
+        student = Student.objects.create(
+            first_name='Ada', last_name='Lovelace', sex='Female', date_of_birth='2015-01-01',
+            state_of_origin='Lagos', lga_of_origin='Ikeja', program='Primary (PRY)', current_class=classroom,
+        )
+        empty_nest_parent = Parent.objects.create(
+            first_name='Grace', last_name='Empty', phone_number='08011110000', sex='Female',
+            marital_status='Married', address='One Main Street', state='Lagos', lga='Ikeja',
+        )
+        active_parent = Parent.objects.create(
+            first_name='Grace', last_name='Active', phone_number='08022220000', sex='Female',
+            marital_status='Married', address='One Main Street', state='Lagos', lga='Ikeja',
+        )
+        student.parent = active_parent
+        student.save(update_fields=['parent'])
+
+        response = self.client.get(reverse('parents'))
+
+        self.assertEqual(response.context['active_parent_count'], 1)
+        self.assertEqual(len(response.context['parents']), 2)
+
     def test_parent_manager_rejects_missing_sex(self):
         response = self.client.post(reverse('parents'), {
             'action': 'create_parent', 'first_name': 'Grace', 'last_name': 'Lovelace',

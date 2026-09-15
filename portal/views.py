@@ -4093,6 +4093,7 @@ def sync_parent_status(parent):
 def parents_view(request):
     parent_context = {
         'parents': Parent.objects.prefetch_related('children').all(),
+        'active_parent_count': Parent.objects.filter(children__isnull=False).distinct().count(),
         'students': Student.objects.filter(status='Student').select_related('parent').order_by('last_name', 'first_name'),
         'available_students': Student.objects.filter(status='Student', parent__isnull=True).order_by('last_name', 'first_name'),
         'linked_students': Student.objects.filter(status='Student', parent__isnull=False).count(),
