@@ -1,7 +1,7 @@
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 
-from .models import AcademicTerm, FeeStructure, Student, StudentFeeAccount, TermEnrollment, Notification, MessageRecipient
+from .models import AcademicTerm, FeeStructure, FeeStructureItem, Student, StudentFeeAccount, TermEnrollment, Notification, MessageRecipient
 
 
 @receiver(post_save, sender=AcademicTerm)
@@ -26,22 +26,34 @@ def sync_active_term_enrollments(sender, instance, **kwargs):
     )
 
 
-@receiver(post_save, sender=FeeStructure)
-def sync_fee_accounts_from_structure(sender, instance, **kwargs):
+def _sync_fee_accounts_for_structure(structure):
+    """Recompute StudentFeeAccount.total_billed from the sum of compulsory fee items."""
+    compulsory_total = structure.compulsory_total
     active_students = Student.objects.filter(
         status__in=('Active', 'Student'),
-        current_class=instance.classroom,
+        current_class=structure.classroom,
     ).only('pk')
     for student in active_students:
         account, _ = StudentFeeAccount.objects.get_or_create(
             student=student,
-            term=instance.term,
-            session=instance.session,
-            defaults={'total_billed': instance.amount_required},
+            term=structure.term,
+            session=structure.session,
+            defaults={'total_billed': compulsory_total},
         )
-        if account.total_billed != instance.amount_required:
-            account.total_billed = instance.amount_required
+        if account.total_billed != compulsory_total:
+            account.total_billed = compulsory_total
             account.save(update_fields=['total_billed', 'is_cleared'])
+
+
+@receiver(post_save, sender=FeeStructureItem)
+@receiver(post_delete, sender=FeeStructureItem)
+def sync_fee_accounts_from_structure_item(sender, instance, **kwargs):
+    try:
+        structure = instance.fee_structure
+    except FeeStructure.DoesNotExist:
+        return
+    _sync_fee_accounts_for_structure(structure)
+
 
 
 @receiver(post_save, sender=Notification)

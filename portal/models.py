@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django.db import IntegrityError, models, transaction
 from django.utils import timezone
 from django.core.validators import RegexValidator
@@ -370,10 +371,37 @@ class FeeStructure(models.Model):
     classroom = models.ForeignKey(ClassRoom, on_delete=models.PROTECT, related_name='fee_structures')
     term = models.ForeignKey(AcademicTerm, on_delete=models.PROTECT, related_name='fee_structures')
     session = models.ForeignKey(AcademicSession, on_delete=models.PROTECT, related_name='fee_structures')
-    amount_required = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=['classroom', 'term', 'session'], name='unique_classroom_term_session_fee_structure')]
+
+    def __str__(self):
+        return f"{self.classroom.name} - {self.term.term_name} {self.session.name}"
+
+    @property
+    def compulsory_total(self):
+        return sum((item.amount for item in self.items.all() if item.is_compulsory), Decimal('0'))
+
+    @property
+    def optional_total(self):
+        return sum((item.amount for item in self.items.all() if not item.is_compulsory), Decimal('0'))
+
+    @property
+    def grand_total(self):
+        return sum((item.amount for item in self.items.all()), Decimal('0'))
+
+
+class FeeStructureItem(models.Model):
+    fee_structure = models.ForeignKey(FeeStructure, on_delete=models.CASCADE, related_name='items')
+    description = models.CharField(max_length=150)
+    amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    is_compulsory = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['-is_compulsory', 'id']
+
+    def __str__(self):
+        return f"{self.fee_structure} - {self.description} (₦{self.amount})"
 
 
 class BookItem(models.Model):

@@ -52,6 +52,7 @@ from .models import (
     StudentTermRecord,
     SessionRolloverRecord,
     FeeStructure,
+    FeeStructureItem,
     StudentFeeAccount,
     FeePayment,
     SchoolPaymentAccount,
@@ -2588,49 +2589,96 @@ def manage_fee_structures(request):
         return redirect('dashboard')
     if request.method == 'POST':
         action = request.POST.get('action')
-        if action in {'edit_fee_structure', 'delete_fee_structure'}:
+        if action == 'delete_fee_structure':
             structure = get_object_or_404(FeeStructure, pk=request.POST.get('fee_structure_id'))
-            if action == 'delete_fee_structure':
-                if principal_action_denied(request):
-                    return redirect('manage_fee_structures')
-                structure.delete()
-                messages.success(request, 'Fee structure deleted successfully.')
-            else:
-                try:
-                    amount_required = Decimal(request.POST.get('amount_required', '0'))
-                    if amount_required < 0:
-                        raise ValueError
-                except (InvalidOperation, TypeError, ValueError):
-                    messages.error(request, 'Enter a valid non-negative fee amount.')
-                else:
-                    structure.amount_required = amount_required
-                    structure.save()
-                    messages.success(request, 'Fee structure amount updated successfully.')
+            if principal_action_denied(request):
+                return redirect('manage_fee_structures')
+            structure.delete()
+            messages.success(request, 'Fee structure deleted successfully.')
             return redirect('manage_fee_structures')
+        if action == 'delete_fee_item':
+            item = get_object_or_404(FeeStructureItem, pk=request.POST.get('item_id'))
+            if principal_action_denied(request):
+                return redirect('manage_fee_structures')
+            item.delete()
+            messages.success(request, 'Fee item deleted successfully.')
+            return redirect('manage_fee_structures')
+        if action == 'edit_fee_item':
+            item = get_object_or_404(FeeStructureItem, pk=request.POST.get('item_id'))
+            try:
+                amount = Decimal(request.POST.get('amount', '0'))
+                if amount < 0:
+                    raise ValueError
+            except (InvalidOperation, TypeError, ValueError):
+                messages.error(request, 'Enter a valid non-negative fee amount.')
+            else:
+                item.description = request.POST.get('description', '').strip() or item.description
+                item.amount = amount
+                item.is_compulsory = request.POST.get('is_compulsory') == '1'
+                item.save()
+                messages.success(request, 'Fee item updated successfully.')
+            return redirect('manage_fee_structures')
+        if action == 'add_fee_item':
+            structure = get_object_or_404(FeeStructure, pk=request.POST.get('fee_structure_id'))
+            description = request.POST.get('description', '').strip()
+            try:
+                amount = Decimal(request.POST.get('amount', '0'))
+                if amount < 0 or not description:
+                    raise ValueError
+            except (InvalidOperation, TypeError, ValueError):
+                messages.error(request, 'Enter a fee description and a valid non-negative amount.')
+            else:
+                FeeStructureItem.objects.create(
+                    fee_structure=structure,
+                    description=description,
+                    amount=amount,
+                    is_compulsory=request.POST.get('is_compulsory') == '1',
+                )
+                messages.success(request, 'Fee added to the class successfully.')
+            return redirect('manage_fee_structures')
+
+        # Default action: create a new class fee structure with one or more itemized fees.
+        classroom_id = request.POST.get('classroom')
+        term_id = request.POST.get('term')
+        session_id = request.POST.get('session')
+        descriptions = request.POST.getlist('item_description')
+        amounts = request.POST.getlist('item_amount')
+        compulsory_flags = request.POST.getlist('item_compulsory')
+        classroom = get_object_or_404(ClassRoom, pk=classroom_id)
+        session = get_object_or_404(AcademicSession, pk=session_id)
+        term = get_object_or_404(AcademicTerm, pk=term_id, session=session)
+        items_to_create = []
         try:
-            classroom_id = request.POST.get('classroom')
-            term_id = request.POST.get('term')
-            session_id = request.POST.get('session')
-            amount_required = Decimal(request.POST.get('amount_required', '0'))
-            if amount_required < 0:
+            for index, description in enumerate(descriptions):
+                description = description.strip()
+                amount_text = amounts[index] if index < len(amounts) else '0'
+                is_compulsory = (compulsory_flags[index] if index < len(compulsory_flags) else '0') == '1'
+                if not description and not amount_text:
+                    continue
+                amount = Decimal(amount_text or '0')
+                if not description or amount < 0:
+                    raise ValueError
+                items_to_create.append((description, amount, is_compulsory))
+            if not items_to_create:
                 raise ValueError
-            classroom = get_object_or_404(ClassRoom, pk=classroom_id)
-            session = get_object_or_404(AcademicSession, pk=session_id)
-            term = get_object_or_404(AcademicTerm, pk=term_id, session=session)
-            FeeStructure.objects.update_or_create(
-                classroom=classroom,
-                term=term,
-                session=session,
-                defaults={'amount_required': amount_required},
+        except (InvalidOperation, TypeError, ValueError, IndexError):
+            messages.error(request, 'Add at least one fee with a description and a valid non-negative amount.')
+            return redirect('manage_fee_structures')
+
+        structure, _ = FeeStructure.objects.get_or_create(classroom=classroom, term=term, session=session)
+        for description, amount, is_compulsory in items_to_create:
+            FeeStructureItem.objects.create(
+                fee_structure=structure,
+                description=description,
+                amount=amount,
+                is_compulsory=is_compulsory,
             )
-            messages.success(request, 'Fee structure saved successfully.')
-        except (InvalidOperation, TypeError, ValueError):
-            messages.error(request, 'Enter a valid non-negative fee amount.')
+        messages.success(request, 'Fee structure saved successfully.')
         return redirect('manage_fee_structures')
     active_session = AcademicSession.objects.filter(is_active=True).first()
     active_term = AcademicTerm.objects.filter(is_active=True).first()
     return render(request, 'portal/fee_structures.html', {
-        'fee_structures': FeeStructure.objects.select_related('classroom', 'term', 'session').order_by('-term__start_date', 'classroom__name'),
+        'fee_structures': FeeStructure.objects.select_related('classroom', 'term', 'session').prefetch_related('items').order_by('-term__start_date', 'classroom__name'),
         'sessions': AcademicSession.objects.order_by('-name'),
         'active_session': active_session,
         'active_term': active_term,
@@ -2749,14 +2797,14 @@ def bursary_dashboard(request):
             classroom=selected_class,
             term=selected_term,
             session=selected_session,
-        ).first()
+        ).prefetch_related('items').first()
         with transaction.atomic():
             for student in students:
                 account, created = StudentFeeAccount.objects.get_or_create(
                     student=student,
                     term=selected_term,
                     session=selected_session,
-                    defaults={'total_billed': fee_structure.amount_required if fee_structure else Decimal('0')},
+                    defaults={'total_billed': fee_structure.compulsory_total if fee_structure else Decimal('0')},
                 )
                 if created and account.balance > 0 and student.parent and student.parent.user:
                     _notify_users(

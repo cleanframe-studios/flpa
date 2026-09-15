@@ -9,7 +9,7 @@ from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import AcademicSession, AcademicTerm, AcademicWeek, AdmissionCampaign, Applicant, Attendance, AttendanceRegister, AccountProfile, AuditLog, CBTAttempt, CBTExam, CBTQuestion, CBTResponse, ClassRoom, ClassRoomSubject, FeeStructure, Parent, Student, StudentExamSession, Subject, SubjectResult, StudentFeeAccount, StudentTermRecord, Teacher, TermEnrollment
+from .models import AcademicSession, AcademicTerm, AcademicWeek, AdmissionCampaign, Applicant, Attendance, AttendanceRegister, AccountProfile, AuditLog, CBTAttempt, CBTExam, CBTQuestion, CBTResponse, ClassRoom, ClassRoomSubject, FeeStructure, FeeStructureItem, Parent, Student, StudentExamSession, Subject, SubjectResult, StudentFeeAccount, StudentTermRecord, Teacher, TermEnrollment
 from .utils import send_registration_email
 
 
@@ -840,7 +840,8 @@ class AcademicCalendarGuardTests(TestCase):
         classroom = ClassRoom.objects.create(name='Primary 4', section='Primary', level_number=4)
         student = Student.objects.create(first_name='Ada', last_name='Lovelace', sex='Female', date_of_birth='2015-01-01', state_of_origin='Lagos', lga_of_origin='Ikeja', program='Primary (PRY)', current_class=classroom)
         TermEnrollment.objects.create(student=student, term=historical_term, classroom=classroom)
-        FeeStructure.objects.create(classroom=classroom, term=historical_term, session=historical_session, amount_required=7500)
+        structure = FeeStructure.objects.create(classroom=classroom, term=historical_term, session=historical_session)
+        FeeStructureItem.objects.create(fee_structure=structure, description='Tuition Fee', amount=7500, is_compulsory=True)
 
         response = self.client.get(reverse('bursary_dashboard'), {
             'session': historical_session.pk,
@@ -851,6 +852,20 @@ class AcademicCalendarGuardTests(TestCase):
         account = StudentFeeAccount.objects.get(student=student, term=historical_term, session=historical_session)
         self.assertEqual(account.total_billed, 7500)
         self.assertEqual(response.context['accounts'], [account])
+
+    def test_fee_structure_bills_only_compulsory_items(self):
+        session = AcademicSession.objects.create(name='2026/2027', is_active=True)
+        term = AcademicTerm.objects.create(session=session, term_name='First Term', is_active=True)
+        classroom = ClassRoom.objects.create(name='Primary 4', section='Primary', level_number=4)
+        student = Student.objects.create(first_name='Ada', last_name='Lovelace', sex='Female', date_of_birth='2015-01-01', state_of_origin='Lagos', lga_of_origin='Ikeja', program='Primary (PRY)', current_class=classroom)
+        structure = FeeStructure.objects.create(classroom=classroom, term=term, session=session)
+        FeeStructureItem.objects.create(fee_structure=structure, description='Tuition Fee', amount=5000, is_compulsory=True)
+        FeeStructureItem.objects.create(fee_structure=structure, description='Excursion', amount=2000, is_compulsory=False)
+
+        self.assertEqual(structure.compulsory_total, 5000)
+        self.assertEqual(structure.optional_total, 2000)
+        account = StudentFeeAccount.objects.get(student=student, term=term, session=session)
+        self.assertEqual(account.total_billed, 5000)
 
     def test_student_report_hub_prompts_when_no_report_period_is_selected(self):
         student = Student.objects.create(first_name='Ada', last_name='Lovelace', sex='Female', date_of_birth='2015-01-01', state_of_origin='Lagos', lga_of_origin='Ikeja', program='Primary (PRY)')

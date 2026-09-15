@@ -6,58 +6,121 @@
     <header class="rounded-3xl bg-gradient-to-r from-blue-950 via-blue-900 to-slate-900 p-8 text-white shadow-lg">
       <p class="text-xs font-bold uppercase tracking-[0.2em] text-blue-200">Bursary &amp; Finance</p>
       <h1 class="mt-2 text-2xl font-black">Fee Structures</h1>
-      <p class="mt-1 text-sm text-blue-100">Configure the required termly bill for each class.</p>
+      <p class="mt-1 text-sm text-blue-100">Build the itemized termly bill for each class. Toggle each fee as Compulsory or Optional â€” students are locked out of results until all compulsory fees are paid.</p>
     </header>
 
     <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 class="text-lg font-bold text-slate-900">Set a class fee</h2>
-      <form method="POST" class="mt-5 grid grid-cols-1 items-end gap-4 md:grid-cols-5">
+      <h2 class="text-lg font-bold text-slate-900">Build a class fee structure</h2>
+      <p class="mt-1 text-sm text-slate-500">Select the class and term, then add one or more fees. Compulsory fees create the payment hold on report cards; optional fees do not.</p>
+      <form method="POST" class="mt-5 space-y-5">
         {% csrf_token %}
-        <div class="flex flex-col space-y-1.5">
-          <label for="id_session" class="text-xs font-bold uppercase tracking-wider text-slate-500">Session</label>
-          <div class="relative">
-            <select name="session" id="id_session" class="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm text-slate-700 shadow-sm transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 cursor-pointer">
-              {% for session in sessions %}<option value="{{ session.id }}" {% if active_session and session.id == active_session.id %}selected{% endif %}>{{ session.name }}</option>{% endfor %}
-            </select>
-            <div class="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div class="flex flex-col space-y-1.5">
+            <label for="id_session" class="text-xs font-bold uppercase tracking-wider text-slate-500">Session</label>
+            <div class="relative">
+              <select name="session" id="id_session" class="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm text-slate-700 shadow-sm transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 cursor-pointer">
+                {% for session in sessions %}<option value="{{ session.id }}" {% if active_session and session.id == active_session.id %}selected{% endif %}>{{ session.name }}</option>{% endfor %}
+              </select>
+              <div class="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div>
+            </div>
+          </div>
+          <div class="flex flex-col space-y-1.5">
+            <label for="id_term" class="text-xs font-bold uppercase tracking-wider text-slate-500">Term</label>
+            <div class="relative">
+              <select name="term" id="id_term" class="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm text-slate-700 shadow-sm transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 cursor-pointer">
+                <option value="">Select term</option>
+                {% for term in terms %}<option value="{{ term.id }}" data-session="{{ term.session.id }}" {% if active_term and term.id == active_term.id %}selected{% endif %}>{{ term.term_name }}</option>{% endfor %}
+              </select>
+              <div class="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div>
+            </div>
+          </div>
+          <div class="flex flex-col space-y-1.5">
+            <label for="id_classroom" class="text-xs font-bold uppercase tracking-wider text-slate-500">Class</label>
+            <div class="relative">
+              <select name="classroom" id="id_classroom" required class="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm text-slate-700 shadow-sm transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 cursor-pointer">
+                <option value="">Select class</option>
+                {% for classroom in classrooms %}<option value="{{ classroom.id }}">{{ classroom.name }}</option>{% endfor %}
+              </select>
+              <div class="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div>
+            </div>
           </div>
         </div>
-        <div class="flex flex-col space-y-1.5">
-          <label for="id_term" class="text-xs font-bold uppercase tracking-wider text-slate-500">Term</label>
-          <div class="relative">
-            <select name="term" id="id_term" class="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm text-slate-700 shadow-sm transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 cursor-pointer">
-              <option value="">Select term</option>
-              {% for term in terms %}<option value="{{ term.id }}" data-session="{{ term.session.id }}" {% if active_term and term.id == active_term.id %}selected{% endif %}>{{ term.term_name }}</option>{% endfor %}
-            </select>
-            <div class="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div>
+
+        <div>
+          <div class="flex items-center justify-between"><label class="text-xs font-bold uppercase tracking-wider text-slate-500">Fees for this class</label><button type="button" onclick="addFeeItemRow()" class="text-xs font-bold text-blue-600 hover:text-blue-700">+ Add another fee</button></div>
+          <div id="fee-item-rows" class="mt-3 space-y-3">
+            <div class="fee-item-row grid grid-cols-1 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:grid-cols-[1.5fr_1fr_auto_auto]">
+              <input type="text" name="item_description" placeholder="e.g. Tuition Fee" required class="fee-item-field w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-600">
+              <input type="number" step="0.01" min="0" name="item_amount" placeholder="0.00" required class="fee-item-field w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-600">
+              <label class="flex items-center gap-2 whitespace-nowrap text-xs font-bold text-slate-600">
+                <input type="hidden" name="item_compulsory" value="1" class="fee-compulsory-hidden">
+                <span class="relative inline-flex h-6 w-11 flex-shrink-0 items-center"><input type="checkbox" class="fee-compulsory-toggle peer sr-only" checked><span class="absolute inset-0 rounded-full bg-slate-300 transition-colors duration-200 peer-checked:bg-emerald-600"></span><span class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200 peer-checked:translate-x-5"></span></span>
+                <span class="fee-compulsory-label">Compulsory</span>
+              </label>
+              <button type="button" onclick="removeFeeItemRow(this)" class="fee-item-remove hidden rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-600 hover:text-white">Remove</button>
+            </div>
           </div>
         </div>
-        <div class="flex flex-col space-y-1.5">
-          <label for="id_classroom" class="text-xs font-bold uppercase tracking-wider text-slate-500">Class</label>
-          <div class="relative">
-            <select name="classroom" id="id_classroom" required class="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm text-slate-700 shadow-sm transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 cursor-pointer">
-              <option value="">Select class</option>
-              {% for classroom in classrooms %}<option value="{{ classroom.id }}">{{ classroom.name }}</option>{% endfor %}
-            </select>
-            <div class="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div>
-          </div>
-        </div>
-        <div class="flex flex-col space-y-1.5">
-          <label for="id_amount_required" class="text-xs font-bold uppercase tracking-wider text-slate-500">Amount Required</label>
-          <input type="number" step="0.01" min="0" name="amount_required" id="id_amount_required" placeholder="0.00" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 shadow-sm transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600">
-        </div>
-        <div><button type="submit" class="w-full rounded-xl bg-blue-600 px-6 py-3 font-bold text-white shadow-md transition-all hover:bg-blue-700">Save Fee Structure</button></div>
+
+        <div><button type="submit" class="rounded-xl bg-blue-600 px-6 py-3 font-bold text-white shadow-md transition-all hover:bg-blue-700">Save Fee Structure</button></div>
       </form>
     </section>
 
-    <section class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-      <div class="border-b border-slate-100 p-6"><h2 class="text-lg font-bold text-slate-900">Configured structures</h2></div>
-      <div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-slate-50 text-xs uppercase tracking-wider text-slate-500"><tr><th class="p-4">Class</th><th class="p-4">Term</th><th class="p-4">Session</th><th class="p-4 text-right">Amount Required</th><th class="p-4 text-right">Actions</th></tr></thead><tbody class="divide-y divide-slate-100">{% for structure in fee_structures %}<tr><td class="p-4 font-bold text-slate-800">{{ structure.classroom.name }}</td><td class="p-4 text-slate-600">{{ structure.term.term_name }}</td><td class="p-4 text-slate-600">{{ structure.session.name }}</td><td class="p-4 text-right font-bold text-blue-700">₦{{ structure.amount_required|floatformat:2 }}</td><td class="p-4 text-right"><button type="button" onclick="openEditModal('{{ structure.pk }}','{{ structure.classroom.name|escapejs }}','{{ structure.term.term_name|escapejs }}','{{ structure.session.name|escapejs }}','{{ structure.amount_required }}')" class="rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-600 hover:text-white">Edit</button><button type="button" onclick="openDeleteModal('{{ structure.pk }}','{{ structure.classroom.name|escapejs }}','{{ structure.term.term_name|escapejs }}')" class="ml-2 rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-600 hover:text-white">Delete</button></td></tr>{% empty %}<tr><td colspan="5" class="p-10 text-center text-sm text-slate-500">No fee structures configured yet.</td></tr>{% endfor %}</tbody></table></div>
+    <section class="space-y-5">
+      <h2 class="text-lg font-bold text-slate-900">Configured class fee structures</h2>
+      {% for structure in fee_structures %}
+      <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-6">
+          <div>
+            <h3 class="text-base font-black text-slate-900">{{ structure.classroom.name }}</h3>
+            <p class="mt-1 text-xs text-slate-500">{{ structure.term.term_name }} Â· {{ structure.session.name }}</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800">Compulsory: â‚¦{{ structure.compulsory_total|floatformat:2 }}</span>
+            <span class="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-800">Optional: â‚¦{{ structure.optional_total|floatformat:2 }}</span>
+            <button type="button" onclick="openDeleteStructureModal('{{ structure.pk }}','{{ structure.classroom.name|escapejs }}','{{ structure.term.term_name|escapejs }}')" class="rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-600 hover:text-white">Delete Structure</button>
+          </div>
+        </div>
+        <div class="divide-y divide-slate-100">
+          {% for item in structure.items.all %}
+          <div class="flex flex-wrap items-center justify-between gap-3 p-4">
+            <div class="flex items-center gap-3">
+              <span class="rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider {% if item.is_compulsory %}bg-emerald-100 text-emerald-800{% else %}bg-blue-100 text-blue-800{% endif %}">{% if item.is_compulsory %}Compulsory{% else %}Optional{% endif %}</span>
+              <p class="font-semibold text-slate-800">{{ item.description }}</p>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="font-bold text-slate-900">â‚¦{{ item.amount|floatformat:2 }}</span>
+              <button type="button" onclick="openEditItemModal('{{ item.pk }}','{{ item.description|escapejs }}','{{ item.amount }}',{{ item.is_compulsory|yesno:'true,false' }})" class="rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-600 hover:text-white">Edit</button>
+              <button type="button" onclick="openDeleteItemModal('{{ item.pk }}','{{ item.description|escapejs }}')" class="rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-600 hover:text-white">Delete</button>
+            </div>
+          </div>
+          {% empty %}<p class="p-6 text-sm text-slate-500">No fees added to this class yet.</p>{% endfor %}
+        </div>
+        <form method="post" class="flex flex-wrap items-center gap-3 border-t border-slate-100 bg-slate-50 p-4">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_fee_item">
+          <input type="hidden" name="fee_structure_id" value="{{ structure.pk }}">
+          <input type="text" name="description" placeholder="Add another fee, e.g. Excursion" required class="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-600">
+          <input type="number" step="0.01" min="0" name="amount" placeholder="0.00" required class="w-32 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-600">
+          <label class="flex items-center gap-2 whitespace-nowrap text-xs font-bold text-slate-600">
+            <input type="hidden" name="is_compulsory" value="0" class="quick-add-compulsory-hidden">
+            <span class="relative inline-flex h-6 w-11 flex-shrink-0 items-center"><input type="checkbox" class="quick-add-compulsory-toggle peer sr-only"><span class="absolute inset-0 rounded-full bg-slate-300 transition-colors duration-200 peer-checked:bg-emerald-600"></span><span class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200 peer-checked:translate-x-5"></span></span>
+            <span class="quick-add-compulsory-label">Optional</span>
+          </label>
+          <button type="submit" class="rounded-xl bg-slate-900 px-5 py-2.5 text-xs font-bold text-white hover:bg-slate-700">Add Fee</button>
+        </form>
+      </div>
+      {% empty %}<p class="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">No fee structures configured yet.</p>{% endfor %}
     </section>
   </div>
 </div>
-<div id="edit-fee-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm"><div class="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl"><div class="flex items-start justify-between"><div><p class="text-xs font-bold uppercase tracking-wider text-blue-600">Fee structure</p><h2 class="mt-1 text-xl font-black text-slate-900">Edit Amount</h2></div><button type="button" onclick="closeFeeModal('edit-fee-modal')" class="text-2xl text-slate-400">&times;</button></div><div id="edit-fee-details" class="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600"></div><form method="post" class="mt-5 space-y-4">{% csrf_token %}<input type="hidden" name="action" value="edit_fee_structure"><input type="hidden" id="edit-fee-id" name="fee_structure_id"><label class="block text-xs font-bold uppercase tracking-wider text-slate-500">Amount Required<input id="edit-fee-amount" type="number" name="amount_required" min="0" step="0.01" required class="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"></label><div class="flex justify-end gap-3"><button type="button" onclick="closeFeeModal('edit-fee-modal')" class="rounded-xl bg-slate-100 px-5 py-2.5 text-sm font-bold text-slate-700">Cancel</button><button type="submit" class="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white">Save Amount</button></div></form></div></div>
-<div id="delete-fee-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm"><div class="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900/80 p-6 text-white shadow-2xl shadow-black/50 backdrop-blur-xl"><div class="flex items-start justify-between"><div><p class="text-xs font-bold uppercase tracking-wider text-red-400">Destructive action</p><h2 class="mt-1 text-xl font-black text-white">Delete Fee Structure</h2></div><button type="button" onclick="closeFeeModal('delete-fee-modal')" class="text-2xl text-slate-400 hover:text-white">&times;</button></div><p class="mt-4 text-sm leading-6 text-slate-300">Are you sure you want to delete this fee structure? This action cannot be undone.</p><div id="delete-fee-details" class="mt-3 rounded-2xl bg-red-500/10 p-4 text-sm font-semibold text-red-300"></div><form method="post" class="mt-5 flex justify-end gap-3">{% csrf_token %}<input type="hidden" name="action" value="delete_fee_structure"><input type="hidden" id="delete-fee-id" name="fee_structure_id"><button type="button" onclick="closeFeeModal('delete-fee-modal')" class="rounded-full border border-slate-600 bg-transparent px-5 py-2.5 text-sm font-bold text-slate-300 transition-all hover:bg-slate-700">Cancel</button><button type="submit" class="rounded-full bg-red-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-red-600/30 transition-all hover:bg-red-500">Delete</button></form></div></div>
+
+<div id="edit-item-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm"><div class="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl"><div class="flex items-start justify-between"><div><p class="text-xs font-bold uppercase tracking-wider text-blue-600">Fee item</p><h2 class="mt-1 text-xl font-black text-slate-900">Edit Fee</h2></div><button type="button" onclick="closeFeeModal('edit-item-modal')" class="text-2xl text-slate-400">&times;</button></div><form method="post" class="mt-5 space-y-4">{% csrf_token %}<input type="hidden" name="action" value="edit_fee_item"><input type="hidden" id="edit-item-id" name="item_id"><label class="block text-xs font-bold uppercase tracking-wider text-slate-500">Description<input id="edit-item-description" type="text" name="description" required class="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"></label><label class="block text-xs font-bold uppercase tracking-wider text-slate-500">Amount<input id="edit-item-amount" type="number" name="amount" min="0" step="0.01" required class="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"></label><label class="flex items-center gap-3 text-xs font-bold text-slate-600"><input type="hidden" id="edit-item-compulsory-hidden" name="is_compulsory" value="1"><span class="relative inline-flex h-6 w-11 flex-shrink-0 items-center"><input type="checkbox" id="edit-item-compulsory-toggle" class="peer sr-only"><span class="absolute inset-0 rounded-full bg-slate-300 transition-colors duration-200 peer-checked:bg-emerald-600"></span><span class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200 peer-checked:translate-x-5"></span></span><span id="edit-item-compulsory-label">Compulsory</span></label><div class="flex justify-end gap-3"><button type="button" onclick="closeFeeModal('edit-item-modal')" class="rounded-xl bg-slate-100 px-5 py-2.5 text-sm font-bold text-slate-700">Cancel</button><button type="submit" class="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white">Save Fee</button></div></form></div></div>
+
+<div id="delete-item-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm"><div class="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900/80 p-6 text-white shadow-2xl shadow-black/50 backdrop-blur-xl"><div class="flex items-start justify-between"><div><p class="text-xs font-bold uppercase tracking-wider text-red-400">Destructive action</p><h2 class="mt-1 text-xl font-black text-white">Delete Fee</h2></div><button type="button" onclick="closeFeeModal('delete-item-modal')" class="text-2xl text-slate-400 hover:text-white">&times;</button></div><p class="mt-4 text-sm leading-6 text-slate-300">Are you sure you want to delete this fee? This action cannot be undone.</p><div id="delete-item-details" class="mt-3 rounded-2xl bg-red-500/10 p-4 text-sm font-semibold text-red-300"></div><form method="post" class="mt-5 flex justify-end gap-3">{% csrf_token %}<input type="hidden" name="action" value="delete_fee_item"><input type="hidden" id="delete-item-id" name="item_id"><button type="button" onclick="closeFeeModal('delete-item-modal')" class="rounded-full border border-slate-600 bg-transparent px-5 py-2.5 text-sm font-bold text-slate-300 transition-all hover:bg-slate-700">Cancel</button><button type="submit" class="rounded-full bg-red-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-red-600/30 transition-all hover:bg-red-500">Delete</button></form></div></div>
+
+<div id="delete-fee-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm"><div class="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900/80 p-6 text-white shadow-2xl shadow-black/50 backdrop-blur-xl"><div class="flex items-start justify-between"><div><p class="text-xs font-bold uppercase tracking-wider text-red-400">Destructive action</p><h2 class="mt-1 text-xl font-black text-white">Delete Fee Structure</h2></div><button type="button" onclick="closeFeeModal('delete-fee-modal')" class="text-2xl text-slate-400 hover:text-white">&times;</button></div><p class="mt-4 text-sm leading-6 text-slate-300">Are you sure you want to delete this fee structure? All fees under it will be removed. This action cannot be undone.</p><div id="delete-fee-details" class="mt-3 rounded-2xl bg-red-500/10 p-4 text-sm font-semibold text-red-300"></div><form method="post" class="mt-5 flex justify-end gap-3">{% csrf_token %}<input type="hidden" name="action" value="delete_fee_structure"><input type="hidden" id="delete-fee-id" name="fee_structure_id"><button type="button" onclick="closeFeeModal('delete-fee-modal')" class="rounded-full border border-slate-600 bg-transparent px-5 py-2.5 text-sm font-bold text-slate-300 transition-all hover:bg-slate-700">Cancel</button><button type="submit" class="rounded-full bg-red-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-red-600/30 transition-all hover:bg-red-500">Delete</button></form></div></div>
+
 <script>
 const sessionSelect = document.getElementById('id_session');
 const termSelect = document.getElementById('id_term');
@@ -74,9 +137,54 @@ function filterTerms() {
 }
 sessionSelect.addEventListener('change', filterTerms);
 filterTerms();
+
 function openFeeModal(id) { const modal = document.getElementById(id); modal.classList.remove('hidden'); modal.classList.add('flex'); }
 function closeFeeModal(id) { const modal = document.getElementById(id); modal.classList.add('hidden'); modal.classList.remove('flex'); }
-function openEditModal(id, classroom, term, session, amount) { document.getElementById('edit-fee-id').value = id; document.getElementById('edit-fee-amount').value = amount; document.getElementById('edit-fee-details').textContent = classroom + ' · ' + term + ' · ' + session; openFeeModal('edit-fee-modal'); }
-function openDeleteModal(id, classroom, term) { document.getElementById('delete-fee-id').value = id; document.getElementById('delete-fee-details').textContent = classroom + ' · ' + term; openFeeModal('delete-fee-modal'); }
+function openDeleteStructureModal(id, classroom, term) { document.getElementById('delete-fee-id').value = id; document.getElementById('delete-fee-details').textContent = classroom + ' Â· ' + term; openFeeModal('delete-fee-modal'); }
+function openDeleteItemModal(id, description) { document.getElementById('delete-item-id').value = id; document.getElementById('delete-item-details').textContent = description; openFeeModal('delete-item-modal'); }
+function openEditItemModal(id, description, amount, isCompulsory) {
+  document.getElementById('edit-item-id').value = id;
+  document.getElementById('edit-item-description').value = description;
+  document.getElementById('edit-item-amount').value = amount;
+  const toggle = document.getElementById('edit-item-compulsory-toggle');
+  toggle.checked = isCompulsory;
+  syncCompulsoryToggle(toggle, document.getElementById('edit-item-compulsory-hidden'), document.getElementById('edit-item-compulsory-label'));
+  openFeeModal('edit-item-modal');
+}
+
+function syncCompulsoryToggle(toggle, hiddenInput, labelEl) {
+  hiddenInput.value = toggle.checked ? '1' : '0';
+  if (labelEl) labelEl.textContent = toggle.checked ? 'Compulsory' : 'Optional';
+}
+document.getElementById('edit-item-compulsory-toggle').addEventListener('change', function () {
+  syncCompulsoryToggle(this, document.getElementById('edit-item-compulsory-hidden'), document.getElementById('edit-item-compulsory-label'));
+});
+document.querySelectorAll('.quick-add-compulsory-toggle').forEach(toggle => {
+  const row = toggle.closest('form');
+  toggle.addEventListener('change', function () {
+    syncCompulsoryToggle(this, row.querySelector('.quick-add-compulsory-hidden'), row.querySelector('.quick-add-compulsory-label'));
+  });
+});
+
+function setupFeeItemRow(row) {
+  const toggle = row.querySelector('.fee-compulsory-toggle');
+  const hiddenInput = row.querySelector('.fee-compulsory-hidden');
+  const labelEl = row.querySelector('.fee-compulsory-label');
+  toggle.addEventListener('change', () => syncCompulsoryToggle(toggle, hiddenInput, labelEl));
+}
+function addFeeItemRow() {
+  const container = document.getElementById('fee-item-rows');
+  const row = container.querySelector('.fee-item-row').cloneNode(true);
+  row.querySelectorAll('input[type="text"], input[type="number"]').forEach(input => { input.value = ''; });
+  const toggle = row.querySelector('.fee-compulsory-toggle');
+  toggle.checked = true;
+  row.querySelector('.fee-compulsory-hidden').value = '1';
+  row.querySelector('.fee-compulsory-label').textContent = 'Compulsory';
+  row.querySelector('.fee-item-remove').classList.remove('hidden');
+  container.appendChild(row);
+  setupFeeItemRow(row);
+}
+function removeFeeItemRow(button) { button.closest('.fee-item-row').remove(); }
+document.querySelectorAll('.fee-item-row').forEach(setupFeeItemRow);
 </script>
 {% endblock %}

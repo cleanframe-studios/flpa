@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Student, Teacher, AttendanceRecord, Parent, Subject, ClassRoom, ClassRoomSubject, CBTExam, CBTQuestion, CBTAttempt, CBTResponse, SubjectResult, AccountProfile, StudentTermRecord, FeeStructure, StudentFeeAccount, FeePayment, SchoolPaymentAccount, AdmissionCampaign, Applicant, Message, MessageRecipient, Notification, StaffSalaryProfile, PayrollRun, Payslip, BookItem
+from .models import Student, Teacher, AttendanceRecord, Parent, Subject, ClassRoom, ClassRoomSubject, CBTExam, CBTQuestion, CBTAttempt, CBTResponse, SubjectResult, AccountProfile, StudentTermRecord, FeeStructure, FeeStructureItem, StudentFeeAccount, FeePayment, SchoolPaymentAccount, AdmissionCampaign, Applicant, Message, MessageRecipient, Notification, StaffSalaryProfile, PayrollRun, Payslip, BookItem
 
 admin.site.register(Student)
 admin.site.register(Teacher)
@@ -30,6 +30,7 @@ admin.site.register(CBTResponse)
 admin.site.register(SubjectResult)
 admin.site.register(StudentTermRecord)
 admin.site.register(FeeStructure)
+admin.site.register(FeeStructureItem)
 admin.site.register(StudentFeeAccount)
 admin.site.register(FeePayment)
 admin.site.register(SchoolPaymentAccount)
