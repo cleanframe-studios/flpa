@@ -195,7 +195,10 @@
 
         .sidebar-text { transition: opacity 0.3s ease, width 0.35s ease, transform 0.35s ease; white-space: nowrap; overflow: hidden; }
         .submenu-link .sidebar-text { white-space: normal; line-height: 1.25; overflow: visible; }
-        #sidebar.w-20 .sidebar-text { opacity: 0; width: 0; transform: translateX(-8px); pointer-events: none; }
+        #sidebar.w-20 .sidebar-text { opacity: 0; width: 0; transform: translateX(-8px); pointer-events: none; white-space: nowrap; overflow: hidden; }
+        #sidebar.w-20 .submenu-link .sidebar-text { white-space: nowrap; overflow: hidden; }
+        .sidebar-accordion, #sidebar .sidebar-accordion { transition: max-height 0.32s cubic-bezier(.4,0,.2,1), opacity 0.28s ease, transform 0.32s cubic-bezier(.4,0,.2,1) !important; transform-origin: top; }
+        .sidebar-accordion:not(.section-expanded) { opacity: 0; transform: translateY(-6px); }
         .sidebar-submenu-icon { position: absolute; left: 50%; opacity: 0; width: 1.25rem !important; transform: translateX(-50%) scale(0.7); transition: opacity 0.3s ease, transform 0.35s ease; pointer-events: none; }
         .submenu-link { position: relative; width: 100% !important; display: flex !important; align-items: center; gap: 0.75rem; padding: 0.75rem 3rem !important; font-size: 0.875rem !important; font-weight: 500 !important; color: #94a3b8 !important; transition: background-color 0.3s ease, color 0.3s ease, padding 0.35s ease !important; }
         .submenu-link:hover { background-color: rgba(255, 255, 255, 0.1) !important; color: #fff !important; }
@@ -1116,47 +1119,63 @@
         function toggleSection(sectionId) {
             const section = document.getElementById(sectionId);
             const arrow = document.getElementById(sectionId.replace('section', 'arrow'));
-            
+
             if (!section || !arrow) return;
-            
-            const isExpanded = section.classList.contains('max-h-full');
+
+            section.classList.add('sidebar-accordion');
+            const isExpanded = section.classList.contains('section-expanded');
             const items = section.querySelectorAll('a');
-            
+
             if (isExpanded) {
-                // Collapse
-                items.forEach((item, index) => {
-                    setTimeout(() => {
-                        item.style.opacity = '0';
-                        item.style.transform = 'translateY(-10px)';
-                    }, index * 30);
+                // Collapse: lock in the real current height first, then fade + shrink it back under the header.
+                section.style.maxHeight = section.scrollHeight + 'px';
+                section.offsetHeight; // force layout so the browser commits the starting height before animating away
+                requestAnimationFrame(() => {
+                    section.classList.remove('section-expanded');
+                    section.style.maxHeight = '0px';
                 });
-                
-                setTimeout(() => {
-                    section.classList.remove('max-h-full', 'py-2');
+                section.addEventListener('transitionend', function onCollapseEnd(event) {
+                    if (event.propertyName !== 'max-height') return;
+                    section.classList.remove('py-2', 'max-h-full');
                     section.classList.add('max-h-0');
-                }, items.length * 30);
-                
+                    section.removeEventListener('transitionend', onCollapseEnd);
+                });
+
+                items.forEach((item) => {
+                    item.style.opacity = '0';
+                    item.style.transform = 'translateY(-10px)';
+                });
+
                 arrow.style.transform = 'rotate(0deg)';
+                try {
+                    if (localStorage.getItem('portal-open-section') === sectionId) localStorage.removeItem('portal-open-section');
+                } catch (error) {}
             } else {
-                // Expand
+                // Expand: start from the collapsed baseline, then fade + slide the panel out from under the header.
                 section.classList.remove('max-h-0');
-                section.classList.add('max-h-full', 'py-2');
+                section.classList.add('py-2');
+                const targetHeight = section.scrollHeight;
+                section.style.maxHeight = '0px';
+                section.offsetHeight; // force layout so the browser commits the collapsed baseline before animating open
+                requestAnimationFrame(() => {
+                    section.classList.add('max-h-full', 'section-expanded');
+                    section.style.maxHeight = targetHeight + 'px';
+                });
+                section.addEventListener('transitionend', function onExpandEnd(event) {
+                    if (event.propertyName !== 'max-height') return;
+                    section.style.maxHeight = 'none';
+                    section.removeEventListener('transitionend', onExpandEnd);
+                });
                 try { localStorage.setItem('portal-open-section', sectionId); } catch (error) {}
-                
+
                 items.forEach((item, index) => {
                     setTimeout(() => {
                         item.style.opacity = '1';
                         item.style.transform = 'translateY(0)';
-                    }, index * 50);
+                    }, 60 + index * 50);
                 });
-                
-                arrow.style.transform = 'rotate(180deg)';
-            }
 
-            if (isExpanded) {
-                try {
-                    if (localStorage.getItem('portal-open-section') === sectionId) localStorage.removeItem('portal-open-section');
-                } catch (error) {}
+                arrow.style.transform = 'rotate(180deg)';
             }
         }
 
@@ -1209,8 +1228,11 @@
                 const shouldExpand = allowedPaths.some(path => currentPath === path || currentPath.startsWith(path));
                 if (!shouldExpand) return;
 
-                section.classList.add('max-h-full', 'py-2');
+                section.classList.add('max-h-full', 'py-2', 'section-expanded');
                 section.classList.remove('max-h-0');
+                section.style.maxHeight = 'none';
+                section.style.opacity = '1';
+                section.style.transform = 'none';
                 const arrow = document.getElementById(sectionId.replace('-section', '-arrow'));
                 if (arrow) arrow.style.transform = 'rotate(180deg)';
                 section.querySelectorAll('a').forEach(item => {
@@ -1225,8 +1247,11 @@
                 const section = document.getElementById(rememberedSectionId);
                 const arrow = document.getElementById(rememberedSectionId.replace('-section', '-arrow'));
                 if (section && arrow) {
-                    section.classList.add('max-h-full', 'py-2');
+                    section.classList.add('max-h-full', 'py-2', 'section-expanded');
                     section.classList.remove('max-h-0');
+                    section.style.maxHeight = 'none';
+                    section.style.opacity = '1';
+                    section.style.transform = 'none';
                     arrow.style.transform = 'rotate(180deg)';
                     section.querySelectorAll('a').forEach(item => {
                         item.style.opacity = '1';
