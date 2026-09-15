@@ -363,7 +363,7 @@ class Holiday(models.Model):
 
 
 class TermEnrollment(models.Model):
-    student = models.ForeignKey(Student, on_delete=models.PROTECT, related_name='term_enrollments')
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='term_enrollments')
     term = models.ForeignKey(AcademicTerm, on_delete=models.PROTECT, related_name='enrollments')
     classroom = models.ForeignKey(ClassRoom, on_delete=models.PROTECT, related_name='term_enrollments')
     enrolled_at = models.DateTimeField(auto_now_add=True)
@@ -436,7 +436,7 @@ class BookItem(models.Model):
 
 
 class StudentFeeAccount(models.Model):
-    student = models.ForeignKey(Student, on_delete=models.PROTECT, related_name='fee_accounts')
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='fee_accounts')
     term = models.ForeignKey(AcademicTerm, on_delete=models.PROTECT, related_name='student_fee_accounts')
     session = models.ForeignKey(AcademicSession, on_delete=models.PROTECT, related_name='student_fee_accounts')
     total_billed = models.DecimalField(max_digits=12, decimal_places=2, default=0)
@@ -509,7 +509,7 @@ class Attendance(models.Model):
     ]
 
     register = models.ForeignKey(AttendanceRegister, on_delete=models.CASCADE, related_name='entries')
-    student = models.ForeignKey(Student, on_delete=models.PROTECT, related_name='attendance')
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='attendance')
     classroom = models.ForeignKey(ClassRoom, on_delete=models.PROTECT, related_name='attendance')
     session = models.ForeignKey(AcademicSession, on_delete=models.PROTECT, related_name='attendance')
     date = models.DateField()
