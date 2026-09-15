@@ -1559,6 +1559,11 @@ def parent_bursary_view(request):
         child.outstanding_balance = student_outstanding_balance(child, active_term)
         child.is_cleared = child.outstanding_balance <= 0
         child.fee_book_breakdown = classroom_fee_book_breakdown(child.current_class)
+        child.current_fee_structure = FeeStructure.objects.filter(
+            classroom=child.current_class,
+            term=active_term,
+            session=active_term.session,
+        ).prefetch_related('items').first() if active_term and child.current_class_id else None
         for account in child.fee_accounts_list:
             account.is_current_term = bool(active_term and account.term_id == active_term.pk)
             account.is_rollover_debt = bool(not account.is_current_term and account.balance > 0)
