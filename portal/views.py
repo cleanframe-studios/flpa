@@ -69,6 +69,8 @@ from .models import (
     Payslip,
     PushSubscription,
     BookItem,
+    normalize_phone_number,
+    find_cross_role_account,
 )
 from django.db.models import Case, When, Value, IntegerField, Q, Max, Min, Exists, OuterRef, Sum, Avg, F
 from .decorators import bursar_required, registrar_required, role_required, teacher_required, principal_required
@@ -1466,11 +1468,19 @@ def teacher_dashboard_view(request):
     classes = teacher.assigned_class.all()
     for classroom in classes:
         classroom.fee_book_breakdown = classroom_fee_book_breakdown(classroom)
+    linked_parent = getattr(request.user, 'parent_record', None)
+    linked_children = list(linked_parent.children.select_related('current_class')) if linked_parent else []
+    if linked_children:
+        active_term = AcademicTerm.objects.filter(is_active=True).first()
+        for child in linked_children:
+            child.outstanding_balance = student_outstanding_balance(child, active_term)
+            child.is_cleared = child.outstanding_balance <= 0
     return render(request, 'portal/teacher_dashboard.html', {
         'teacher': teacher,
         'classes': classes,
         'active_students': Student.objects.filter(status='Student', current_class__in=classes).count(),
         'subjects': Subject.objects.order_by('name'),
+        'linked_children': linked_children,
     })
 
 
@@ -4107,7 +4117,7 @@ def parents_view(request):
                 parent_context.update({'parent_form': request.POST, 'open_parent_modal': True})
                 return render(request, 'portal/parents.html', parent_context)
             phone_number = request.POST.get('phone_number', '').strip()
-            if Parent.objects.filter(phone_number=phone_number).exists():
+            if Parent.objects.filter(phone_number=normalize_phone_number(phone_number)).exists():
                 messages.error(request, 'This phone number is already registered. Please provide a different number.')
                 parent_context.update({'parent_form': request.POST, 'open_parent_modal': True})
                 return render(request, 'portal/parents.html', parent_context)
@@ -4119,8 +4129,26 @@ def parents_view(request):
                     messages.error(request, 'Please enter a valid parent email address.')
                     parent_context.update({'parent_form': request.POST, 'open_parent_modal': True})
                     return render(request, 'portal/parents.html', parent_context)
+
+            link_choice = request.POST.get('link_choice')
+            cross_role_match = find_cross_role_account(phone_number) if link_choice != 'yes' else None
+            if cross_role_match and link_choice != 'no':
+                messages.warning(request, 'This phone number already belongs to an existing staff account. Confirm below to link the accounts.')
+                parent_context.update({
+                    'parent_form': request.POST,
+                    'open_parent_modal': True,
+                    'link_prompt': cross_role_match,
+                })
+                return render(request, 'portal/parents.html', parent_context)
+
+            link_target_user = None
+            if link_choice == 'yes':
+                confirmed_match = find_cross_role_account(phone_number)
+                if confirmed_match:
+                    link_target_user = confirmed_match['user']
+
             try:
-                parent = Parent.objects.create(
+                parent = Parent(
                     first_name=request.POST.get('first_name', '').strip(),
                     last_name=request.POST.get('last_name', '').strip(),
                     middle_name=request.POST.get('middle_name', '').strip(),
@@ -4135,8 +4163,14 @@ def parents_view(request):
                     lga=request.POST.get('lga', '').strip(),
                     status='Inactive',
                 )
-                create_portal_account(parent, 'parent', parent.last_name)
-                messages.success(request, f'{parent.display_name} was added to the Parents Manager.')
+                parent.save(skip_conflict_check=bool(link_target_user))
+                if link_target_user:
+                    parent.user = link_target_user
+                    parent.save(update_fields=['user'], skip_conflict_check=True)
+                    messages.success(request, f'{parent.display_name} was added and linked to their existing staff login account.')
+                else:
+                    create_portal_account(parent, 'parent', parent.last_name)
+                    messages.success(request, f'{parent.display_name} was added to the Parents Manager.')
             except (IntegrityError, ValidationError):
                 messages.error(request, 'This phone number is already registered or the parent data conflicts with an existing record.')
                 parent_context.update({'parent_form': request.POST, 'open_parent_modal': True})
@@ -4406,8 +4440,13 @@ def students_view(request):
 def student_profile_view(request, pk):
     role = getattr(getattr(request.user, 'account_profile', None), 'role', None)
     teacher = getattr(request.user, 'teacher_record', None) if role == 'teacher' else None
+    linked_parent = getattr(request.user, 'parent_record', None)
     if teacher and not request.user.is_staff and not request.user.is_superuser:
-        student = get_object_or_404(Student, pk=pk, current_class__in=teacher.assigned_class.all())
+        # A staff member who is also a linked parent can still view their own child's profile.
+        student_filter = Q(current_class__in=teacher.assigned_class.all())
+        if linked_parent:
+            student_filter |= Q(parent=linked_parent)
+        student = get_object_or_404(Student, student_filter, pk=pk)
     elif role == 'parent' and hasattr(request.user, 'parent_record'):
         student = get_object_or_404(Student, pk=pk, parent=request.user.parent_record)
     elif role == 'student' and hasattr(request.user, 'student_record'):

@@ -164,6 +164,24 @@ def phone_number_conflict(phone_number, parent=None, teacher=None):
     return parent_query.exists() or teacher_query.exists()
 
 
+def find_cross_role_account(phone_number):
+    """Return an existing Teacher or Parent record using this phone number, for a different role.
+
+    Used to offer linking a new profile to someone's existing login account
+    (e.g. a staff member who is also a parent) instead of blocking registration.
+    """
+    normalized = normalize_phone_number(phone_number)
+    if not normalized:
+        return None
+    teacher = Teacher.objects.filter(phone_number=normalized).first()
+    if teacher:
+        return {'role': 'teacher', 'record': teacher, 'user': teacher.user}
+    parent = Parent.objects.filter(phone_number=normalized).first()
+    if parent:
+        return {'role': 'parent', 'record': parent, 'user': parent.user}
+    return None
+
+
 class Parent(models.Model):
     SEX_CHOICES = [('Male', 'Male'), ('Female', 'Female')]
     MARITAL_STATUS_CHOICES = [
@@ -194,9 +212,9 @@ class Parent(models.Model):
     class Meta:
         ordering = ['name']
 
-    def save(self, *args, **kwargs):
+    def save(self, *args, skip_conflict_check=False, **kwargs):
         self.phone_number = normalize_phone_number(self.phone_number)
-        if phone_number_conflict(self.phone_number, parent=self):
+        if not skip_conflict_check and phone_number_conflict(self.phone_number, parent=self):
             raise ValidationError('This phone number is already registered to another portal account.')
         if not self.parent_id:
             year = timezone.now().year
@@ -240,9 +258,9 @@ class Teacher(models.Model):
     date_joined = models.DateField(auto_now_add=True)
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='teacher_record')
 
-    def save(self, *args, **kwargs):
+    def save(self, *args, skip_conflict_check=False, **kwargs):
         self.phone_number = normalize_phone_number(self.phone_number)
-        if phone_number_conflict(self.phone_number, teacher=self):
+        if not skip_conflict_check and phone_number_conflict(self.phone_number, teacher=self):
             raise ValidationError('This phone number is already registered to another portal account.')
         if not self.staff_id:
             current_year = timezone.now().year

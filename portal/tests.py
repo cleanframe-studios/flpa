@@ -11,6 +11,7 @@ from django.utils import timezone
 
 from .models import AcademicSession, AcademicTerm, AcademicWeek, AdmissionCampaign, Applicant, Attendance, AttendanceRegister, AccountProfile, AuditLog, CBTAttempt, CBTExam, CBTQuestion, CBTResponse, ClassRoom, ClassRoomSubject, FeeStructure, FeeStructureItem, Parent, Student, StudentExamSession, Subject, SubjectResult, StudentFeeAccount, StudentTermRecord, Teacher, TermEnrollment
 from .utils import send_registration_email
+from .views import create_portal_account
 
 
 class AdmissionApprovalWorkflowTests(TestCase):
@@ -444,6 +445,34 @@ class AcademicCalendarGuardTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Please complete all required parent fields before saving.')
         self.assertFalse(Parent.objects.filter(first_name='Grace', last_name='Lovelace').exists())
+
+    def test_parent_creation_offers_to_link_matching_staff_phone_number(self):
+        teacher = Teacher.objects.create(
+            first_name='Chuks', last_name='Okafor', staff_type='Teaching',
+            phone_number='08033334444', email='chuks@example.com',
+        )
+        create_portal_account(teacher, 'teacher', teacher.last_name)
+
+        prompt_response = self.client.post(reverse('parents'), {
+            'action': 'create_parent', 'first_name': 'Chuks', 'last_name': 'Okafor',
+            'phone_number': '08033334444', 'sex': 'Male', 'marital_status': 'Married',
+            'address': 'One Main Street', 'state': 'Lagos', 'lga': 'Ikeja',
+        })
+
+        self.assertContains(prompt_response, 'Existing account found')
+        self.assertFalse(Parent.objects.filter(phone_number='08033334444').exists())
+
+        link_response = self.client.post(reverse('parents'), {
+            'action': 'create_parent', 'first_name': 'Chuks', 'last_name': 'Okafor',
+            'phone_number': '08033334444', 'sex': 'Male', 'marital_status': 'Married',
+            'address': 'One Main Street', 'state': 'Lagos', 'lga': 'Ikeja', 'link_choice': 'yes',
+        }, follow=True)
+
+        self.assertEqual(link_response.status_code, 200)
+        parent = Parent.objects.get(phone_number='08033334444')
+        teacher.refresh_from_db()
+        self.assertEqual(parent.user, teacher.user)
+        self.assertEqual(teacher.user.account_profile.role, 'teacher')
 
     def test_new_student_gets_role_account_with_lowercase_surname_password(self):
         classroom = ClassRoom.objects.create(name='Basic 4', section='Primary', level_number=4)
