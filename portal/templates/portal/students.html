@@ -290,11 +290,7 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                    <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5" for="phone_number">Phone Number</label>
-                    <input class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500 transition-all" id="phone_number" name="phone_number" type="text">
-                </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5" for="religion">Religion</label>
                     <div class="relative custom-select" data-name="religion">
@@ -308,9 +304,8 @@
                     </div>
                 </div>
                 <div>
-                    <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5" for="email">Email Address</label>
-                    <input class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500 transition-all" id="email" name="email" type="email" placeholder="student@example.com" oninput="validateEmail(this)">
-                    <p id="email-error" class="text-[10px] text-red-500 mt-1 hidden">Please enter a valid email address.</p>
+                    <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5" for="physically_challenged">Student status</label>
+                    <p class="text-sm text-slate-500 pt-2">Add contact details through the linked parent record.</p>
                 </div>
             </div>
 
@@ -327,10 +322,15 @@
 
             <div class="border-t border-slate-100 pt-5">
                 <div class="mb-4 rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
-                    <p class="text-xs font-black uppercase tracking-wider text-blue-800">2. New Parent / Guardian (Optional)</p>
-                    <p class="mt-1 text-xs leading-5 text-blue-700">Complete these fields only when creating a new parent record. Existing parents are linked from the Parents Manager using their single parent ID.</p>
+                    <label class="flex cursor-pointer items-start gap-3">
+                        <input type="checkbox" id="link_parent" name="link_parent" class="mt-0.5 h-4 w-4 rounded border-blue-300 text-blue-600 focus:ring-blue-500">
+                        <span>
+                            <span class="block text-xs font-black uppercase tracking-wider text-blue-800">Link a new parent / guardian</span>
+                            <span class="mt-1 block text-xs leading-5 text-blue-700">Turn this on to add the parent's details and link the new record to this student.</span>
+                        </span>
+                    </label>
                 </div>
-                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div id="new-parent-fields" class="hidden grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <label class="block"><span class="field-label">Parent first name *</span><input name="parent_first_name" data-parent-required="true" class="parent-field" placeholder="Required for a new parent"></label>
                     <label class="block"><span class="field-label">Parent last name *</span><input name="parent_last_name" data-parent-required="true" class="parent-field"></label>
                     <label class="block"><span class="field-label">Parent phone number *</span><input name="parent_phone_number" data-parent-required="true" class="parent-field"></label>
@@ -494,14 +494,19 @@
             });
         });
 
-        const parentFirstName = document.querySelector('input[name="parent_first_name"]');
+        const linkParentToggle = document.getElementById('link_parent');
+        const parentSection = document.getElementById('new-parent-fields');
         const parentFields = document.querySelectorAll('[data-parent-required="true"]');
         const syncParentRequired = () => {
-            const hasParent = parentFirstName && parentFirstName.value.trim() !== '';
-            parentFields.forEach(field => { field.required = hasParent; });
+            const linkParent = linkParentToggle && linkParentToggle.checked;
+            parentSection?.classList.toggle('hidden', !linkParent);
+            parentFields.forEach(field => {
+                field.required = linkParent;
+                field.disabled = !linkParent;
+            });
         };
-        if (parentFirstName) {
-            parentFirstName.addEventListener('input', syncParentRequired);
+        if (linkParentToggle) {
+            linkParentToggle.addEventListener('change', syncParentRequired);
             syncParentRequired();
         }
 
@@ -579,17 +584,6 @@
         el.style.height = (el.scrollHeight) + 'px';
     }
 
-    function validateEmail(input) {
-        const errorMsg = document.getElementById('email-error');
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (input.value.trim() === '' || emailRegex.test(input.value)) {
-            errorMsg.classList.add('hidden');
-            input.classList.remove('border-red-500');
-        } else {
-            errorMsg.classList.remove('hidden');
-            input.classList.add('border-red-500');
-        }
-    }
 </script>
 <script>
 document.querySelectorAll('#student-print-modal, #student-modal').forEach(modal => document.body.appendChild(modal));

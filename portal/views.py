@@ -4295,19 +4295,10 @@ def students_view(request):
         lga_of_origin = request.POST.get('lga_of_origin')
         program = request.POST.get('program')
         class_id = request.POST.get('current_class')
-        phone_number = request.POST.get('phone_number', '')
         religion = request.POST.get('religion', '')
-        email = request.POST.get('email', '')
         passport = request.FILES.get('passport')
         physically_challenged = True if request.POST.get('physically_challenged') == 'on' else False
-
-        # Validate Email
-        if email:
-            try:
-                validate_email(email)
-            except ValidationError:
-                messages.error(request, "Please enter a valid email address.")
-                return redirect('students')
+        link_parent = request.POST.get('link_parent') == 'on'
 
         # Handle class selection - auto-assign immediately
         current_class_obj = None
@@ -4319,7 +4310,6 @@ def students_view(request):
 
         cleaned_first_name = (first_name or '').strip()
         cleaned_last_name = (last_name or '').strip()
-        cleaned_email = (email or '').strip()
         if cleaned_first_name and cleaned_last_name and date_of_birth:
             duplicate_student = Student.objects.filter(
                 first_name__iexact=cleaned_first_name,
@@ -4329,10 +4319,6 @@ def students_view(request):
             if duplicate_student:
                 messages.error(request, 'A student with this profile already exists.')
                 return redirect('students')
-
-        if cleaned_email and Student.objects.filter(email__iexact=cleaned_email).exists():
-            messages.error(request, 'A student with this email already exists.')
-            return redirect('students')
 
         if lin and Student.objects.filter(lin__iexact=lin).exists():
             messages.error(request, 'A student with this LIN already exists.')
@@ -4353,7 +4339,7 @@ def students_view(request):
                 return redirect('students')
 
         parent = None
-        if request.POST.get('parent_first_name', '').strip():
+        if link_parent:
             parent_required_fields = {
                 'parent_first_name': 'first name',
                 'parent_last_name': 'last name',
@@ -4370,7 +4356,7 @@ def students_view(request):
                 return redirect('students')
         try:
             with transaction.atomic():
-                if request.POST.get('parent_first_name', '').strip():
+                if link_parent:
                     parent = Parent.objects.create(
                         first_name=request.POST.get('parent_first_name', '').strip(),
                         last_name=request.POST.get('parent_last_name', '').strip(),
@@ -4398,9 +4384,7 @@ def students_view(request):
                     current_class=current_class_obj,
                     parent=parent,
                     physically_challenged=physically_challenged,
-                    phone_number=phone_number,
                     religion=religion,
-                    email=cleaned_email or None,
                     passport=passport,
                     status='Student'
                 )

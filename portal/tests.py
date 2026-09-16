@@ -116,6 +116,62 @@ class AdmissionApprovalWorkflowTests(TestCase):
         self.assertFalse(Parent.objects.filter(pk=parent_id).exists())
 
 
+class StudentRegistrationParentToggleTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(username='student-registrar', password='pass123', is_staff=True)
+        AccountProfile.objects.create(user=self.user, role='registrar')
+        self.client.force_login(self.user)
+        self.classroom = ClassRoom.objects.create(name='Primary 1', section='Primary', level_number=1)
+
+    def student_data(self, **overrides):
+        data = {
+            'first_name': 'Ada',
+            'last_name': 'Lovelace',
+            'sex': 'Female',
+            'date_of_birth': '2015-01-01',
+            'state_of_origin': 'Lagos',
+            'lga_of_origin': 'Ikeja',
+            'program': 'Primary (PRY)',
+            'current_class': self.classroom.name,
+        }
+        data.update(overrides)
+        return data
+
+    def test_student_can_be_registered_without_parent_details(self):
+        response = self.client.post(reverse('students'), self.student_data(
+            phone_number='08000000000', email='student@example.com',
+        ))
+
+        self.assertRedirects(response, reverse('students'))
+        student = Student.objects.get(first_name='Ada', last_name='Lovelace')
+        self.assertIsNone(student.parent)
+        self.assertIsNone(student.phone_number)
+        self.assertIsNone(student.email)
+        self.assertFalse(Parent.objects.exists())
+
+    def test_enabled_parent_link_requires_all_parent_fields(self):
+        response = self.client.post(reverse('students'), self.student_data(
+            link_parent='on', parent_first_name='Grace',
+        ))
+
+        self.assertRedirects(response, reverse('students'))
+        self.assertFalse(Student.objects.filter(first_name='Ada', last_name='Lovelace').exists())
+        self.assertFalse(Parent.objects.exists())
+
+    def test_enabled_parent_link_creates_and_links_parent(self):
+        response = self.client.post(reverse('students'), self.student_data(
+            link_parent='on', parent_first_name='Grace', parent_last_name='Lovelace',
+            parent_phone_number='08012345678', parent_sex='Female',
+            parent_marital_status='Married', parent_address='One Main Street',
+            parent_state='Lagos', parent_lga='Ikeja',
+        ))
+
+        self.assertRedirects(response, reverse('students'))
+        student = Student.objects.get(first_name='Ada', last_name='Lovelace')
+        parent = Parent.objects.get(phone_number='08012345678')
+        self.assertEqual(student.parent, parent)
+
+
 class AcademicCalendarGuardTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(username='admin', password='adminpass123', is_staff=True)
