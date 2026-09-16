@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'cloudinary',
     'portal',
+    'django_cleanup.apps.CleanupConfig',
 ]
 
 MIDDLEWARE = [

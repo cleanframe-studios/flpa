@@ -1,5 +1,7 @@
 import datetime
 import re
+import os
+import tempfile
 
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
@@ -170,6 +172,38 @@ class StudentRegistrationParentToggleTests(TestCase):
         student = Student.objects.get(first_name='Ada', last_name='Lovelace')
         parent = Parent.objects.get(phone_number='08012345678')
         self.assertEqual(student.parent, parent)
+
+
+class DjangoCleanupImageTests(TestCase):
+    def test_replacing_and_deleting_student_passport_removes_files(self):
+        classroom = ClassRoom.objects.create(name='Primary 1', section='Primary', level_number=1)
+        with tempfile.TemporaryDirectory() as media_root, self.settings(
+            MEDIA_ROOT=media_root,
+            STORAGES={
+                'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+                'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+            },
+        ):
+            student = Student.objects.create(
+                first_name='Ada', last_name='Lovelace', sex='Female', date_of_birth='2015-01-01',
+                state_of_origin='Lagos', lga_of_origin='Ikeja', program='Primary (PRY)',
+                current_class=classroom,
+                passport=SimpleUploadedFile('old-passport.jpg', b'old-image', content_type='image/jpeg'),
+            )
+            old_path = student.passport.path
+            self.assertTrue(os.path.exists(old_path))
+
+            student.passport = SimpleUploadedFile('new-passport.jpg', b'new-image', content_type='image/jpeg')
+            with self.captureOnCommitCallbacks(execute=True):
+                student.save()
+            new_path = student.passport.path
+
+            self.assertFalse(os.path.exists(old_path))
+            self.assertTrue(os.path.exists(new_path))
+
+            with self.captureOnCommitCallbacks(execute=True):
+                student.delete()
+            self.assertFalse(os.path.exists(new_path))
 
 
 class AcademicCalendarGuardTests(TestCase):
