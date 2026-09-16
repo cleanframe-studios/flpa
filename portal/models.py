@@ -1,5 +1,6 @@
 from decimal import Decimal
 from django.db import IntegrityError, models, transaction
+from django.db.models import F, Sum
 from django.utils import timezone
 from django.core.validators import RegexValidator
 from django.core.exceptions import ValidationError
@@ -476,6 +477,12 @@ class StudentFeeAccount(models.Model):
     @property
     def total_outstanding(self):
         return self.balance
+
+    @property
+    def outstanding_balance(self):
+        return self.student.fee_accounts.aggregate(
+            total=Sum(F('total_billed') - F('amount_paid'))
+        ).get('total') or Decimal('0')
 
     def save(self, *args, **kwargs):
         if self.balance <= 0:
