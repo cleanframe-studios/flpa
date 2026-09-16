@@ -75,6 +75,7 @@ from .models import (
 from django.db.models import Case, When, Value, IntegerField, Q, Max, Min, Exists, OuterRef, Sum, Avg, F
 from .decorators import bursar_required, registrar_required, role_required, teacher_required, principal_required
 from .utils import log_security_action, send_registration_email, send_admission_approval_email
+from .forms import ParentStudentLinkForm, StudentParentForm
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -4255,6 +4256,7 @@ def parents_view(request):
 @login_required(login_url='login')
 def parent_profile_view(request, pk):
     parent = get_object_or_404(Parent, pk=pk)
+    link_student_form = ParentStudentLinkForm()
     profile_context = {
         'parent': parent,
         'marital_choices': Parent.MARITAL_STATUS_CHOICES,
@@ -4262,6 +4264,7 @@ def parent_profile_view(request, pk):
         'status_choices': [('Active', 'Active'), ('Inactive', 'Inactive')],
         'state_choices': ['Abia', 'Adamawa', 'Akwa Ibom', 'Anambra', 'Bauchi', 'Bayelsa', 'Benue', 'Borno', 'Cross River', 'Delta', 'Ebonyi', 'Edo', 'Ekiti', 'Enugu', 'FCT', 'Gombe', 'Imo', 'Jigawa', 'Kaduna', 'Kano', 'Katsina', 'Kebbi', 'Kogi', 'Kwara', 'Lagos', 'Nasarawa', 'Niger', 'Ogun', 'Ondo', 'Osun', 'Oyo', 'Plateau', 'Rivers', 'Sokoto', 'Taraba', 'Yobe', 'Zamfara'],
         'available_students': Student.objects.filter(status='Student').exclude(parent__isnull=False).order_by('last_name', 'first_name'),
+        'link_student_form': link_student_form,
     }
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -4272,7 +4275,12 @@ def parent_profile_view(request, pk):
             messages.success(request, 'Parent deleted successfully.')
             return redirect('parents')
         if action == 'link_student':
-            student = get_object_or_404(Student, pk=request.POST.get('student'))
+            link_student_form = ParentStudentLinkForm(request.POST)
+            if not link_student_form.is_valid():
+                messages.error(request, 'Please select an unlinked student.')
+                profile_context['link_student_form'] = link_student_form
+                return render(request, 'portal/parent_profile.html', profile_context)
+            student = link_student_form.cleaned_data['student']
             student.parent = parent
             student.save(update_fields=['parent'])
             sync_parent_status(parent)
@@ -4354,6 +4362,11 @@ def students_view(request):
         passport = request.FILES.get('passport')
         physically_challenged = True if request.POST.get('physically_challenged') == 'on' else False
         link_parent = request.POST.get('link_parent') == 'on'
+        parent_form_data = request.POST.copy()
+        if link_parent and not parent_form_data.get('parent_mode'):
+            parent_form_data['parent_mode'] = 'new'
+        parent_form = StudentParentForm(parent_form_data)
+        parent_mode = parent_form.cleaned_data.get('parent_mode') if parent_form.is_valid() else parent_form_data.get('parent_mode', '')
 
         # Handle class selection - auto-assign immediately
         current_class_obj = None
@@ -4394,7 +4407,12 @@ def students_view(request):
                 return redirect('students')
 
         parent = None
-        if link_parent:
+        if parent_mode == 'existing':
+            if not parent_form.is_valid():
+                messages.error(request, 'Please select an existing parent.')
+                return redirect('students')
+            parent = parent_form.cleaned_data['existing_parent']
+        elif parent_mode == 'new' or link_parent:
             parent_required_fields = {
                 'parent_first_name': 'first name',
                 'parent_last_name': 'last name',
@@ -4473,6 +4491,7 @@ def students_view(request):
             'Expelled': students.filter(status='Expelled').count(),
             'Graduated': students.filter(status='Graduated').count(),
         },
+        'parent_registration_form': StudentParentForm(),
     }
     return render(request, 'portal/students.html', context)
 

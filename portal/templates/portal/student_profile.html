@@ -30,7 +30,10 @@
         
         <!-- Top Navigation -->
         <div class="flex justify-between items-center">
-            <span></span>
+            <a href="{% url 'students' %}" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 shadow transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 active:scale-95">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m15 18-6-6 6-6"></path></svg>
+                Back to Student Directory
+            </a>
             <div class="flex items-center space-x-3">
                 {% if request.user.is_staff or request.user.is_superuser or request.user.account_profile.role == 'registrar' %}<button onclick="printDetails()" class="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold py-2.5 px-4 rounded-xl shadow transition-all active:scale-95">Print Details</button>
                 <span class="text-xs px-3 py-1.5 rounded-full font-bold 
@@ -191,6 +194,17 @@
                 <div>
                     <h3 class="text-lg font-bold text-slate-900">Student Bio & Academic Records</h3>
                     <p class=\"text-xs text-slate-500\">{% if request.user.is_staff or request.user.is_superuser or request.user.account_profile.role == 'registrar' %}Modify profile records.{% else %}View-only profile.{% endif %}</p>
+                </div>
+
+                <div class="grid grid-cols-1 gap-3 border-b border-slate-100 pb-6 sm:grid-cols-2">
+                    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Phone Number</p>
+                        <p class="mt-1 break-words text-sm font-semibold text-slate-900">{{ student.phone_number|default:'Not provided' }}</p>
+                    </div>
+                    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Email Address</p>
+                        <p class="mt-1 break-words text-sm font-semibold text-slate-900">{{ student.email|default:'Not provided' }}</p>
+                    </div>
                 </div>
 
                 {% if not request.user.is_staff and not request.user.is_superuser and request.user.account_profile.role != 'registrar' %}

@@ -174,6 +174,27 @@ class StudentRegistrationParentToggleTests(TestCase):
         parent = Parent.objects.get(phone_number='08012345678')
         self.assertEqual(student.parent, parent)
 
+    def test_existing_parent_can_be_selected_for_new_student(self):
+        parent = Parent.objects.create(
+            first_name='Grace', last_name='Lovelace', phone_number='08012345678', sex='Female',
+            marital_status='Married', address='One Main Street', state='Lagos', lga='Ikeja',
+        )
+
+        response = self.client.post(reverse('students'), self.student_data(
+            parent_mode='existing', existing_parent=parent.pk,
+        ))
+
+        self.assertRedirects(response, reverse('students'))
+        student = Student.objects.get(first_name='Ada', last_name='Lovelace')
+        self.assertEqual(student.parent, parent)
+        self.assertEqual(Parent.objects.count(), 1)
+
+    def test_existing_parent_selection_requires_a_parent(self):
+        response = self.client.post(reverse('students'), self.student_data(parent_mode='existing'))
+
+        self.assertRedirects(response, reverse('students'))
+        self.assertFalse(Student.objects.filter(first_name='Ada', last_name='Lovelace').exists())
+
 
 class DjangoCleanupImageTests(TestCase):
     def test_replacing_and_deleting_student_passport_removes_files(self):
