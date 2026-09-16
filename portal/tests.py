@@ -174,6 +174,19 @@ class StudentRegistrationParentToggleTests(TestCase):
         parent = Parent.objects.get(phone_number='08012345678')
         self.assertEqual(student.parent, parent)
 
+    def test_create_new_parent_radio_creates_and_links_parent(self):
+        response = self.client.post(reverse('students'), self.student_data(
+            parent_mode='new', parent_first_name='Grace', parent_last_name='Lovelace',
+            parent_phone_number='08012345678', parent_sex='Female',
+            parent_marital_status='Married', parent_address='One Main Street',
+            parent_state='Lagos', parent_lga='Ikeja',
+        ))
+
+        self.assertRedirects(response, reverse('students'))
+        student = Student.objects.get(first_name='Ada', last_name='Lovelace')
+        parent = Parent.objects.get(phone_number='08012345678')
+        self.assertEqual(student.parent, parent)
+
     def test_existing_parent_can_be_selected_for_new_student(self):
         parent = Parent.objects.create(
             first_name='Grace', last_name='Lovelace', phone_number='08012345678', sex='Female',

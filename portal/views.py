@@ -4429,7 +4429,7 @@ def students_view(request):
                 return redirect('students')
         try:
             with transaction.atomic():
-                if link_parent:
+                if parent_mode == 'new' or link_parent:
                     parent = Parent.objects.create(
                         first_name=request.POST.get('parent_first_name', '').strip(),
                         last_name=request.POST.get('parent_last_name', '').strip(),
