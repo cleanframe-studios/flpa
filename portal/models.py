@@ -137,6 +137,20 @@ class Student(models.Model):
         return f"{self.student_id} - {self.last_name} {self.first_name}"
 
     @property
+    def current_fee_account(self):
+        active_term = AcademicTerm.objects.select_related('session').filter(is_active=True).first()
+        if not active_term:
+            return None
+        account = self.fee_accounts.filter(
+            term=active_term,
+            session=active_term.session,
+        ).first()
+        if account:
+            account.is_current_term = True
+            account.is_rollover_debt = False
+        return account
+
+    @property
     def has_portal_access(self):
         classroom = self.current_class
         if not classroom:
@@ -449,6 +463,10 @@ class StudentFeeAccount(models.Model):
     @property
     def balance(self):
         return self.total_billed - self.amount_paid
+
+    @property
+    def total_outstanding(self):
+        return self.balance
 
     def save(self, *args, **kwargs):
         if self.balance <= 0:

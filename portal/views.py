@@ -1673,6 +1673,7 @@ def parent_dashboard_view(request):
         student__in=children,
     ).select_related('student', 'classroom', 'session').order_by('-date', 'student__last_name')[:100]
     for child in children:
+        child.fee_account = child.current_fee_account
         child.recent_attendance = child.attendance.filter(date__gte=timezone.localdate() - datetime.timedelta(days=6)).order_by('-date')[:5]
         child.fee_account = StudentFeeAccount.objects.filter(student=child, term=active_term, session=active_term.session).first() if active_term else None
         child.outstanding_balance = student_outstanding_balance(child, active_term)
