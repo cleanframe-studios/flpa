@@ -1412,6 +1412,15 @@ def salary_profiles_view(request):
     staff_users = staff_role_users().select_related('teacher_record', 'account_profile').prefetch_related('groups').order_by('username')
     for staff_user in staff_users:
         staff_user.selected_salary_profile = profiles_by_user.get(staff_user.pk)
+        teacher_record = getattr(staff_user, 'teacher_record', None)
+        staff_user.display_staff_name = (
+            str(teacher_record) if teacher_record else staff_user.get_full_name()
+        ) or staff_user.username
+    for profile in configured_profiles:
+        teacher_record = getattr(profile.user, 'teacher_record', None)
+        profile.display_staff_name = (
+            str(teacher_record) if teacher_record else profile.user.get_full_name()
+        ) or profile.user.username
     total_salary = sum((profile.base_salary for profile in configured_profiles), Decimal('0'))
     terms_json = {
         str(session.pk): list(session.terms.values('id', 'term_name'))

@@ -31,15 +31,15 @@
           <thead class="sticky top-0 z-10 bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500"><tr><th class="p-4">Staff</th><th class="p-4">Role</th><th class="p-4">Profile Status</th><th class="p-4 text-right">Action</th></tr></thead>
           <tbody id="staff-table-body" class="divide-y divide-slate-100">
             {% for staff_user in staff_users %}
-            <tr class="staff-row hover:bg-slate-50/70" data-search="{{ staff_user.get_full_name|default:staff_user.username|lower }} {{ staff_user.teacher_record.staff_id|default:''|lower }} {{ staff_user|staff_primary_role|lower }}">
+            <tr class="staff-row hover:bg-slate-50/70" data-search="{{ staff_user.display_staff_name|lower }} {{ staff_user.teacher_record.staff_id|default:''|lower }} {{ staff_user|staff_primary_role|lower }}">
               <td class="p-4">
-                <p class="font-bold text-slate-900">{{ staff_user.get_full_name|default:staff_user.username }}</p>
+                <p class="font-bold text-slate-900">{{ staff_user.display_staff_name }}</p>
                 <p class="text-xs text-slate-500">{{ staff_user.teacher_record.staff_id|default:staff_user.username }}</p>
               </td>
               <td class="p-4"><span class="rounded-lg bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-800">{{ staff_user|staff_primary_role }}</span></td>
               <td class="p-4">{% if staff_user.selected_salary_profile %}<span class="rounded-lg bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">Configured</span>{% else %}<span class="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">No Profile</span>{% endif %}</td>
               <td class="p-4 text-right">
-                <button type="button" onclick='openSalaryModal({{ staff_user.pk }}, "{{ staff_user.get_full_name|default:staff_user.username|escapejs }}", {{ staff_user.selected_salary_profile.base_salary|default:"0" }}, {{ staff_user.selected_salary_profile.allowances|default:"0" }}, {{ staff_user.selected_salary_profile.deductions|default:"0" }}, "{{ staff_user.selected_salary_profile.bank_name|default:""|escapejs }}", "{{ staff_user.selected_salary_profile.account_number|default:""|escapejs }}", {{ staff_user.selected_salary_profile.is_active|default_if_none:True|yesno:"1,0" }})' class="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100">{% if staff_user.selected_salary_profile %}Edit Profile{% else %}Configure Salary{% endif %}</button>
+                <button type="button" onclick='openSalaryModal({{ staff_user.pk }}, "{{ staff_user.display_staff_name|escapejs }}", {{ staff_user.selected_salary_profile.base_salary|default:"0" }}, {{ staff_user.selected_salary_profile.allowances|default:"0" }}, {{ staff_user.selected_salary_profile.deductions|default:"0" }}, "{{ staff_user.selected_salary_profile.bank_name|default:""|escapejs }}", "{{ staff_user.selected_salary_profile.account_number|default:""|escapejs }}", {{ staff_user.selected_salary_profile.is_active|default_if_none:True|yesno:"1,0" }})' class="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100">{% if staff_user.selected_salary_profile %}Edit Profile{% else %}Configure Salary{% endif %}</button>
               </td>
             </tr>
             {% empty %}
@@ -63,13 +63,13 @@
           <tbody class="divide-y divide-slate-100">
             {% for profile in configured_profiles %}
             <tr class="hover:bg-slate-50/70">
-              <td class="p-4 font-semibold text-slate-900">{{ profile.user.get_full_name|default:profile.user.username }}</td>
+              <td class="p-4 font-semibold text-slate-900">{{ profile.display_staff_name }}</td>
               <td class="p-4 font-bold text-emerald-700">₦{{ profile.base_salary|floatformat:0 }}</td>
               <td class="p-4">{% if profile.is_active %}<span class="rounded-lg bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">Active</span>{% else %}<span class="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">Inactive</span>{% endif %}</td>
               <td class="p-4 text-right">
                 <div class="flex justify-end gap-2">
-                  <button type="button" onclick='openSalaryModal({{ profile.user.pk }}, "{{ profile.user.get_full_name|default:profile.user.username|escapejs }}", {{ profile.base_salary }}, {{ profile.allowances }}, {{ profile.deductions }}, "{{ profile.bank_name|escapejs }}", "{{ profile.account_number|escapejs }}", {{ profile.is_active|yesno:"1,0" }})' class="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100">Update</button>
-                  <button type="button" onclick="openClearSalaryModal('{{ profile.pk }}', '{{ profile.user.pk }}', '{{ profile.user.get_full_name|default:profile.user.username|escapejs }}')" class="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 hover:bg-red-100">Clear</button>
+                  <button type="button" onclick='openSalaryModal({{ profile.user.pk }}, "{{ profile.display_staff_name|escapejs }}", {{ profile.base_salary }}, {{ profile.allowances }}, {{ profile.deductions }}, "{{ profile.bank_name|escapejs }}", "{{ profile.account_number|escapejs }}", {{ profile.is_active|yesno:"1,0" }})' class="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100">Update</button>
+                  <button type="button" onclick="openClearSalaryModal('{{ profile.pk }}', '{{ profile.user.pk }}', '{{ profile.display_staff_name|escapejs }}')" class="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 hover:bg-red-100">Clear</button>
                 </div>
               </td>
             </tr>
