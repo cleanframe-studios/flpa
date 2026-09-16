@@ -553,6 +553,20 @@
 
             if (!input || !ul || !icon) return;
 
+            container.querySelectorAll('.option-item').forEach(item => {
+                item.addEventListener('mousedown', (event) => {
+                    event.preventDefault();
+                    input.value = item.textContent.trim();
+                    const hiddenInput = container.querySelector('input[type="hidden"]');
+                    if (hiddenInput) {
+                        hiddenInput.value = item.dataset.value || item.textContent.trim();
+                        hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                    closeAllSelects();
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+            });
+
             input.addEventListener('focus', () => {
                 closeAllSelects();
                 openSelect(container);
