@@ -1904,6 +1904,15 @@ def student_report_hub(request):
     selected_session = sessions.filter(pk=session_id).first() if session_id else None
     terms = AcademicTerm.objects.select_related('session').filter(session=selected_session).order_by('start_date') if selected_session else AcademicTerm.objects.none()
     selected_term = terms.filter(pk=term_id).first() if term_id else None
+    selected_student_id = request.GET.get('student') or ''
+    if parent:
+        selected_student = next((child for child in report_students if str(child.pk) == str(selected_student_id)), None)
+        if selected_student is None and selected_student_id:
+            selected_student_id = ''
+        if selected_student is None and len(report_students) == 1:
+            selected_student = report_students[0]
+            selected_student_id = str(selected_student.pk)
+        report_students = [selected_student] if selected_student else []
     if selected_term is None and session_id == str(active_term.session_id if active_term else '') and active_term:
         selected_term = active_term
     report_cards = []
@@ -1935,6 +1944,8 @@ def student_report_hub(request):
         'selected_term': selected_term,
         'selected_session_id': str(session_id),
         'selected_term_id': str(term_id),
+        'report_students': list(parent.children.select_related('current_class').all()) if parent else [student],
+        'selected_student_id': selected_student_id,
         'terms_json': json.dumps(sessions_terms_map),
         'report_cards': report_cards,
     })

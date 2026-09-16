@@ -1088,6 +1088,25 @@ class AcademicCalendarGuardTests(TestCase):
         self.assertContains(response, '₦3,000.00')
         self.assertNotContains(response, 'Not billed')
 
+    def test_parent_report_hub_filters_to_selected_child(self):
+        session = AcademicSession.objects.create(name='2026/2027', is_active=True)
+        term = AcademicTerm.objects.create(session=session, term_name='First Term', is_active=True, reports_published=True)
+        classroom = ClassRoom.objects.create(name='Primary 4', section='Primary', level_number=4)
+        parent = Parent.objects.create(first_name='Grace', last_name='Lovelace', phone_number='08000000000', sex='Female', marital_status='Married', address='Address', state='Lagos', lga='Ikeja')
+        first = Student.objects.create(first_name='Ada', last_name='Lovelace', sex='Female', date_of_birth='2015-01-01', state_of_origin='Lagos', lga_of_origin='Ikeja', program='Primary (PRY)', current_class=classroom, parent=parent)
+        second = Student.objects.create(first_name='Augusta', last_name='Lovelace', sex='Female', date_of_birth='2016-01-01', state_of_origin='Lagos', lga_of_origin='Ikeja', program='Primary (PRY)', current_class=classroom, parent=parent)
+        user = get_user_model().objects.create_user(username='selected-child-parent', password='pass')
+        parent.user = user
+        parent.save(update_fields=['user'])
+        AccountProfile.objects.create(user=user, role='parent')
+        self.client.force_login(user)
+
+        response = self.client.get(reverse('student_report_hub'), {'session': session.pk, 'term': term.pk, 'student': second.pk})
+
+        self.assertEqual(len(response.context['report_cards']), 1)
+        self.assertEqual(response.context['report_cards'][0]['student'], second)
+        self.assertContains(response, 'Select Child')
+
     def test_bursary_payment_clears_previous_term_before_current_term(self):
         session = AcademicSession.objects.create(name='2026/2027', is_active=True)
         first_term = AcademicTerm.objects.create(session=session, term_name='First Term')

@@ -4,9 +4,10 @@
 <div class="min-h-full bg-slate-100 p-6 lg:p-8"><div class="mx-auto w-full max-w-7xl space-y-6">
   <header class="rounded-3xl bg-gradient-to-r from-blue-950 via-blue-900 to-slate-900 p-8 text-white shadow-lg"><p class="text-xs font-bold uppercase tracking-[0.2em] text-blue-200">Academic Records</p><h1 class="mt-2 text-2xl font-black">Report Card Hub</h1><p class="mt-1 text-sm text-blue-100">Choose an academic session and term to access published results.</p></header>
   <script>window.resultTermsMap = {{ terms_json|default:'{}'|safe }};</script>
-  <form method="get" class="grid gap-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:grid-cols-3">
+  <form method="get" class="grid gap-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:grid-cols-4">
     {% include 'portal/result_filter_combobox.html' with field_name='session' label='Academic Session' selected_value=selected_session_id selected_label=selected_session.name options=sessions %}
     {% include 'portal/result_filter_combobox.html' with field_name='term' label='Academic Term' label_field='term_name' selected_value=selected_term_id selected_label=selected_term.term_name options=terms %}
+    {% if request.user.parent_record %}<label class="block"><span class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600">Select Child</span><select name="student" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800"><option value="">Select a child</option>{% for child in report_students %}<option value="{{ child.pk }}"{% if selected_student_id == child.pk|stringformat:'s' %} selected{% endif %}>{{ child.first_name }} {{ child.last_name }}{% if child.current_class %} · {{ child.current_class.name }}{% endif %}</option>{% endfor %}</select></label>{% endif %}
     <button type="submit" class="self-end rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700">Load Results</button>
   </form>
 
