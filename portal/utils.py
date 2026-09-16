@@ -34,6 +34,7 @@ def send_admission_approval_email(applicant, student, parent, parent_password):
     if not recipient:
         return False
     subject = f'Admission Approved — {student.first_name} {student.last_name}'
+    portal_url = f"{settings.PORTAL_BASE_URL}/login/"
     body = (
         f"Dear {parent.name or applicant.parent_name or 'Parent/Guardian'},\n\n"
         f"Congratulations! {student.first_name} {student.last_name}'s admission has been approved.\n\n"
@@ -43,6 +44,7 @@ def send_admission_approval_email(applicant, student, parent, parent_password):
         "Official Parent Portal Login:\n"
         f"  Parent ID: {parent.parent_id}\n"
         f"  Password: {parent_password}\n\n"
+        f"School Portal: {portal_url}\n\n"
         "Please log in and change your password as soon as possible.\n\n"
         "Regards,\nFuture Leaders Academy Admissions Team"
     )

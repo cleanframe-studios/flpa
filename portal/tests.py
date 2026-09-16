@@ -73,7 +73,7 @@ class AdmissionApprovalWorkflowTests(TestCase):
         })
 
         self.assertRedirects(response, reverse('review_applicants'))
-        self.client.post(reverse('admission_complete_profile'), {
+        completion_response = self.client.post(reverse('admission_complete_profile'), {
             'temp_reg_number': self.applicant.temp_reg_number,
             'parent_choice': 'father',
             'guardian_name': 'Grace Lovelace',
@@ -94,6 +94,7 @@ class AdmissionApprovalWorkflowTests(TestCase):
         self.assertEqual(applicant.student_id, student.student_id)
         self.assertEqual(applicant.parent_id, parent.parent_id)
         self.assertRegex(parent.parent_id, r'^FLA/PAR/2026/\d{3}$')
+        self.assertEqual(completion_response.json()['credentials'][0]['portal_url'], 'https://flpa.sch.ng/login/')
 
     def test_revoke_deletes_generated_profiles_and_returns_to_verified(self):
         self.client.post(reverse('review_applicants'), {

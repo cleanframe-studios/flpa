@@ -45,6 +45,8 @@ CSRF_TRUSTED_ORIGINS = [
     'https://www.flpa.sch.ng',
 ]
 
+PORTAL_BASE_URL = os.environ.get('PORTAL_BASE_URL', 'https://flpa.sch.ng').rstrip('/')
+
 
 # Application definition
 

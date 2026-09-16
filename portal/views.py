@@ -711,11 +711,12 @@ def admission_complete_profile_view(request):
                 raise ValidationError('Unable to provision the admission accounts.')
             applicant.admission_status = 'Accepted'
             applicant.save()
+            portal_login_url = f'{settings.PORTAL_BASE_URL}{reverse("login")}'
             credentials = [
-                {'role': 'parent', 'username': parent.parent_id, 'password': (parent.last_name or parent.first_name).strip().lower(), 'portal_url': request.build_absolute_uri(reverse('login'))},
+                {'role': 'parent', 'username': parent.parent_id, 'password': (parent.last_name or parent.first_name).strip().lower(), 'portal_url': portal_login_url},
             ]
             if student.has_portal_access:
-                credentials.insert(0, {'role': 'student', 'username': student.student_id, 'password': student.last_name.strip().lower(), 'portal_url': request.build_absolute_uri(reverse('login'))})
+                credentials.insert(0, {'role': 'student', 'username': student.student_id, 'password': student.last_name.strip().lower(), 'portal_url': portal_login_url})
             return JsonResponse({'status': 'success', 'success': True, 'credentials': [
                 *credentials,
             ]})
