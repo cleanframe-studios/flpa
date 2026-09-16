@@ -1400,9 +1400,7 @@ def salary_profiles_view(request):
                 profile.transport_allowance = 0
                 profile.tax_deduction = 0
                 profile.pension_deduction = 0
-                profile.bank_name = request.POST.get('bank_name', '').strip()
-                profile.account_number = request.POST.get('account_number', '').strip()
-                profile.is_active = request.POST.get('is_active') == '1'
+                profile.is_active = True
                 profile.full_clean()
                 profile.save()
                 messages.success(request, f'Salary profile saved for {user.get_full_name() or user.username}.')

@@ -39,7 +39,7 @@
               <td class="p-4"><span class="rounded-lg bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-800">{{ staff_user|staff_primary_role }}</span></td>
               <td class="p-4">{% if staff_user.selected_salary_profile %}<span class="rounded-lg bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">Configured</span>{% else %}<span class="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">No Profile</span>{% endif %}</td>
               <td class="p-4 text-right">
-                <button type="button" onclick='openSalaryModal({{ staff_user.pk }}, "{{ staff_user.display_staff_name|escapejs }}", {{ staff_user.selected_salary_profile.base_salary|default:"0" }}, {{ staff_user.selected_salary_profile.allowances|default:"0" }}, {{ staff_user.selected_salary_profile.deductions|default:"0" }}, "{{ staff_user.selected_salary_profile.bank_name|default:""|escapejs }}", "{{ staff_user.selected_salary_profile.account_number|default:""|escapejs }}", {{ staff_user.selected_salary_profile.is_active|default_if_none:True|yesno:"1,0" }})' class="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100">{% if staff_user.selected_salary_profile %}Edit Profile{% else %}Configure Salary{% endif %}</button>
+                <button type="button" onclick='openSalaryModal({{ staff_user.pk }}, "{{ staff_user.display_staff_name|escapejs }}", {{ staff_user.selected_salary_profile.base_salary|default:"0" }}, {{ staff_user.selected_salary_profile.allowances|default:"0" }}, {{ staff_user.selected_salary_profile.deductions|default:"0" }})' class="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100">{% if staff_user.selected_salary_profile %}Edit Profile{% else %}Configure Salary{% endif %}</button>
               </td>
             </tr>
             {% empty %}
@@ -68,7 +68,7 @@
               <td class="p-4">{% if profile.is_active %}<span class="rounded-lg bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">Active</span>{% else %}<span class="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">Inactive</span>{% endif %}</td>
               <td class="p-4 text-right">
                 <div class="flex justify-end gap-2">
-                  <button type="button" onclick='openSalaryModal({{ profile.user.pk }}, "{{ profile.display_staff_name|escapejs }}", {{ profile.base_salary }}, {{ profile.allowances }}, {{ profile.deductions }}, "{{ profile.bank_name|escapejs }}", "{{ profile.account_number|escapejs }}", {{ profile.is_active|yesno:"1,0" }})' class="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100">Update</button>
+                  <button type="button" onclick='openSalaryModal({{ profile.user.pk }}, "{{ profile.display_staff_name|escapejs }}", {{ profile.base_salary }}, {{ profile.allowances }}, {{ profile.deductions }})' class="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100">Update</button>
                   <button type="button" onclick="openClearSalaryModal('{{ profile.pk }}', '{{ profile.user.pk }}', '{{ profile.display_staff_name|escapejs }}')" class="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 hover:bg-red-100">Clear</button>
                 </div>
               </td>
@@ -110,16 +110,8 @@
         <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Deductions</label>
         <input type="number" step="0.01" min="0" name="deductions" id="salary-deductions" value="0" class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
       </div>
-      <div>
-        <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Bank Name</label>
-        <input type="text" name="bank_name" id="salary-bank" class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
-      </div>
       <div class="sm:col-span-2">
-        <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Account Number</label>
-        <input type="text" name="account_number" id="salary-account" class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
-      </div>
-      <div class="sm:col-span-2">
-        <label class="flex items-center gap-3 text-sm font-semibold text-slate-700 cursor-pointer"><span class="relative inline-flex h-6 w-11 flex-shrink-0 items-center"><input type="checkbox" name="is_active" id="salary-is-active" value="1" checked class="peer sr-only"><span class="absolute inset-0 rounded-full bg-slate-300 transition-colors duration-200 peer-checked:bg-blue-600"></span><span class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200 peer-checked:translate-x-5"></span></span>Active on payroll</label>
+        <label class="flex items-center gap-3 text-sm font-semibold text-slate-700"><span class="relative inline-flex h-6 w-11 flex-shrink-0 items-center"><input type="checkbox" id="salary-is-active" checked disabled class="peer sr-only"><span class="absolute inset-0 rounded-full bg-blue-600"></span><span class="absolute left-5 top-0.5 h-5 w-5 rounded-full bg-white shadow-md"></span></span>Active on payroll</label>
       </div>
       <div class="sm:col-span-2 flex justify-end gap-3 pt-2">
         <button type="button" onclick="closeSalaryModal()" class="rounded-xl bg-slate-100 px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-200">Cancel</button>
@@ -192,15 +184,13 @@ document.addEventListener('DOMContentLoaded', function () {
   if (salarySessionInput.value) populateSalaryTerms(salarySessionInput.value, true);
 });
 
-function openSalaryModal(userId, name, base, allowances, deductions, bank, account, isActive) {
+function openSalaryModal(userId, name, base, allowances, deductions) {
   document.getElementById('salary-modal-title').textContent = 'Configure Salary — ' + name;
   document.getElementById('salary-user-id').value = userId;
   document.getElementById('salary-base').value = base;
   document.getElementById('salary-allowances').value = allowances;
   document.getElementById('salary-deductions').value = deductions;
-  document.getElementById('salary-bank').value = bank;
-  document.getElementById('salary-account').value = account;
-  document.getElementById('salary-is-active').checked = isActive === 1;
+  document.getElementById('salary-is-active').checked = true;
   const modal = document.getElementById('salary-modal');
   modal.classList.remove('hidden');
   modal.classList.add('flex');
