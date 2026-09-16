@@ -458,6 +458,7 @@ class StudentFeeAccount(models.Model):
 
 class FeePayment(models.Model):
     account = models.ForeignKey(StudentFeeAccount, on_delete=models.CASCADE, related_name='payments')
+    fee_item = models.ForeignKey('FeeStructureItem', on_delete=models.SET_NULL, null=True, blank=True, related_name='payments')
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     paid_at = models.DateTimeField(auto_now_add=True)
     recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='recorded_fee_payments')

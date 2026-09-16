@@ -2758,15 +2758,46 @@ def bursary_dashboard(request):
             else:
                 try:
                     with transaction.atomic():
-                        apply_fifo_payment(account, payment, request.user)
+                        fee_item_id = request.POST.get('fee_item_id')
+                        if fee_item_id:
+                            fee_item = get_object_or_404(
+                                FeeStructureItem.objects.select_related('fee_structure'),
+                                pk=fee_item_id,
+                                fee_structure__classroom=account.student.current_class,
+                                fee_structure__term=account.term,
+                                fee_structure__session=account.session,
+                            )
+                            item_paid = sum(
+                                (entry.amount for entry in account.payments.all() if entry.fee_item_id == fee_item.pk),
+                                Decimal('0'),
+                            )
+                            item_balance = fee_item.amount - item_paid
+                            if payment > item_balance:
+                                raise ValueError(f'Payment exceeds the remaining balance for {fee_item.description}.')
+                            FeePayment.objects.create(
+                                account=account,
+                                fee_item=fee_item,
+                                amount=payment,
+                                recorded_by=request.user,
+                            )
+                            if fee_item.is_compulsory:
+                                account.amount_paid += payment
+                                account.save(update_fields=['amount_paid', 'is_cleared'])
+                            payment_label = fee_item.description
+                        else:
+                            apply_fifo_payment(account, payment, request.user)
+                            payment_label = None
                 except ValueError as error:
                     messages.error(request, str(error))
                 else:
                     log_security_action(request, 'PAYMENT_RECORDED', f'{account.student} - {account.term}', {
                         'before': {'amount_paid': str(account.amount_paid)},
-                        'after': {'payment_received': str(payment)},
+                        'after': {'payment_received': str(payment), 'fee_item': payment_label},
                     })
-                    messages.success(request, 'Payment allocated to the oldest outstanding term balances first.')
+                    if payment_label:
+                        messages.success(request, f'Payment recorded for {payment_label}.')
+                    else:
+                        messages.success(request, 'Payment allocated to the oldest outstanding term balances first.')
         elif request.POST.get('action') == 'toggle_clearance':
             if principal_action_denied(request):
                 return redirect('bursary_dashboard')
@@ -2839,6 +2870,27 @@ def bursary_dashboard(request):
     for account in accounts:
         account.rollover_balance = student_outstanding_balance(account.student, selected_term) - max(account.balance, Decimal('0'))
         account.has_rollover_debt = account.rollover_balance > 0
+        fee_structure = FeeStructure.objects.filter(
+            classroom=account.student.current_class,
+            term=account.term,
+            session=account.session,
+        ).prefetch_related('items').first()
+        account.payment_options = []
+        if fee_structure:
+            payments_by_item = {}
+            for payment in account.payments.all():
+                if payment.fee_item_id:
+                    payments_by_item[payment.fee_item_id] = payments_by_item.get(payment.fee_item_id, Decimal('0')) + payment.amount
+            for fee_item in fee_structure.items.all():
+                paid_for_item = payments_by_item.get(fee_item.pk, Decimal('0'))
+                account.payment_options.append({
+                    'id': fee_item.pk,
+                    'description': fee_item.description,
+                    'is_compulsory': fee_item.is_compulsory,
+                    'amount': fee_item.amount,
+                    'paid': paid_for_item,
+                    'balance': max(fee_item.amount - paid_for_item, Decimal('0')),
+                })
     return render(request, 'portal/bursary.html', {
         'active_term': active_term,
         'sessions': sessions,

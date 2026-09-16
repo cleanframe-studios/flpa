@@ -9,7 +9,7 @@ from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import AcademicSession, AcademicTerm, AcademicWeek, AdmissionCampaign, Applicant, Attendance, AttendanceRegister, AccountProfile, AuditLog, CBTAttempt, CBTExam, CBTQuestion, CBTResponse, ClassRoom, ClassRoomSubject, FeeStructure, FeeStructureItem, Parent, Student, StudentExamSession, Subject, SubjectResult, StudentFeeAccount, StudentTermRecord, Teacher, TermEnrollment
+from .models import AcademicSession, AcademicTerm, AcademicWeek, AdmissionCampaign, Applicant, Attendance, AttendanceRegister, AccountProfile, AuditLog, CBTAttempt, CBTExam, CBTQuestion, CBTResponse, ClassRoom, ClassRoomSubject, FeePayment, FeeStructure, FeeStructureItem, Parent, Student, StudentExamSession, Subject, SubjectResult, StudentFeeAccount, StudentTermRecord, Teacher, TermEnrollment
 from .utils import send_registration_email
 from .views import create_portal_account
 
@@ -920,6 +920,40 @@ class AcademicCalendarGuardTests(TestCase):
         current_account.refresh_from_db()
         self.assertFalse(current_account.is_cleared)
         self.assertContains(response, 'Clear all previous and current term balances')
+
+    def test_bursary_payment_can_target_compulsory_or_optional_fee_item(self):
+        session = AcademicSession.objects.create(name='2026/2027', is_active=True)
+        term = AcademicTerm.objects.create(session=session, term_name='First Term', is_active=True)
+        classroom = ClassRoom.objects.create(name='Primary 4', section='Primary', level_number=4)
+        student = Student.objects.create(
+            first_name='Ada', last_name='Lovelace', sex='Female', date_of_birth='2015-01-01',
+            state_of_origin='Lagos', lga_of_origin='Ikeja', program='Primary (PRY)', current_class=classroom,
+        )
+        structure = FeeStructure.objects.create(classroom=classroom, term=term, session=session)
+        compulsory_item = FeeStructureItem.objects.create(fee_structure=structure, description='Tuition', amount=5000, is_compulsory=True)
+        optional_item = FeeStructureItem.objects.create(fee_structure=structure, description='Excursion', amount=2000, is_compulsory=False)
+        account = StudentFeeAccount.objects.get(student=student, term=term, session=session)
+
+        compulsory_response = self.client.post(reverse('bursary_dashboard'), {
+            'action': 'record_payment', 'account_id': account.pk, 'fee_item_id': compulsory_item.pk, 'amount_paid': '3000',
+        })
+        self.assertRedirects(compulsory_response, reverse('bursary_dashboard'))
+        account.refresh_from_db()
+        self.assertEqual(account.amount_paid, 3000)
+        self.assertEqual(FeePayment.objects.get(account=account).fee_item, compulsory_item)
+
+        optional_response = self.client.post(reverse('bursary_dashboard'), {
+            'action': 'record_payment', 'account_id': account.pk, 'fee_item_id': optional_item.pk, 'amount_paid': '1500',
+        })
+        self.assertRedirects(optional_response, reverse('bursary_dashboard'))
+        account.refresh_from_db()
+        self.assertEqual(account.amount_paid, 3000)
+        self.assertEqual(FeePayment.objects.get(account=account, fee_item=optional_item).amount, 1500)
+
+        self.client.post(reverse('bursary_dashboard'), {
+            'action': 'record_payment', 'account_id': account.pk, 'fee_item_id': optional_item.pk, 'amount_paid': '600',
+        })
+        self.assertEqual(FeePayment.objects.filter(account=account, fee_item=optional_item).count(), 1)
 
     def test_bursary_dashboard_filters_accounts_by_selected_historical_term(self):
         historical_session = AcademicSession.objects.create(name='2025/2026')
