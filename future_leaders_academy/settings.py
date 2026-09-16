@@ -32,7 +32,18 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'fallback-dev-key-if-needed')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = ['.onrender.com', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = [
+    '.onrender.com',
+    'localhost',
+    '127.0.0.1',
+    'flpa.sch.ng',
+    'www.flpa.sch.ng',
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    'https://flpa.sch.ng',
+    'https://www.flpa.sch.ng',
+]
 
 
 # Application definition
