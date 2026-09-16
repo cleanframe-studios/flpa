@@ -14,7 +14,7 @@ from django.contrib import messages
 from django.conf import settings
 from django.core.mail import EmailMessage
 from smtplib import SMTPException
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_http_methods, require_POST
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
@@ -75,7 +75,7 @@ from .models import (
 from django.db.models import Case, When, Value, IntegerField, Q, Max, Min, Exists, OuterRef, Sum, Avg, F
 from .decorators import bursar_required, registrar_required, role_required, teacher_required, principal_required
 from .utils import log_security_action, send_registration_email, send_admission_approval_email
-from .forms import ParentChildApplicationForm, ParentStudentLinkForm, StudentParentForm
+from .forms import BatchApplicantFormSet, BatchParentForm, ParentChildApplicationForm, ParentStudentLinkForm, StudentParentForm
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -519,6 +519,50 @@ def apply_admission_view(request):
     })
 
 
+@require_http_methods(['GET', 'POST'])
+def batch_apply_admission_view(request):
+    campaign = AdmissionCampaign.objects.filter(
+        status='Active', deadline__gte=timezone.now()
+    ).select_related('target_session', 'target_term').first()
+    if not campaign:
+        messages.error(request, 'There is no open admission campaign at this time.')
+        return redirect('login')
+    parent_form = BatchParentForm(request.POST or None)
+    child_formset = BatchApplicantFormSet(request.POST or None, prefix='children')
+    if request.method == 'POST' and parent_form.is_valid() and child_formset.is_valid():
+        parent_phone = normalize_phone_number(parent_form.cleaned_data['parent_phone'])
+        if Parent.objects.filter(phone_number=parent_phone).exists():
+            parent_form.add_error('parent_phone', 'This phone number already belongs to a parent profile. Please use the existing parent application flow.')
+        else:
+            with transaction.atomic():
+                batch = parent_form.save(commit=False)
+                batch.campaign = campaign
+                batch.parent_phone = parent_phone
+                batch.save()
+                for child_form in child_formset:
+                    applicant = child_form.save(commit=False)
+                    applicant.campaign = campaign
+                    applicant.application_batch = batch
+                    applicant.parent_name = batch.parent_name
+                    applicant.parent_phone = batch.parent_phone
+                    applicant.parent_email = batch.parent_email
+                    applicant.father_name = batch.parent_name
+                    applicant.father_phone = batch.parent_phone
+                    applicant.father_email = batch.parent_email
+                    applicant.father_address = 'To be completed during admission processing'
+                    applicant.state_of_origin = 'Not provided'
+                    applicant.lga = 'Not provided'
+                    applicant.sex = 'Male'
+                    applicant.save()
+            messages.success(request, f'{child_formset.total_form_count()} applications submitted for {batch.parent_name}.')
+            return redirect('login')
+    return render(request, 'portal/batch_apply_admission.html', {
+        'campaign': campaign,
+        'parent_form': parent_form,
+        'child_formset': child_formset,
+    })
+
+
 def admission_payment_view(request, temp_reg_number):
     applicant = get_object_or_404(
         Applicant.objects.select_related('campaign'),
@@ -669,6 +713,71 @@ def provision_admission_accounts(applicant, parent_choice=None):
     create_portal_account(student, 'student', student.last_name)
     create_portal_account(parent, 'parent', parent.last_name or parent.first_name)
     return student, parent
+
+
+def provision_batch_admission_accounts(batch, parent=None):
+    applicants = list(batch.applicants.select_related('intended_class').order_by('pk'))
+    if not applicants:
+        raise ValidationError('This batch has no child applications.')
+    if parent is None:
+        name_parts = batch.parent_name.split(maxsplit=1)
+        parent = Parent.objects.create(
+            first_name=name_parts[0],
+            last_name=name_parts[1] if len(name_parts) > 1 else 'Parent',
+            phone_number=batch.parent_phone,
+            sex='Male',
+            email=batch.parent_email,
+            marital_status='Married',
+            address='To be completed during admission processing',
+            state='Not provided',
+            lga='Not provided',
+            status='Active',
+        )
+        parent_profile_is_existing = False
+    else:
+        parent_profile_is_existing = True
+    students = []
+    for applicant in applicants:
+        applicant.admission_status = 'Approved'
+        program = {
+            'KG': 'Kindergarten (KG)',
+            'Nursery': 'Nursery (NUR)',
+            'Primary': 'Primary (PRY)',
+        }.get(applicant.intended_class.section, 'Primary (PRY)')
+        student = applicant.enrolled_student
+        if not student:
+            student = Student.objects.create(
+                first_name=applicant.first_name,
+                last_name=applicant.last_name,
+                other_name=applicant.other_name,
+                sex=applicant.sex or 'Male',
+                date_of_birth=applicant.date_of_birth or timezone.localdate(),
+                state_of_origin=applicant.state_of_origin or 'Not provided',
+                lga_of_origin=applicant.lga or 'Not provided',
+                program=program,
+                current_class=applicant.intended_class,
+                passport=applicant.passport if applicant.passport else None,
+                phone_number=batch.parent_phone,
+                email=batch.parent_email or '',
+                religion=applicant.religion or None,
+                status='Student',
+                parent=parent,
+            )
+        applicant.enrolled_student = student
+        # Batch Applicants share the parent through parent_profile because
+        # the legacy provisioned_parent field is one-to-one.
+        applicant.provisioned_parent = None
+        applicant.parent_profile = parent
+        applicant.parent_profile_is_existing = parent_profile_is_existing
+        applicant.parent_id = parent.parent_id
+        applicant.student_id = student.student_id
+        applicant.save(update_fields=['admission_status', 'enrolled_student', 'provisioned_parent', 'parent_profile', 'parent_profile_is_existing', 'parent_id', 'student_id'])
+        create_portal_account(student, 'student', student.last_name)
+        students.append(student)
+    batch.parent_profile = parent
+    batch.save(update_fields=['parent_profile'])
+    create_portal_account(parent, 'parent', parent.last_name or parent.first_name)
+    return parent, students
 
 
 @require_POST
@@ -824,7 +933,7 @@ def manage_campaigns_view(request):
 def review_applicants_view(request):
     if request.method == 'POST':
         applicant = get_object_or_404(
-            Applicant.objects.select_related('enrolled_student__parent', 'enrolled_student__user', 'provisioned_parent__user'),
+            Applicant.objects.select_related('application_batch', 'enrolled_student__parent', 'enrolled_student__user', 'provisioned_parent__user'),
             pk=request.POST.get('applicant_id'),
         )
         action = request.POST.get('action')
@@ -842,6 +951,23 @@ def review_applicants_view(request):
             elif applicant.payment_status != 'Verified':
                 messages.error(request, 'Verify payment before approving this applicant.')
             else:
+                if applicant.application_batch_id:
+                    batch = applicant.application_batch
+                    matched_parent = Parent.objects.filter(
+                        phone_number=normalize_phone_number(batch.parent_phone),
+                        user__isnull=False,
+                    ).first()
+                    if matched_parent and request.POST.get('confirm_parent_link') != 'yes':
+                        return render(request, 'portal/review_applicants.html', {
+                            'applicants': Applicant.objects.select_related('campaign', 'intended_class', 'enrolled_student'),
+                            'parent_link_prompt': {'applicant': applicant, 'parent': matched_parent, 'batch_count': batch.applicants.count()},
+                        })
+                    with transaction.atomic():
+                        parent, students = provision_batch_admission_accounts(batch, matched_parent)
+                        batch.parent_profile = parent
+                        batch.save(update_fields=['parent_profile'])
+                    messages.success(request, f'{len(students)} child applications approved under one parent profile.')
+                    return redirect('review_applicants')
                 matched_parent = Parent.objects.filter(
                     phone_number=normalize_phone_number(applicant.parent_phone),
                     user__isnull=False,
@@ -883,6 +1009,34 @@ def revoke_admission_view(request, pk):
     student = applicant.enrolled_student
     parent = applicant.provisioned_parent
     with transaction.atomic():
+        if applicant.application_batch_id:
+            batch = applicant.application_batch
+            batch_applicants = list(batch.applicants.select_related('enrolled_student__user'))
+            batch_parent = batch.parent_profile
+            batch_parent_is_existing = any(item.parent_profile_is_existing for item in batch_applicants)
+            for batch_applicant in batch_applicants:
+                batch_student = batch_applicant.enrolled_student
+                if batch_student:
+                    batch_student_user = batch_student.user if hasattr(batch_student, 'user') else None
+                    batch_student.delete()
+                    if batch_student_user:
+                        batch_student_user.delete()
+                batch_applicant.enrolled_student = None
+                batch_applicant.provisioned_parent = None
+                batch_applicant.parent_profile = None
+                batch_applicant.parent_profile_is_existing = False
+                batch_applicant.student_id = ''
+                batch_applicant.parent_id = ''
+                batch_applicant.admission_status = 'Verified'
+                batch_applicant.save(update_fields=['enrolled_student', 'provisioned_parent', 'parent_profile', 'parent_profile_is_existing', 'student_id', 'parent_id', 'admission_status'])
+            if batch_parent and not batch_parent_is_existing:
+                batch_parent_user = batch_parent.user if hasattr(batch_parent, 'user') else None
+                batch_parent.delete()
+                if batch_parent_user:
+                    batch_parent_user.delete()
+            batch.parent_profile = None
+            batch.save(update_fields=['parent_profile'])
+            return JsonResponse({'success': True, 'message': 'Batch admission approval was revoked.'})
         if student:
             student_user = student.user if hasattr(student, 'user') else None
             student.delete()

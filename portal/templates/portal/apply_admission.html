@@ -21,6 +21,7 @@
       <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-300">New Application</p>
       <h2 class="mt-1 text-2xl font-black text-white">{{ campaign.campaign_name }}</h2>
       <p class="mt-1 text-xs text-slate-300">Applying for {{ campaign.target_session.name }} · {{ campaign.target_term.term_name }}. Application fee: ₦{{ campaign.application_fee|floatformat:0 }}.</p>
+      <a href="{% url 'batch_apply_admission' %}" class="mt-4 inline-flex rounded-xl border border-emerald-300/40 bg-emerald-400/10 px-4 py-2.5 text-xs font-bold text-emerald-100 hover:bg-emerald-400/20">Applying for more than one child? Use the family application</a>
 
       <!-- Progress bar -->
       <div class="mt-6">

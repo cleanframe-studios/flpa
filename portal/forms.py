@@ -1,7 +1,7 @@
 from django import forms
 
 from .models import Parent, Student
-from .models import Applicant, ClassRoom
+from .models import AdmissionApplicationBatch, Applicant, ClassRoom
 
 
 class StudentParentForm(forms.Form):
@@ -73,3 +73,25 @@ class ParentChildApplicationForm(forms.ModelForm):
         self.fields['sex'].required = True
         self.fields['other_name'].required = True
         self.fields['intended_class'].required = True
+
+
+class BatchParentForm(forms.ModelForm):
+    class Meta:
+        model = AdmissionApplicationBatch
+        fields = ('parent_name', 'parent_phone', 'parent_email')
+
+
+class BatchApplicantForm(forms.ModelForm):
+    class Meta:
+        model = Applicant
+        fields = ('first_name', 'last_name', 'other_name', 'date_of_birth', 'intended_class')
+        widgets = {'date_of_birth': forms.DateInput(attrs={'type': 'date'})}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['intended_class'].queryset = ClassRoom.objects.order_by('section', 'sequence', 'name')
+        for field in self.fields.values():
+            field.required = True
+
+
+BatchApplicantFormSet = forms.formset_factory(BatchApplicantForm, extra=1, can_delete=False)

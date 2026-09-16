@@ -11,7 +11,7 @@ from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import AcademicSession, AcademicTerm, AcademicWeek, AdmissionCampaign, Applicant, Attendance, AttendanceRegister, AccountProfile, AuditLog, CBTAttempt, CBTExam, CBTQuestion, CBTResponse, ClassRoom, ClassRoomSubject, FeePayment, FeeStructure, FeeStructureItem, Parent, Student, StudentExamSession, Subject, SubjectResult, StudentFeeAccount, StudentTermRecord, Teacher, TermEnrollment
+from .models import AcademicSession, AcademicTerm, AcademicWeek, AdmissionApplicationBatch, AdmissionCampaign, Applicant, Attendance, AttendanceRegister, AccountProfile, AuditLog, CBTAttempt, CBTExam, CBTQuestion, CBTResponse, ClassRoom, ClassRoomSubject, FeePayment, FeeStructure, FeeStructureItem, Parent, Student, StudentExamSession, Subject, SubjectResult, StudentFeeAccount, StudentTermRecord, Teacher, TermEnrollment
 from .utils import send_registration_email
 from .views import create_portal_account
 
@@ -183,6 +183,58 @@ class ParentChildApplicationTests(TestCase):
         applicant = Applicant.objects.get(first_name='Ada')
         self.assertEqual(applicant.parent_profile, self.parent)
         self.assertEqual(applicant.parent_phone, self.parent.phone_number)
+
+
+class PublicBatchApplicationTests(TestCase):
+    def setUp(self):
+        session = AcademicSession.objects.create(name='2026/2027', is_active=True)
+        term = AcademicTerm.objects.create(session=session, term_name='First Term')
+        self.campaign = AdmissionCampaign.objects.create(
+            campaign_name='2026 Admissions', target_session=session, target_term=term,
+            deadline=timezone.now() + datetime.timedelta(days=30), status='Active',
+        )
+        self.classroom = ClassRoom.objects.create(name='Primary 1', section='Primary', level_number=1)
+
+    def test_public_batch_submission_creates_one_batch_and_two_applicants(self):
+        response = self.client.post(reverse('batch_apply_admission'), {
+            'parent_name': 'Grace Lovelace',
+            'parent_phone': '08012345678',
+            'parent_email': 'grace@example.com',
+            'children-TOTAL_FORMS': '2',
+            'children-INITIAL_FORMS': '0',
+            'children-MIN_NUM_FORMS': '0',
+            'children-MAX_NUM_FORMS': '1000',
+            'children-0-first_name': 'Ada', 'children-0-last_name': 'Lovelace',
+            'children-0-other_name': 'Byron', 'children-0-date_of_birth': '2018-04-12',
+            'children-0-intended_class': self.classroom.pk,
+            'children-1-first_name': 'Augusta', 'children-1-last_name': 'Lovelace',
+            'children-1-other_name': 'Ada', 'children-1-date_of_birth': '2020-02-01',
+            'children-1-intended_class': self.classroom.pk,
+        })
+        self.assertRedirects(response, reverse('login'))
+        batch = AdmissionApplicationBatch.objects.get(parent_phone='08012345678')
+        self.assertEqual(batch.applicants.count(), 2)
+        self.assertEqual(batch.applicants.values_list('parent_phone', flat=True).distinct().count(), 1)
+
+    def test_admin_approving_batch_creates_one_parent_and_two_students(self):
+        self.client.post(reverse('batch_apply_admission'), {
+            'parent_name': 'Grace Lovelace', 'parent_phone': '08012345678', 'parent_email': 'grace@example.com',
+            'children-TOTAL_FORMS': '2', 'children-INITIAL_FORMS': '0', 'children-MIN_NUM_FORMS': '0', 'children-MAX_NUM_FORMS': '1000',
+            'children-0-first_name': 'Ada', 'children-0-last_name': 'Lovelace', 'children-0-other_name': 'Byron', 'children-0-date_of_birth': '2018-04-12', 'children-0-intended_class': self.classroom.pk,
+            'children-1-first_name': 'Augusta', 'children-1-last_name': 'Lovelace', 'children-1-other_name': 'Ada', 'children-1-date_of_birth': '2020-02-01', 'children-1-intended_class': self.classroom.pk,
+        })
+        registrar = get_user_model().objects.create_user(username='batch-registrar', password='pass123')
+        AccountProfile.objects.create(user=registrar, role='registrar')
+        self.client.force_login(registrar)
+        batch = AdmissionApplicationBatch.objects.get(parent_phone='08012345678')
+        batch.applicants.update(payment_status='Verified')
+        response = self.client.post(reverse('review_applicants'), {
+            'action': 'approve_enroll', 'applicant_id': batch.applicants.first().pk,
+        })
+        self.assertRedirects(response, reverse('review_applicants'))
+        parent = Parent.objects.get(phone_number='08012345678')
+        self.assertEqual(Student.objects.filter(parent=parent).count(), 2)
+        self.assertEqual(Parent.objects.filter(phone_number='08012345678').count(), 1)
 
 
 class StudentRegistrationParentToggleTests(TestCase):

@@ -778,6 +778,7 @@ class Applicant(models.Model):
     SCHOOL_TYPE_CHOICES = [('None', 'First School (No Previous School)'), ('Public', 'Public'), ('Private', 'Private')]
 
     campaign = models.ForeignKey(AdmissionCampaign, on_delete=models.CASCADE, related_name='applicants')
+    application_batch = models.ForeignKey('AdmissionApplicationBatch', on_delete=models.SET_NULL, null=True, blank=True, related_name='applicants')
     temp_reg_number = models.CharField(max_length=50, unique=True, blank=True)
 
     # Step 1: Basic Applicant Data
@@ -860,6 +861,21 @@ class Applicant(models.Model):
                 return
             except IntegrityError:
                 self.temp_reg_number = ''
+
+
+class AdmissionApplicationBatch(models.Model):
+    campaign = models.ForeignKey(AdmissionCampaign, on_delete=models.CASCADE, related_name='application_batches')
+    parent_name = models.CharField(max_length=100)
+    parent_phone = models.CharField(max_length=100)
+    parent_email = models.EmailField(blank=True, null=True)
+    parent_profile = models.ForeignKey('Parent', on_delete=models.SET_NULL, null=True, blank=True, related_name='application_batches')
+    submitted_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-submitted_at']
+
+    def __str__(self):
+        return f'{self.parent_name} ({self.parent_phone})'
 
     def __str__(self):
         return f"{self.temp_reg_number} - {self.first_name} {self.last_name}"

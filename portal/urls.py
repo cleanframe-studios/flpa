@@ -9,6 +9,7 @@ urlpatterns = [
     path('contact/', views.contact_page, name='contact_page'),
     path('login/', views.login_view, name='login'),
     path('admissions/apply/', views.apply_admission_view, name='apply_admission'),
+    path('admissions/apply/multiple/', views.batch_apply_admission_view, name='batch_apply_admission'),
     path('admissions/payment/<str:temp_reg_number>/', views.admission_payment_view, name='admission_payment'),
     path('admissions/status/lookup/', views.admission_status_lookup_view, name='admission_status_lookup'),
     path('admissions/status/complete-profile/', views.admission_complete_profile_view, name='admission_complete_profile'),
