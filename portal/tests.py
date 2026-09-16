@@ -1088,6 +1088,25 @@ class AcademicCalendarGuardTests(TestCase):
         self.assertContains(response, '₦3,000.00')
         self.assertNotContains(response, 'Not billed')
 
+    def test_student_current_fee_account_prefers_active_account_and_falls_back_to_latest(self):
+        session = AcademicSession.objects.create(name='2026/2027', is_active=True)
+        first_term = AcademicTerm.objects.create(session=session, term_name='First Term', is_active=True)
+        classroom = ClassRoom.objects.create(name='Primary 4', section='Primary', level_number=4)
+        student = Student.objects.create(
+            first_name='Ada', last_name='Lovelace', sex='Female', date_of_birth='2015-01-01',
+            state_of_origin='Lagos', lga_of_origin='Ikeja', program='Primary (PRY)', current_class=classroom,
+        )
+        account = StudentFeeAccount.objects.create(student=student, term=first_term, session=session, total_billed=5000)
+
+        self.assertEqual(student.current_fee_account, account)
+        self.assertEqual(student.current_fee_account.total_outstanding, 5000)
+
+        AcademicTerm.objects.filter(pk=first_term.pk).update(is_active=False)
+        second_term = AcademicTerm.objects.create(session=session, term_name='Second Term', is_active=True)
+        self.assertEqual(student.current_fee_account, account)
+        self.assertEqual(student.current_fee_account.term_id, first_term.pk)
+        self.assertNotEqual(student.current_fee_account.term_id, second_term.pk)
+
     def test_parent_report_hub_filters_to_selected_child(self):
         session = AcademicSession.objects.create(name='2026/2027', is_active=True)
         term = AcademicTerm.objects.create(session=session, term_name='First Term', is_active=True, reports_published=True)

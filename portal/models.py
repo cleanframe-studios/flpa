@@ -138,16 +138,25 @@ class Student(models.Model):
 
     @property
     def current_fee_account(self):
-        active_term = AcademicTerm.objects.select_related('session').filter(is_active=True).first()
-        if not active_term:
-            return None
-        account = self.fee_accounts.filter(
-            term=active_term,
-            session=active_term.session,
+        active_term = AcademicTerm.objects.select_related('session').filter(
+            is_active=True,
+            session__is_active=True,
+        ).first() or AcademicTerm.objects.select_related('session').filter(
+            is_active=True,
         ).first()
+        account = None
+        if active_term:
+            account = self.fee_accounts.filter(
+                term=active_term,
+                session=active_term.session,
+            ).first()
+        if account is None:
+            account = self.fee_accounts.select_related('term', 'session').order_by(
+                '-term__start_date', '-session__name', '-pk'
+            ).first()
         if account:
-            account.is_current_term = True
-            account.is_rollover_debt = False
+            account.is_current_term = bool(active_term and account.term_id == active_term.pk)
+            account.is_rollover_debt = not account.is_current_term and account.balance > 0
         return account
 
     @property
