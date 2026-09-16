@@ -367,6 +367,15 @@ class AcademicCalendarGuardTests(TestCase):
         self.assertTrue(self.user.account_profile.profile_picture.name)
         self.assertContains(response, 'Profile updated successfully.')
 
+    def test_admin_profile_edit_ignores_empty_profile_picture_upload(self):
+        response = self.client.post(reverse('admin_profile_edit'), {
+            'first_name': 'Ada', 'last_name': 'Admin', 'email': 'ada@example.com',
+            'profile_picture': SimpleUploadedFile('empty.jpg', b'', content_type='image/jpeg'),
+        })
+
+        self.assertRedirects(response, reverse('admin_profile_edit'))
+        self.assertFalse(self.user.account_profile.profile_picture)
+
     def test_staff_class_allocation_bulk_save_updates_all_submitted_classrooms(self):
         first_teacher = Teacher.objects.create(first_name='Ada', last_name='Lovelace', staff_type='Teaching', phone_number='08000000000', email='ada@example.com')
         second_teacher = Teacher.objects.create(first_name='Grace', last_name='Hopper', staff_type='Teaching', phone_number='08000000001', email='grace@example.com')

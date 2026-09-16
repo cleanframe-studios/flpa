@@ -4066,8 +4066,9 @@ def admin_profile_edit(request):
                 return redirect('admin_profile_edit')
         request.user.email = email
         request.user.save(update_fields=['first_name', 'last_name', 'email'])
-        if request.FILES.get('profile_picture'):
-            profile.profile_picture = request.FILES['profile_picture']
+        profile_picture = request.FILES.get('profile_picture')
+        if profile_picture and getattr(profile_picture, 'size', 0) > 0:
+            profile.profile_picture = profile_picture
             profile.save(update_fields=['profile_picture'])
         messages.success(request, 'Profile updated successfully.')
         return redirect('admin_profile_edit')
@@ -4077,8 +4078,9 @@ def admin_profile_edit(request):
 @login_required(login_url='login')
 def my_profile_view(request):
     profile, _ = AccountProfile.objects.get_or_create(user=request.user, defaults={'role': 'student'})
-    if request.method == 'POST' and request.FILES.get('profile_picture'):
-        profile.profile_picture = request.FILES['profile_picture']
+    profile_picture = request.FILES.get('profile_picture') if request.method == 'POST' else None
+    if profile_picture and getattr(profile_picture, 'size', 0) > 0:
+        profile.profile_picture = profile_picture
         profile.save(update_fields=['profile_picture'])
         messages.success(request, 'Profile picture updated successfully.')
         return redirect('my_profile')
