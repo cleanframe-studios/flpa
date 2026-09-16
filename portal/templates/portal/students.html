@@ -334,9 +334,8 @@
                             <input type="hidden" id="existing_parent" name="existing_parent" disabled>
                             <svg class="dropdown-icon h-4 w-4 flex-shrink-0 cursor-pointer text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-width="2" d="m19 9-7 7-7-7"></path></svg>
                         </div>
-                        <div class="options-container absolute left-0 top-full z-50 mt-1 hidden max-h-48 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+                        <div class="options-container absolute left-0 top-full z-50 mt-1 hidden max-h-48 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg" data-no-filter="true">
                             <ul class="options-list py-1 text-sm text-slate-700">
-                                <li class="option-item cursor-pointer px-4 py-2.5 text-slate-500 hover:bg-blue-50" data-value="">Select an existing parent</li>
                                 {% for parent in parent_registration_form.fields.existing_parent.queryset %}
                                 <li class="option-item cursor-pointer px-4 py-2.5 text-slate-700 transition-colors hover:bg-blue-50" data-value="{{ parent.pk }}">{{ parent.display_name }} · {{ parent.phone_number }} · {{ parent.parent_id }}</li>
                                 {% endfor %}
