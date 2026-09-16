@@ -1271,8 +1271,7 @@
         });
     </script>
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-    document.querySelectorAll('select').forEach(function (select) {
+window.customizePortalSelect = function (select) {
         if (select.closest('.flatpickr-calendar')) return;
         if (select.dataset.customized) return;
         select.dataset.customized = 'true';
@@ -1324,7 +1323,9 @@ document.addEventListener('DOMContentLoaded', function () {
         });
         wrapper.append(button, menu);
         select.addEventListener('change', function () { refresh(); rebuildMenu(); });
-    });
+};
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('select').forEach(window.customizePortalSelect);
     document.addEventListener('click', function (event) {
         if (!event.target.closest('.custom-native-dropdown')) document.querySelectorAll('.custom-dropdown-menu').forEach(menu => menu.classList.add('hidden'));
     });
