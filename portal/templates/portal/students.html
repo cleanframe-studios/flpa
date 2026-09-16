@@ -326,15 +326,23 @@
                     </div>
                     <p class="mt-2 text-xs leading-5 text-blue-700">Link this student to an existing family record or create a new parent profile.</p>
                 </div>
-                <div id="existing-parent-fields" class="hidden space-y-2">
-                    <label for="existing_parent_search" class="field-label">Search existing parents</label>
-                    <input id="existing_parent_search" type="search" class="parent-field" placeholder="Search by name, phone, or parent ID" autocomplete="off">
-                    <select id="existing_parent" name="existing_parent" class="parent-field" size="4" disabled>
-                        <option value="">Select an existing parent</option>
-                        {% for parent in parent_registration_form.fields.existing_parent.queryset %}
-                        <option value="{{ parent.pk }}">{{ parent.display_name }} · {{ parent.phone_number }} · {{ parent.parent_id }}</option>
-                        {% endfor %}
-                    </select>
+                <div id="existing-parent-fields" class="hidden">
+                    <div class="relative custom-select" data-name="existing_parent">
+                        <span class="field-label">Search existing parents</span>
+                        <div class="select-box parent-field flex items-center justify-between">
+                            <input id="existing_parent_search" type="text" name="existing_parent_display" class="search-input w-full bg-transparent outline-none" placeholder="Search by name, phone, or parent ID" autocomplete="off" disabled>
+                            <input type="hidden" id="existing_parent" name="existing_parent" disabled>
+                            <svg class="dropdown-icon h-4 w-4 flex-shrink-0 cursor-pointer text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-width="2" d="m19 9-7 7-7-7"></path></svg>
+                        </div>
+                        <div class="options-container absolute left-0 top-full z-50 mt-1 hidden max-h-48 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+                            <ul class="options-list py-1 text-sm text-slate-700">
+                                <li class="option-item cursor-pointer px-4 py-2.5 text-slate-500 hover:bg-blue-50" data-value="">Select an existing parent</li>
+                                {% for parent in parent_registration_form.fields.existing_parent.queryset %}
+                                <li class="option-item cursor-pointer px-4 py-2.5 text-slate-700 transition-colors hover:bg-blue-50" data-value="{{ parent.pk }}">{{ parent.display_name }} · {{ parent.phone_number }} · {{ parent.parent_id }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
                 </div>
                 <div id="new-parent-fields" class="hidden grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <label class="block"><span class="field-label">Parent first name *</span><input name="parent_first_name" data-parent-required="true" class="parent-field" placeholder="Required for a new parent"></label>
@@ -445,6 +453,11 @@
             li.addEventListener('mousedown', (e) => { 
                 e.preventDefault(); 
                 input.value = opt;
+                const hiddenInput = container.querySelector('input[type="hidden"]');
+                if (hiddenInput) {
+                    hiddenInput.value = li.dataset.value || opt;
+                    hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+                }
                 closeAllSelects();
                 input.dispatchEvent(new Event('change', { bubbles: true })); 
             });
@@ -503,8 +516,8 @@
         const parentModeInputs = document.querySelectorAll('input[name="parent_mode"]');
         const parentSection = document.getElementById('new-parent-fields');
         const existingParentSection = document.getElementById('existing-parent-fields');
-        const existingParentSelect = document.getElementById('existing_parent');
-        const existingParentSearch = document.getElementById('existing_parent_search');
+        const existingParentInput = document.getElementById('existing_parent_search');
+        const existingParentValue = document.getElementById('existing_parent');
         const parentFields = document.querySelectorAll('[data-parent-required="true"]');
         const syncParentRequired = () => {
             const mode = document.querySelector('input[name="parent_mode"]:checked')?.value || '';
@@ -516,18 +529,13 @@
                 field.required = linkNewParent;
                 field.disabled = !linkNewParent;
             });
-            if (existingParentSelect) {
-                existingParentSelect.disabled = !linkExistingParent;
-                existingParentSelect.required = linkExistingParent;
+            if (existingParentInput && existingParentValue) {
+                existingParentInput.disabled = !linkExistingParent;
+                existingParentValue.disabled = !linkExistingParent;
+                existingParentValue.required = linkExistingParent;
             }
         };
         parentModeInputs.forEach(input => input.addEventListener('change', syncParentRequired));
-        existingParentSearch?.addEventListener('input', () => {
-            const query = existingParentSearch.value.toLowerCase().trim();
-            Array.from(existingParentSelect.options).forEach(option => {
-                option.hidden = Boolean(option.value) && !option.textContent.toLowerCase().includes(query);
-            });
-        });
         syncParentRequired();
 
         document.querySelectorAll('input[name="program"]').forEach(input => {
@@ -542,6 +550,8 @@
             const input = container.querySelector('.search-input');
             const ul = container.querySelector('.options-list');
             const icon = container.querySelector('.dropdown-icon');
+
+            if (!input || !ul || !icon) return;
 
             input.addEventListener('focus', () => {
                 closeAllSelects();
