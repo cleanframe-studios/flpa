@@ -75,7 +75,7 @@ from .models import (
 from django.db.models import Case, When, Value, IntegerField, Q, Max, Min, Exists, OuterRef, Sum, Avg, F
 from .decorators import bursar_required, registrar_required, role_required, teacher_required, principal_required
 from .utils import log_security_action, send_registration_email, send_admission_approval_email
-from .forms import ParentStudentLinkForm, StudentParentForm
+from .forms import ParentChildApplicationForm, ParentStudentLinkForm, StudentParentForm
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -619,7 +619,7 @@ def provision_admission_accounts(applicant, parent_choice=None):
     guardian_email = guardian['email']
     guardian_address = guardian['address']
     name_parts = guardian_name.split(maxsplit=1)
-    parent = applicant.provisioned_parent
+    parent = applicant.parent_profile or applicant.provisioned_parent
     if not parent:
         parent = Parent.objects.create(
             first_name=name_parts[0],
@@ -660,10 +660,12 @@ def provision_admission_accounts(applicant, parent_choice=None):
     if applicant.provisioned_parent_id != parent.pk:
         applicant.provisioned_parent = parent
     applicant.parent_id = parent.parent_id
+    if applicant.parent_profile_id != parent.pk:
+        applicant.parent_profile = parent
     if applicant.enrolled_student_id != student.pk:
         applicant.enrolled_student = student
     applicant.student_id = student.student_id
-    applicant.save(update_fields=['provisioned_parent', 'enrolled_student', 'parent_id', 'student_id'])
+    applicant.save(update_fields=['parent_profile', 'provisioned_parent', 'enrolled_student', 'parent_id', 'student_id'])
     create_portal_account(student, 'student', student.last_name)
     create_portal_account(parent, 'parent', parent.last_name or parent.first_name)
     return student, parent
@@ -840,9 +842,27 @@ def review_applicants_view(request):
             elif applicant.payment_status != 'Verified':
                 messages.error(request, 'Verify payment before approving this applicant.')
             else:
+                matched_parent = Parent.objects.filter(
+                    phone_number=normalize_phone_number(applicant.parent_phone),
+                    user__isnull=False,
+                ).first()
+                if matched_parent and request.POST.get('confirm_parent_link') != 'yes':
+                    return render(request, 'portal/review_applicants.html', {
+                        'applicants': Applicant.objects.select_related('campaign', 'intended_class', 'enrolled_student'),
+                        'parent_link_prompt': {
+                            'applicant': applicant,
+                            'parent': matched_parent,
+                        },
+                    })
                 applicant.admission_status = 'Approved'
-                applicant.save(update_fields=['admission_status'])
-                messages.success(request, f'Application {applicant.temp_reg_number} approved. Accounts will be created when the applicant accepts admission.')
+                if matched_parent:
+                    applicant.parent_profile = matched_parent
+                    applicant.parent_profile_is_existing = True
+                    applicant.save(update_fields=['admission_status', 'parent_profile', 'parent_profile_is_existing'])
+                    messages.success(request, f'Application {applicant.temp_reg_number} approved and linked to {matched_parent.display_name}.')
+                else:
+                    applicant.save(update_fields=['admission_status'])
+                    messages.success(request, f'Application {applicant.temp_reg_number} approved. Accounts will be created when the applicant accepts admission.')
         return redirect('review_applicants')
     return render(request, 'portal/review_applicants.html', {
         'applicants': Applicant.objects.select_related('campaign', 'intended_class', 'enrolled_student'),
@@ -868,17 +888,19 @@ def revoke_admission_view(request, pk):
             student.delete()
             if student_user:
                 student_user.delete()
-        if parent:
+        if parent and not applicant.parent_profile_is_existing:
             parent_user = parent.user if hasattr(parent, 'user') else None
             parent.delete()
             if parent_user:
                 parent_user.delete()
         applicant.enrolled_student = None
         applicant.provisioned_parent = None
+        applicant.parent_profile = None
+        applicant.parent_profile_is_existing = False
         applicant.student_id = ''
         applicant.parent_id = ''
         applicant.admission_status = 'Verified'
-        applicant.save(update_fields=['enrolled_student', 'provisioned_parent', 'student_id', 'parent_id', 'admission_status'])
+        applicant.save(update_fields=['enrolled_student', 'provisioned_parent', 'parent_profile', 'parent_profile_is_existing', 'student_id', 'parent_id', 'admission_status'])
     return JsonResponse({'success': True, 'message': 'Admission approval was revoked. Generated student and parent profiles were removed.'})
 
 
@@ -1510,6 +1532,36 @@ def parent_dashboard_view(request):
             ('School Fees', 'Zenith Bank', '1223688239', 'Future Leaders Private Academy'),
             ('Books / Uniform', 'Providus Bank', '6507146199', 'Funmilayo Fasina'),
         ],
+    })
+
+
+@login_required(login_url='login')
+def parent_child_application_view(request):
+    parent = getattr(request.user, 'parent_record', None)
+    if not parent:
+        return redirect('dashboard')
+    campaign = AdmissionCampaign.objects.filter(
+        status='Active', deadline__gte=timezone.now()
+    ).select_related('target_session', 'target_term').first()
+    if not campaign:
+        messages.error(request, 'There is no open admission campaign at this time.')
+        return redirect('parent_dashboard')
+    form = ParentChildApplicationForm(request.POST or None, request.FILES or None, campaign=campaign)
+    if request.method == 'POST' and form.is_valid():
+        applicant = form.save(commit=False)
+        applicant.campaign = campaign
+        applicant.parent_profile = parent
+        applicant.parent_profile_is_existing = True
+        applicant.parent_name = parent.display_name
+        applicant.parent_phone = parent.phone_number
+        applicant.parent_email = parent.email
+        applicant.save()
+        messages.success(request, f'Application submitted successfully. Registration number: {applicant.temp_reg_number}.')
+        return redirect('parent_dashboard')
+    return render(request, 'portal/parent_child_application.html', {
+        'form': form,
+        'campaign': campaign,
+        'parent': parent,
     })
 
 

@@ -825,6 +825,8 @@ class Applicant(models.Model):
     admission_status = models.CharField(max_length=100, choices=ADMISSION_STATUS_CHOICES, default='Pending')
     enrolled_student = models.OneToOneField('Student', on_delete=models.SET_NULL, null=True, blank=True, related_name='applicant_record')
     provisioned_parent = models.OneToOneField('Parent', on_delete=models.SET_NULL, null=True, blank=True, related_name='applicant_parent_record')
+    parent_profile = models.ForeignKey('Parent', on_delete=models.SET_NULL, null=True, blank=True, related_name='applications')
+    parent_profile_is_existing = models.BooleanField(default=False)
     student_id = models.CharField(max_length=100, blank=True)
     parent_id = models.CharField(max_length=100, blank=True)
     submitted_at = models.DateTimeField(auto_now_add=True)

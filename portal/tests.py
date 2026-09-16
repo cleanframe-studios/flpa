@@ -118,6 +118,72 @@ class AdmissionApprovalWorkflowTests(TestCase):
         self.assertFalse(Student.objects.filter(pk=student_id).exists())
         self.assertFalse(Parent.objects.filter(pk=parent_id).exists())
 
+    def test_approval_prompts_to_reuse_existing_parent_and_revoke_preserves_it(self):
+        parent_user = get_user_model().objects.create_user(username='existing-parent', password='pass123')
+        parent = Parent.objects.create(
+            first_name='Grace', last_name='Lovelace', phone_number=self.applicant.parent_phone,
+            sex='Female', marital_status='Married', address='One Main Street', state='Lagos', lga='Ikeja',
+            user=parent_user,
+        )
+        response = self.client.post(reverse('review_applicants'), {
+            'action': 'approve_enroll', 'applicant_id': self.applicant.pk,
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Existing parent account found')
+
+        self.client.post(reverse('review_applicants'), {
+            'action': 'approve_enroll', 'applicant_id': self.applicant.pk,
+            'confirm_parent_link': 'yes',
+        })
+        applicant = Applicant.objects.get(pk=self.applicant.pk)
+        self.assertEqual(applicant.parent_profile, parent)
+        self.assertTrue(applicant.parent_profile_is_existing)
+
+        self.client.post(reverse('admission_complete_profile'), {
+            'temp_reg_number': applicant.temp_reg_number,
+            'parent_choice': 'father',
+            'guardian_name': 'Grace Lovelace',
+            'guardian_phone': self.applicant.parent_phone,
+            'guardian_address': 'One Main Street',
+            'state_of_origin': 'Lagos',
+            'lga': 'Ikeja',
+        })
+        applicant.refresh_from_db()
+        applicant.admission_status = 'Approved'
+        applicant.save(update_fields=['admission_status'])
+        response = self.client.post(reverse('revoke_admission', args=[applicant.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Parent.objects.filter(pk=parent.pk).exists())
+
+
+class ParentChildApplicationTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(username='parent-user', password='pass123')
+        self.parent = Parent.objects.create(
+            first_name='Grace', last_name='Lovelace', phone_number='08012345678', sex='Female',
+            marital_status='Married', address='One Main Street', state='Lagos', lga='Ikeja', user=self.user,
+        )
+        AccountProfile.objects.create(user=self.user, role='parent')
+        self.client.force_login(self.user)
+        session = AcademicSession.objects.create(name='2026/2027', is_active=True)
+        term = AcademicTerm.objects.create(session=session, term_name='First Term')
+        self.campaign = AdmissionCampaign.objects.create(
+            campaign_name='2026 Admissions', target_session=session, target_term=term,
+            deadline=timezone.now() + datetime.timedelta(days=30), status='Active',
+        )
+        self.classroom = ClassRoom.objects.create(name='Primary 1', section='Primary', level_number=1)
+
+    def test_parent_can_apply_for_another_child_without_parent_fields(self):
+        response = self.client.post(reverse('parent_child_application'), {
+            'first_name': 'Ada', 'last_name': 'Lovelace', 'other_name': 'Byron',
+            'date_of_birth': '2018-04-12', 'sex': 'Female', 'intended_class': self.classroom.pk,
+            'state_of_origin': 'Lagos', 'lga': 'Ikeja', 'programme_of_study': 'Primary (PRY)',
+        })
+        self.assertRedirects(response, reverse('parent_dashboard'))
+        applicant = Applicant.objects.get(first_name='Ada')
+        self.assertEqual(applicant.parent_profile, self.parent)
+        self.assertEqual(applicant.parent_phone, self.parent.phone_number)
+
 
 class StudentRegistrationParentToggleTests(TestCase):
     def setUp(self):

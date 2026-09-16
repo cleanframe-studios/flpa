@@ -54,6 +54,7 @@ urlpatterns = [
     path('student/cbt-center/', views.cbt_center_view, name='cbt_center'),
     path('teacher-dashboard/', views.teacher_dashboard_view, name='teacher_dashboard'),
     path('parent-dashboard/', views.parent_dashboard_view, name='parent_dashboard'),
+    path('parent-dashboard/apply/', views.parent_child_application_view, name='parent_child_application'),
     path('parent/results/', views.parent_results_view, name='parent_results'),
     path('parent/results/report-cards/', views.parent_report_cards_view, name='parent_report_cards'),
     path('parent/bursary/', views.parent_bursary_view, name='parent_bursary'),

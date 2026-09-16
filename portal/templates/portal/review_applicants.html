@@ -48,6 +48,21 @@
   </div>
 </div>
 
+{% if parent_link_prompt %}
+<div class="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
+  <div class="w-full max-w-lg rounded-3xl border border-white/20 bg-white p-6 shadow-2xl">
+    <p class="text-xs font-bold uppercase tracking-wider text-blue-700">Existing parent account found</p>
+    <h2 class="mt-2 text-xl font-black text-slate-900">Link this application to the existing parent?</h2>
+    <p class="mt-3 text-sm leading-6 text-slate-600">{{ parent_link_prompt.applicant.first_name }} {{ parent_link_prompt.applicant.last_name }} will be linked to <strong>{{ parent_link_prompt.parent.display_name }}</strong> using the matching phone number. No duplicate parent profile will be created.</p>
+    <form method="post" class="mt-6 flex justify-end gap-3">
+      {% csrf_token %}<input type="hidden" name="action" value="approve_enroll"><input type="hidden" name="applicant_id" value="{{ parent_link_prompt.applicant.pk }}"><input type="hidden" name="confirm_parent_link" value="yes">
+      <a href="{% url 'review_applicants' %}" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">Cancel</a>
+      <button type="submit" class="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-700">Yes, Link Parent</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+
 <div id="revoke-admission-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-950/60 p-4 backdrop-blur-md" role="dialog" aria-modal="true" aria-labelledby="revoke-admission-title">
   <div class="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900/80 p-6 text-white shadow-2xl shadow-black/50 backdrop-blur-xl">
     <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-amber-300">Revoke admission</p>

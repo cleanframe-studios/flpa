@@ -1,6 +1,7 @@
 from django import forms
 
 from .models import Parent, Student
+from .models import Applicant, ClassRoom
 
 
 class StudentParentForm(forms.Form):
@@ -47,3 +48,28 @@ class ParentStudentLinkForm(forms.Form):
         self.fields['student'].queryset = Student.objects.filter(
             status='Student', parent__isnull=True
         ).order_by('last_name', 'first_name')
+
+
+class ParentChildApplicationForm(forms.ModelForm):
+    class Meta:
+        model = Applicant
+        fields = (
+            'first_name', 'last_name', 'other_name', 'date_of_birth', 'sex',
+            'nationality', 'religion', 'state_of_origin', 'lga', 'passport',
+            'has_disability', 'disability_details', 'school_type',
+            'previous_school', 'present_class', 'programme_of_study',
+            'intended_class',
+        )
+        widgets = {
+            'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
+            'intended_class': forms.Select(),
+            'disability_details': forms.Textarea(attrs={'rows': 2}),
+        }
+
+    def __init__(self, *args, campaign=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['intended_class'].queryset = ClassRoom.objects.order_by('section', 'sequence', 'name')
+        self.fields['date_of_birth'].required = True
+        self.fields['sex'].required = True
+        self.fields['other_name'].required = True
+        self.fields['intended_class'].required = True
