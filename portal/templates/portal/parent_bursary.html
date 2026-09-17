@@ -1,71 +1,197 @@
 {% extends 'portal/base.html' %}
 {% block page_title %}Bursary &amp; Payments{% endblock %}
 {% block content %}
-<div class="relative min-h-full overflow-hidden bg-gradient-to-br from-slate-200 via-slate-100 to-emerald-100/60 p-5 sm:p-6 lg:p-8">
+<div
+  class="relative min-h-full overflow-hidden bg-gradient-to-br from-slate-200 via-slate-100 to-emerald-100/60 p-5 sm:p-6 lg:p-8">
   <div class="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-emerald-300/25 blur-3xl"></div>
   <div class="pointer-events-none absolute right-0 top-52 h-80 w-80 rounded-full bg-blue-300/20 blur-3xl"></div>
   <div class="pointer-events-none absolute bottom-0 left-1/3 h-72 w-72 rounded-full bg-amber-200/25 blur-3xl"></div>
   <div class="relative mx-auto flex w-full max-w-7xl flex-col gap-8" style="row-gap: 2rem;">
-  <header class="relative mb-8 overflow-hidden rounded-[2rem] bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-950 p-7 text-white shadow-xl shadow-emerald-950/10 sm:p-9"><div class="relative z-10"><p class="text-xs font-bold uppercase tracking-[0.24em] text-emerald-200">Parent Finance</p><h1 class="mt-3 text-3xl font-black tracking-tight sm:text-4xl">Bursary &amp; Payments</h1><p class="mt-2 max-w-xl text-sm leading-6 text-emerald-100">Review your children's fee accounts and official school payment channels.</p></div><div class="absolute -right-16 -top-20 h-56 w-56 rounded-full border-[24px] border-emerald-400/10"></div><div class="absolute -bottom-28 right-20 h-48 w-48 rounded-full border-[18px] border-white/5"></div></header>
-  <section class="relative mb-8 overflow-hidden rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-xl shadow-slate-300/40 backdrop-blur-2xl sm:p-8">
-    <div class="flex flex-wrap items-center justify-between gap-4"><div><p class="text-xs font-bold uppercase tracking-[0.2em] text-blue-700">Account overview</p><h2 class="mt-2 text-xl font-black tracking-tight text-slate-950">Children's Ledgers</h2><p class="mt-1 text-sm text-slate-500">Payments clear the oldest outstanding term before newer term balances.</p></div>{% if active_term %}<span class="rounded-full border border-emerald-200/70 bg-emerald-50/80 px-3 py-1.5 text-xs font-bold text-emerald-800 backdrop-blur">Current term: {{ active_term.term_name }} {{ active_term.session.name }}</span>{% endif %}</div>
-    <div class="mt-7 space-y-6">
-      {% for child in children %}
+    <header
+      class="relative mb-8 overflow-hidden rounded-[2rem] bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-950 p-7 text-white shadow-xl shadow-emerald-950/10 sm:p-9">
+      <div class="relative z-10">
+        <p class="text-xs font-bold uppercase tracking-[0.24em] text-emerald-200">Parent Finance</p>
+        <h1 class="mt-3 text-3xl font-black tracking-tight sm:text-4xl">Bursary &amp; Payments</h1>
+        <p class="mt-2 max-w-xl text-sm leading-6 text-emerald-100">Review your children's fee accounts and official
+          school payment channels.</p>
+      </div>
+      <div class="absolute -right-16 -top-20 h-56 w-56 rounded-full border-[24px] border-emerald-400/10"></div>
+      <div class="absolute -bottom-28 right-20 h-48 w-48 rounded-full border-[18px] border-white/5"></div>
+    </header>
+    <section
+      class="relative mb-8 overflow-hidden rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-xl shadow-slate-300/40 backdrop-blur-2xl sm:p-8">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <p class="text-xs font-bold uppercase tracking-[0.2em] text-blue-700">Account overview</p>
+          <h2 class="mt-2 text-xl font-black tracking-tight text-slate-950">Children's Ledgers</h2>
+          <p class="mt-1 text-sm text-slate-500">Payments clear the oldest outstanding term before newer term balances.
+          </p>
+        </div>{% if active_term %}<span
+          class="rounded-full border border-emerald-200/70 bg-emerald-50/80 px-3 py-1.5 text-xs font-bold text-emerald-800 backdrop-blur">Current
+          term: {{ active_term.term_name }} {{ active_term.session.name }}</span>{% endif %}
+      </div>
+      <div class="mt-7 space-y-6">
+        {% for child in children %}
         {% with account=child.current_fee_account %}{% if account %}
-        <article class="w-full rounded-2xl border {% if account.is_rollover_debt %}border-amber-300/80 bg-amber-50/60{% else %}border-white/70 bg-white/60{% endif %} p-5 shadow-sm backdrop-blur-xl">
-          <div class="flex flex-wrap items-start justify-between gap-3"><div><h3 class="font-bold text-slate-900">{{ child.first_name }} {{ child.last_name }}</h3><p class="mt-1 text-sm font-bold text-slate-700">{{ account.term.term_name }} {{ account.session.name }}</p></div><div class="flex flex-wrap gap-2">{% if account.is_current_term %}<span class="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-800">Current Term</span>{% elif account.is_rollover_debt %}<span class="rounded-full bg-amber-200 px-3 py-1 text-xs font-bold text-amber-900">Rolled-Over Balance</span>{% else %}<span class="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold text-slate-700">Previous Term</span>{% endif %}<span class="rounded-full px-3 py-1 text-xs font-bold {% if account.is_cleared %}bg-emerald-100 text-emerald-800{% else %}bg-amber-100 text-amber-800{% endif %}">{% if account.is_cleared %}Cleared{% else %}Pending{% endif %}</span></div></div>
-          <div class="mt-4 grid gap-3 text-sm sm:grid-cols-3"><div class="rounded-xl bg-white/80 p-3 shadow-sm backdrop-blur"><span class="block text-slate-500">Billed</span><strong>₦{{ account.total_billed|floatformat:'2g' }}</strong></div><div class="rounded-xl bg-white/80 p-3 shadow-sm backdrop-blur"><span class="block text-slate-500">Paid</span><strong class="text-emerald-700">₦{{ account.amount_paid|floatformat:'2g' }}</strong></div><div class="rounded-xl bg-white/80 p-3 shadow-sm backdrop-blur"><span class="block text-slate-500">Balance</span><strong class="{% if account.balance > 0 %}text-amber-800{% else %}text-emerald-700{% endif %}">₦{{ account.balance|floatformat:'2g' }}</strong></div></div>
-          <div class="mt-4 border-t border-slate-200/70 pt-3"><p class="text-xs font-bold uppercase tracking-wider text-slate-500">Payment history</p>{% for payment in account.payments.all %}<div class="mt-2 flex justify-between text-xs text-slate-600"><span>₦{{ payment.amount|floatformat:'2g' }}</span><span>{{ payment.paid_at|date:'d M Y' }}</span></div>{% empty %}<p class="mt-2 text-xs text-slate-400">No payments recorded.</p>{% endfor %}</div>
+        <article
+          class="w-full rounded-2xl border {% if account.is_rollover_debt %}border-amber-300/80 bg-amber-50/60{% else %}border-white/70 bg-white/60{% endif %} p-5 shadow-sm backdrop-blur-xl">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 class="font-bold text-slate-900">{{ child.first_name }} {{ child.last_name }}</h3>
+              <p class="mt-1 text-sm font-bold text-slate-700">{{ account.term.term_name }} {{ account.session.name }}
+              </p>
+            </div>
+            <div class="flex flex-wrap gap-2">{% if account.is_current_term %}<span
+                class="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-800">Current Term</span>{% elif
+              account.is_rollover_debt %}<span
+                class="rounded-full bg-amber-200 px-3 py-1 text-xs font-bold text-amber-900">Rolled-Over
+                Balance</span>{% else %}<span
+                class="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold text-slate-700">Previous Term</span>{%
+              endif %}<span
+                class="rounded-full px-3 py-1 text-xs font-bold {% if account.is_cleared %}bg-emerald-100 text-emerald-800{% else %}bg-amber-100 text-amber-800{% endif %}">{%
+                if account.is_cleared %}Cleared{% else %}Pending{% endif %}</span></div>
+          </div>
+          <div class="mt-4 grid gap-3 text-sm sm:grid-cols-3">
+            <div class="rounded-xl bg-white/80 p-3 shadow-sm backdrop-blur"><span
+                class="block text-slate-500">Billed</span><strong>₦{{ account.total_billed|floatformat:'2g' }}</strong>
+            </div>
+            <div class="rounded-xl bg-white/80 p-3 shadow-sm backdrop-blur"><span
+                class="block text-slate-500">Paid</span><strong class="text-emerald-700">₦{{
+                account.amount_paid|floatformat:'2g' }}</strong></div>
+            <div class="rounded-xl bg-white/80 p-3 shadow-sm backdrop-blur"><span
+                class="block text-slate-500">Balance</span><strong
+                class="{% if account.balance > 0 %}text-amber-800{% else %}text-emerald-700{% endif %}">₦{{
+                account.balance|floatformat:'2g' }}</strong></div>
+          </div>
+          <div class="mt-4 border-t border-slate-200/70 pt-3">
+            <p class="text-xs font-bold uppercase tracking-wider text-slate-500">Payment history</p>{% for payment in
+            account.payments.all %}<div class="mt-2 flex justify-between text-xs text-slate-600"><span>₦{{
+                payment.amount|floatformat:'2g' }}</span><span>{{ payment.paid_at|date:'d M Y' }}</span></div>{% empty
+            %}<p class="mt-2 text-xs text-slate-400">No payments recorded.</p>{% endfor %}
+          </div>
         </article>
         {% else %}<p class="text-sm text-slate-500">No linked fee accounts are available.</p>{% endif %}{% endwith %}
-      {% empty %}<p class="text-sm text-slate-500">No linked children.</p>{% endfor %}
-    </div>
-  </section>
-  <section class="relative mb-8 overflow-hidden rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-xl shadow-slate-300/40 backdrop-blur-2xl sm:p-8">
-    <div class="flex flex-wrap items-end justify-between gap-4"><div><p class="text-xs font-bold uppercase tracking-[0.2em] text-rose-700">Current term</p><h2 class="mt-2 text-xl font-black tracking-tight text-slate-950">Fee Breakdown</h2><p class="mt-1 text-sm text-slate-500">Compulsory fees must be paid in full to unlock report cards. Optional fees are extra and do not lock results.</p></div></div>
-    <div class="mt-7 space-y-7">
-      {% for child in children %}
-      <article class="overflow-hidden rounded-2xl border border-white/70 bg-white/60 shadow-sm backdrop-blur-xl">
-        <div class="flex flex-col gap-3 border-b border-slate-200/70 bg-white/70 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6"><div><p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Term fees</p><h3 class="mt-1 font-black text-slate-950">{{ child.first_name }} {{ child.last_name }} <span class="ml-1 text-xs font-semibold text-slate-500">({{ child.current_class.name|default:'No class assigned' }})</span></h3></div></div>
-        <div class="grid gap-4 p-4 sm:grid-cols-2 sm:p-5">
-          {% for item in child.current_fee_structure.items.all %}
+        {% empty %}<p class="text-sm text-slate-500">No linked children.</p>{% endfor %}
+      </div>
+    </section>
+    <section
+      class="relative mb-8 overflow-hidden rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-xl shadow-slate-300/40 backdrop-blur-2xl sm:p-8">
+      <div class="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p class="text-xs font-bold uppercase tracking-[0.2em] text-rose-700">Current term</p>
+          <h2 class="mt-2 text-xl font-black tracking-tight text-slate-950">Fee Breakdown</h2>
+          <p class="mt-1 text-sm text-slate-500">Compulsory fees must be paid in full to unlock report cards. Optional
+            fees are extra and do not lock results.</p>
+        </div>
+      </div>
+      <div class="mt-7 space-y-7">
+        {% for child in children %}
+        <article class="overflow-hidden rounded-2xl border border-white/70 bg-white/60 shadow-sm backdrop-blur-xl">
+          <div
+            class="flex flex-col gap-3 border-b border-slate-200/70 bg-white/70 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <div>
+              <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Term fees</p>
+              <h3 class="mt-1 font-black text-slate-950">{{ child.first_name }} {{ child.last_name }} <span
+                  class="ml-1 text-xs font-semibold text-slate-500">({{ child.current_class.name|default:'No class
+                  assigned' }})</span></h3>
+            </div>
+          </div>
+          <div class="grid gap-4 p-4 sm:grid-cols-2 sm:p-5">
+            {% for item in child.current_fee_structure.items.all %}
             {% if item.is_compulsory %}
-            <div class="relative overflow-hidden rounded-2xl border-2 border-rose-300 bg-gradient-to-br from-rose-50 via-white to-rose-50 p-4 shadow-lg shadow-rose-300/30 ring-1 ring-rose-200/60">
-              <span class="absolute right-3 top-3 rounded-full bg-rose-600 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white shadow">Compulsory</span>
+            <div
+              class="relative overflow-hidden rounded-2xl border-2 border-rose-300 bg-gradient-to-br from-rose-50 via-white to-rose-50 p-4 shadow-lg shadow-rose-300/30 ring-1 ring-rose-200/60">
+              <span
+                class="absolute right-3 top-3 rounded-full bg-rose-600 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white shadow">Compulsory</span>
               <p class="max-w-[75%] text-sm font-bold text-slate-900">{{ item.description }}</p>
               <p class="mt-2 text-xl font-black text-rose-700">₦{{ item.amount|floatformat:'2g' }}</p>
             </div>
             {% else %}
             <div class="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4 backdrop-blur">
-              <span class="rounded-full bg-slate-200 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-600">Optional</span>
+              <span
+                class="rounded-full bg-slate-200 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-600">Optional</span>
               <p class="mt-2 text-sm font-semibold text-slate-700">{{ item.description }}</p>
               <p class="mt-1 text-lg font-black text-slate-800">₦{{ item.amount|floatformat:'2g' }}</p>
             </div>
             {% endif %}
-          {% empty %}<p class="col-span-full p-1 text-xs text-slate-400">No fee structure set for this class yet.</p>{% endfor %}
-        </div>
-      </article>
-      {% empty %}<p class="text-sm text-slate-500">No linked children.</p>{% endfor %}
-    </div>
-  </section>
-  <section class="relative mb-8 overflow-hidden rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-xl shadow-slate-300/40 backdrop-blur-2xl sm:p-8">
-    <div class="flex flex-wrap items-end justify-between gap-4"><div><p class="text-xs font-bold uppercase tracking-[0.2em] text-emerald-700">Term resources</p><h2 class="mt-2 text-xl font-black tracking-tight text-slate-950">Book List</h2><p class="mt-1 text-sm text-slate-500">The required books for each child's class.</p></div><span class="rounded-full border border-emerald-100/80 bg-emerald-50/80 px-3 py-1.5 text-xs font-bold text-emerald-800 backdrop-blur">Class supplies</span></div>
-    <div class="mt-7 space-y-7">
-      {% for child in children %}
-      <article class="overflow-hidden rounded-2xl border border-white/70 bg-white/60 shadow-sm backdrop-blur-xl transition-shadow hover:shadow-md">
-        <div class="flex flex-col gap-3 border-b border-slate-200/70 bg-white/70 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6"><div><p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Student supplies</p><h3 class="mt-1 font-black text-slate-950">{{ child.first_name }} {{ child.last_name }} <span class="ml-1 text-xs font-semibold text-slate-500">({{ child.current_class.name|default:'No class assigned' }})</span></h3></div><div class="rounded-xl bg-emerald-50/80 px-4 py-2 text-right backdrop-blur"><p class="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Books total</p><span class="text-base font-black text-emerald-900">₦{{ child.fee_book_breakdown.total_books|floatformat:'2g' }}</span></div></div>
-        <div class="p-3 sm:p-4"><div class="overflow-hidden rounded-xl border border-slate-200/70 bg-white/80"><div class="flex items-center justify-between bg-slate-50/80 px-4 py-2.5 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400"><span>Required title</span><span>Price</span></div><div class="divide-y divide-slate-100">
-              {% for item in child.fee_book_breakdown.book_items %}<div class="flex items-center justify-between gap-4 px-4 py-3 text-sm transition-colors hover:bg-emerald-50/40"><span class="font-medium text-slate-700">{{ item.title }}</span><span class="whitespace-nowrap font-bold text-slate-950">₦{{ item.price|floatformat:'2g' }}</span></div>{% empty %}<p class="px-4 py-4 text-xs text-slate-400">No books set for this class yet.</p>{% endfor %}
-            </div></div></div>
-        </div>
-      </article>
-      {% empty %}<p class="text-sm text-slate-500">No linked children.</p>{% endfor %}
-    </div>
-  </section>
-  <section class="relative overflow-hidden rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-xl shadow-slate-300/40 backdrop-blur-2xl sm:p-8"><div><p class="text-xs font-bold uppercase tracking-[0.2em] text-emerald-700">Pay securely</p><h2 class="mt-2 text-xl font-black tracking-tight text-slate-950">Official Payment Channels</h2><p class="mt-1 text-sm text-slate-500">Use the channel that matches the purpose of your payment.</p></div><div class="mt-7 grid gap-5 lg:grid-cols-3">{% for purpose, institution, account_number, account_name in payment_channels %}<article class="rounded-2xl border border-white/70 bg-white/60 p-5 shadow-sm backdrop-blur-xl transition-shadow hover:shadow-md"><p class="text-xs font-bold uppercase tracking-wider text-emerald-700">{{ purpose }}</p><h3 class="mt-3 text-lg font-black text-slate-900">{{ institution }}</h3><p class="mt-1 text-sm text-slate-500">{{ account_name }}</p><div class="mt-5 flex items-center justify-between gap-3 rounded-xl border border-slate-200/70 bg-white/90 p-3"><code class="text-sm font-bold text-slate-800">{{ account_number }}</code><button type="button" onclick="copyAccount('{{ account_number }}', this)" class="rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white transition hover:bg-slate-700">Copy</button></div></article>{% endfor %}</div></section>
+            {% empty %}<p class="col-span-full p-1 text-xs text-slate-400">No fee structure set for this class yet.</p>
+            {% endfor %}
+          </div>
+        </article>
+        {% empty %}<p class="text-sm text-slate-500">No linked children.</p>{% endfor %}
+      </div>
+    </section>
+    <section
+      class="relative mb-8 overflow-hidden rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-xl shadow-slate-300/40 backdrop-blur-2xl sm:p-8">
+      <div class="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p class="text-xs font-bold uppercase tracking-[0.2em] text-emerald-700">Term resources</p>
+          <h2 class="mt-2 text-xl font-black tracking-tight text-slate-950">Book List</h2>
+          <p class="mt-1 text-sm text-slate-500">The required books for each child's class.</p>
+        </div><span
+          class="rounded-full border border-emerald-100/80 bg-emerald-50/80 px-3 py-1.5 text-xs font-bold text-emerald-800 backdrop-blur">Class
+          supplies</span>
+      </div>
+      <div class="mt-7 space-y-7">
+        {% for child in children %}
+        <article
+          class="overflow-hidden rounded-2xl border border-white/70 bg-white/60 shadow-sm backdrop-blur-xl transition-shadow hover:shadow-md">
+          <div
+            class="flex flex-col gap-3 border-b border-slate-200/70 bg-white/70 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <div>
+              <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Student supplies</p>
+              <h3 class="mt-1 font-black text-slate-950">{{ child.first_name }} {{ child.last_name }} <span
+                  class="ml-1 text-xs font-semibold text-slate-500">({{ child.current_class.name|default:'No class
+                  assigned' }})</span></h3>
+            </div>
+            <div class="rounded-xl bg-emerald-50/80 px-4 py-2 text-right backdrop-blur">
+              <p class="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Books total</p><span
+                class="text-base font-black text-emerald-900">₦{{ child.fee_book_breakdown.total_books|floatformat:'2g'
+                }}</span>
+            </div>
+          </div>
+          <div class="p-3 sm:p-4">
+            <div class="overflow-hidden rounded-xl border border-slate-200/70 bg-white/80">
+              <div
+                class="flex items-center justify-between bg-slate-50/80 px-4 py-2.5 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
+                <span>Required title</span><span>Price</span></div>
+              <div class="divide-y divide-slate-100">
+                {% for item in child.fee_book_breakdown.book_items %}<div
+                  class="flex items-center justify-between gap-4 px-4 py-3 text-sm transition-colors hover:bg-emerald-50/40">
+                  <span class="font-medium text-slate-700">{{ item.title }}</span><span
+                    class="whitespace-nowrap font-bold text-slate-950">₦{{ item.price|floatformat:'2g' }}</span></div>{%
+                empty %}<p class="px-4 py-4 text-xs text-slate-400">No books set for this class yet.</p>{% endfor %}
+              </div>
+            </div>
+          </div>
+        </article>
+        {% empty %}<p class="text-sm text-slate-500">No linked children.</p>{% endfor %}
+      </div>
+    </section>
+    <section
+      class="relative overflow-hidden rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-xl shadow-slate-300/40 backdrop-blur-2xl sm:p-8">
+      <div>
+        <p class="text-xs font-bold uppercase tracking-[0.2em] text-emerald-700">Pay securely</p>
+        <h2 class="mt-2 text-xl font-black tracking-tight text-slate-950">Official Payment Channels</h2>
+        <p class="mt-1 text-sm text-slate-500">Use the channel that matches the purpose of your payment.</p>
+      </div>
+      <div class="mt-7 grid gap-5 lg:grid-cols-3">{% for purpose, institution, account_number, account_name in
+        payment_channels %}<article
+          class="rounded-2xl border border-white/70 bg-white/60 p-5 shadow-sm backdrop-blur-xl transition-shadow hover:shadow-md">
+          <p class="text-xs font-bold uppercase tracking-wider text-emerald-700">{{ purpose }}</p>
+          <h3 class="mt-3 text-lg font-black text-slate-900">{{ institution }}</h3>
+          <p class="mt-1 text-sm text-slate-500">{{ account_name }}</p>
+          <div
+            class="mt-5 flex items-center justify-between gap-3 rounded-xl border border-slate-200/70 bg-white/90 p-3">
+            <code class="text-sm font-bold text-slate-800">{{ account_number }}</code><button type="button"
+              onclick="copyAccount('{{ account_number }}', this)"
+              class="rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white transition hover:bg-slate-700">Copy</button>
+          </div>
+        </article>{% endfor %}</div>
+    </section>
   </div>
 </div>
 <script>
-function copyAccount(number, button) { navigator.clipboard.writeText(number).then(() => { const original = button.textContent; button.textContent = 'Copied'; setTimeout(() => button.textContent = original, 1400); }); }
+  function copyAccount(number, button) { navigator.clipboard.writeText(number).then(() => { const original = button.textContent; button.textContent = 'Copied'; setTimeout(() => button.textContent = original, 1400); }); }
 </script>
 {% endblock %}
