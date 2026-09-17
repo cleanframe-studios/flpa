@@ -1792,7 +1792,7 @@ def parent_bursary_view(request):
         ).prefetch_related('items').first() if active_term and child.current_class_id else None
         for account in child.fee_accounts_list:
             account.is_current_term = bool(active_term and account.term_id == active_term.pk)
-            account.is_rollover_debt = bool(not account.is_current_term and account.balance > 0)
+            account.is_rollover_debt = bool(not account.is_current_term and account.balance() > 0)
     return render(request, 'portal/parent_bursary.html', {
         'children': children,
         'active_term': active_term,
@@ -3079,7 +3079,7 @@ def bursary_dashboard(request):
                     session=selected_session,
                     defaults={'total_billed': fee_structure.compulsory_total if fee_structure else Decimal('0')},
                 )
-                if created and account.balance > 0 and student.parent and student.parent.user:
+                if created and account.balance() > 0 and student.parent and student.parent.user:
                     _notify_users(
                         [student.parent.user],
                         'School fees due',
