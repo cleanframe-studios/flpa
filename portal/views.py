@@ -578,7 +578,48 @@ def apply_admission_view(request):
         'school_type_choices': Applicant.SCHOOL_TYPE_CHOICES,
         'payment_account': payment_account,
     })
-
+@require_http_methods(['GET', 'POST'])
+def batch_apply_admission_view(request):
+    campaign = AdmissionCampaign.objects.filter(
+        status='Active', deadline__gte=timezone.now()
+    ).select_related('target_session', 'target_term').first()
+    if not campaign:
+        messages.error(request, 'There is no open admission campaign at this time.')
+        return redirect('login')
+    parent_form = BatchParentForm(request.POST or None)
+    child_formset = BatchApplicantFormSet(request.POST or None, prefix='children')
+    if request.method == 'POST' and parent_form.is_valid() and child_formset.is_valid():
+        parent_phone = normalize_phone_number(parent_form.cleaned_data['parent_phone'])
+        if Parent.objects.filter(phone_number=parent_phone).exists():
+            parent_form.add_error('parent_phone', 'This phone number already belongs to a parent profile. Please use the existing parent application flow.')
+        else:
+            with transaction.atomic():
+                batch = parent_form.save(commit=False)
+                batch.campaign = campaign
+                batch.parent_phone = parent_phone
+                batch.save()
+                for child_form in child_formset:
+                    applicant = child_form.save(commit=False)
+                    applicant.campaign = campaign
+                    applicant.application_batch = batch
+                    applicant.parent_name = batch.parent_name
+                    applicant.parent_phone = batch.parent_phone
+                    applicant.parent_email = batch.parent_email
+                    applicant.father_name = batch.parent_name
+                    applicant.father_phone = batch.parent_phone
+                    applicant.father_email = batch.parent_email
+                    applicant.father_address = 'To be completed during admission processing'
+                    applicant.state_of_origin = 'Not provided'
+                    applicant.lga = 'Not provided'
+                    applicant.sex = 'Male'
+                    applicant.save()
+            messages.success(request, f'{child_formset.total_form_count()} applications submitted for {batch.parent_name}.')
+            return redirect('login')
+    return render(request, 'portal/batch_apply_admission.html', {
+        'campaign': campaign,
+        'parent_form': parent_form,
+        'child_formset': child_formset,
+    })
 
 def admission_payment_view(request, temp_reg_number):
     applicant = get_object_or_404(
