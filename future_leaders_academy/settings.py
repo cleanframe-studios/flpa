@@ -192,15 +192,16 @@ if 'test' in sys.argv:
 # credentials via environment variables in production.
 import os
 
-EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend' if DEBUG else 'django.core.mail.backends.smtp.EmailBackend')
-EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
-EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
-EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 465                    # Change from 587 to 465
+EMAIL_USE_TLS = False               # Must be False for port 465
+EMAIL_USE_SSL = True                # Must be True for port 465
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
-EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', 10))
+EMAIL_TIMEOUT = 10                  # Now the timeout will actually catch if anything stalls
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'Future Leaders Academy <no-reply@futureleadersacademy.local>')
-CONTACT_EMAIL = os.environ.get('CONTACT_EMAIL', 'futureleadersacademy.fle10@gmail.com')
+CONTACT_EMAIL = os.environ.get('CONTACT_EMAIL', 'futureleadersacademy.fla10@gmail.com')
 
 # Web Push Notification Configuration (VAPID)
 VAPID_PUBLIC_KEY = os.environ.get('VAPID_PUBLIC_KEY', '')
