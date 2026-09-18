@@ -2,6 +2,7 @@ import json
 import csv
 import logging
 import os
+import requests
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponseForbidden, JsonResponse, HttpResponse
 from django.urls import reverse
@@ -386,14 +387,60 @@ def logout_view(request):
     logout(request)
     return redirect('login')
 
+def send_branded_admission_email(parent_email, student_name, reg_number, intended_class):
+    api_key = os.environ.get('RESEND_API_KEY')
+    if not api_key:
+        return  # Skip safely if key is missing
+
+    payload = {
+        "from": "Future Leaders Academy <onboarding@resend.dev>",
+        "to": [parent_email],
+        "subject": f"Admission Confirmation - {student_name}",
+        "html": f"""
+        <div style="background-color: #f3f4f6; padding: 30px 0; font-family: 'Segoe UI', Arial, sans-serif;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
+                <div style="background: linear-gradient(135deg, #022c22 0%, #064e3b 100%); padding: 30px; text-align: center; color: #ffffff;">
+                    <img src="https://flpa.onrender.com/static/portal/logo.png" alt="Logo" style="width: 60px; height: 60px; margin-bottom: 10px; border-radius: 50%; background: #fff; padding: 4px;">
+                    <h1 style="margin: 0; font-size: 22px; font-weight: 800;">Future Leaders Academy</h1>
+                    <p style="margin: 5px 0 0 0; font-size: 12px; color: #6ee7b7; text-transform: uppercase;">Official Admission Notice</p>
+                </div>
+                <div style="padding: 30px; color: #334155; font-size: 14px; line-height: 1.6;">
+                    <p style="margin-top: 0;">Dear Parent / Guardian,</p>
+                    <p>We are delighted to inform you that your payment notice has been received and verified for <strong>{student_name}</strong>.</p>
+                    <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin: 20px 0;">
+                        <p style="margin: 0 0 10px 0; font-size: 12px; font-weight: 700; text-transform: uppercase; color: #64748b;">Registration Details</p>
+                        <p style="margin: 5px 0;"><strong>Student:</strong> {student_name}</p>
+                        <p style="margin: 5px 0;"><strong>Assigned Reg ID:</strong> <span style="color: #059669; font-family: monospace; font-size: 15px; font-weight: bold;">{reg_number}</span></p>
+                        <p style="margin: 5px 0;"><strong>Applied Class:</strong> {intended_class}</p>
+                    </div>
+                    <p>You can now log into the school parent portal using your registered credentials.</p>
+                    <div style="text-align: center; margin: 30px 0 10px 0;">
+                        <a href="https://flpa.onrender.com/login/" style="background-color: #059669; color: #ffffff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block;">Access Parent Portal</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        """
+    }
+    
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    
+    requests.post("https://api.resend.com/emails", json=payload, headers=headers)
+
 
 def apply_admission_view(request):
     campaign = AdmissionCampaign.objects.filter(status='Active', deadline__gte=timezone.now()).select_related('target_session', 'target_term').first()
     if not campaign:
         messages.error(request, 'There is no open admission campaign at this time.')
         return redirect('login')
+        
     classrooms = ClassRoom.objects.order_by('section', 'sequence', 'name')
     payment_account = SchoolPaymentAccount.objects.filter(is_active=True).first()
+    
+    # 1. POST BLOCK (Handles form submission)
     if request.method == 'POST':
         first_name = request.POST.get('first_name', '').strip()
         last_name = request.POST.get('last_name', '').strip()
@@ -442,15 +489,18 @@ def apply_admission_view(request):
             errors.append('Please provide at least one parent/guardian name.')
         if not (father_phone or mother_phone):
             errors.append('Please provide at least one parent/guardian phone number.')
+            
         submitted_parent_phones = [phone for phone in (father_phone, mother_phone) if phone]
         duplicate_parent_phone = Parent.objects.filter(phone_number__in=submitted_parent_phones).values_list('phone_number', flat=True).first()
         duplicate_application_phone = Applicant.objects.filter(
             Q(parent_phone__in=submitted_parent_phones) | Q(father_phone__in=submitted_parent_phones) | Q(mother_phone__in=submitted_parent_phones)
         ).values_list('parent_phone', flat=True).first()
+        
         if duplicate_parent_phone:
             errors.append(f'The phone number {duplicate_parent_phone} is already registered. Please provide a different number.')
         elif duplicate_application_phone:
             errors.append('A parent phone number is already linked to another admission application. Please provide a different number.')
+            
         if parent_email:
             try:
                 validate_email(parent_email)
@@ -507,9 +557,20 @@ def apply_admission_view(request):
             next_of_kin_relationship=next_of_kin_relationship,
             next_of_kin_phone=next_of_kin_phone,
         )
-        if not send_registration_email(applicant):
-            messages.warning(request, 'Application saved, but we could not send the confirmation email. Please note your Registration Number below.')
+
+        # Trigger Resend HTTP Branded Email
+        if applicant.parent_email:
+            student_full_name = f"{applicant.first_name} {applicant.last_name}"
+            send_branded_admission_email(
+                applicant.parent_email, 
+                student_full_name, 
+                applicant.temp_reg_number, 
+                applicant.intended_class.name if applicant.intended_class else 'N/A'
+            )
+
         return redirect('admission_payment', temp_reg_number=applicant.temp_reg_number)
+
+    # 2. GET BLOCK (Handles initial page load - sits safely outside the POST block)
     return render(request, 'portal/apply_admission.html', {
         'campaign': campaign,
         'classrooms': classrooms,
@@ -519,55 +580,13 @@ def apply_admission_view(request):
     })
 
 
-@require_http_methods(['GET', 'POST'])
-def batch_apply_admission_view(request):
-    campaign = AdmissionCampaign.objects.filter(
-        status='Active', deadline__gte=timezone.now()
-    ).select_related('target_session', 'target_term').first()
-    if not campaign:
-        messages.error(request, 'There is no open admission campaign at this time.')
-        return redirect('login')
-    parent_form = BatchParentForm(request.POST or None)
-    child_formset = BatchApplicantFormSet(request.POST or None, prefix='children')
-    if request.method == 'POST' and parent_form.is_valid() and child_formset.is_valid():
-        parent_phone = normalize_phone_number(parent_form.cleaned_data['parent_phone'])
-        if Parent.objects.filter(phone_number=parent_phone).exists():
-            parent_form.add_error('parent_phone', 'This phone number already belongs to a parent profile. Please use the existing parent application flow.')
-        else:
-            with transaction.atomic():
-                batch = parent_form.save(commit=False)
-                batch.campaign = campaign
-                batch.parent_phone = parent_phone
-                batch.save()
-                for child_form in child_formset:
-                    applicant = child_form.save(commit=False)
-                    applicant.campaign = campaign
-                    applicant.application_batch = batch
-                    applicant.parent_name = batch.parent_name
-                    applicant.parent_phone = batch.parent_phone
-                    applicant.parent_email = batch.parent_email
-                    applicant.father_name = batch.parent_name
-                    applicant.father_phone = batch.parent_phone
-                    applicant.father_email = batch.parent_email
-                    applicant.father_address = 'To be completed during admission processing'
-                    applicant.state_of_origin = 'Not provided'
-                    applicant.lga = 'Not provided'
-                    applicant.sex = 'Male'
-                    applicant.save()
-            messages.success(request, f'{child_formset.total_form_count()} applications submitted for {batch.parent_name}.')
-            return redirect('login')
-    return render(request, 'portal/batch_apply_admission.html', {
-        'campaign': campaign,
-        'parent_form': parent_form,
-        'child_formset': child_formset,
-    })
-
-
 def admission_payment_view(request, temp_reg_number):
     applicant = get_object_or_404(
         Applicant.objects.select_related('campaign'),
         temp_reg_number__iexact=temp_reg_number,
     )
+    # Call it right here when the form is saved
+    send_branded_admission_email(parent_email, student_full_name, application.reg_number, application.intended_class.name)
     receipt_message = (
         f'Hello Admin, I have paid the admission application fee for {applicant.first_name} '
         f'{applicant.other_name} {applicant.last_name}. Registration number: {applicant.temp_reg_number}. '
