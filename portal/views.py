@@ -3079,7 +3079,7 @@ def bursary_dashboard(request):
                     session=selected_session,
                     defaults={'total_billed': fee_structure.compulsory_total if fee_structure else Decimal('0')},
                 )
-                if created and account.balance() > 0 and student.parent and student.parent.user:
+                if created and account.balance > 0 and student.parent and student.parent.user:
                     _notify_users(
                         [student.parent.user],
                         'School fees due',
