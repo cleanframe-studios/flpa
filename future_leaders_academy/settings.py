@@ -44,7 +44,12 @@ ALLOWED_HOSTS = [
 CSRF_TRUSTED_ORIGINS = [
     'https://flpa.sch.ng',
     'https://www.flpa.sch.ng',
+    'https://flpa-production.up.railway.app',
 ]
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
 
 PORTAL_BASE_URL = os.environ.get('PORTAL_BASE_URL', 'https://flpa.sch.ng').rstrip('/')
 
