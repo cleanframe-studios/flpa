@@ -34,6 +34,7 @@ DEBUG = False
 
 ALLOWED_HOSTS = [
     '.onrender.com',
+    'flpa-production.up.railway.app',
     'localhost',
     '127.0.0.1',
     'flpa.sch.ng',
