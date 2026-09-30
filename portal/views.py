@@ -20,7 +20,9 @@ from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.db.models.deletion import ProtectedError
+from django.db.models.functions import Lower
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 import datetime
@@ -4759,9 +4761,49 @@ def students_view(request):
 
     students = (Student.objects.filter(current_class__in=teacher.assigned_class.all(), status='Student').select_related('parent')
                 if teacher and role == 'teacher'
-                else Student.objects.select_related('parent').all()).order_by('-id')
+                else Student.objects.select_related('parent').all())
+    student_counts = {
+        'total': students.count(),
+        'Student': students.filter(status='Student').count(),
+        'Transferred': students.filter(status='Transferred').count(),
+        'Expelled': students.filter(status='Expelled').count(),
+        'Graduated': students.filter(status='Graduated').count(),
+    }
+    search_query = request.GET.get('q', '').strip()
+    search_fields = (
+        'first_name', 'last_name', 'other_name', 'student_id', 'lin',
+        'current_class__name', 'state_of_origin', 'lga_of_origin', 'status', 'program',
+    )
+    for search_term in search_query.split():
+        term_filter = Q()
+        for field in search_fields:
+            term_filter |= Q(**{f'{field}__icontains': search_term})
+        students = students.filter(term_filter)
+    students = students.order_by(
+        Lower('last_name'), Lower('first_name'), Lower('student_id'), 'pk'
+    )
+    if request.GET.get('print_data') == '1':
+        selected_statuses = request.GET.getlist('status')
+        students = students.filter(status__in=selected_statuses) if selected_statuses else students.none()
+        return JsonResponse({
+            'students': [
+                {
+                    'student_id': student.student_id,
+                    'name': ' '.join(filter(None, (student.last_name, student.first_name, student.other_name))),
+                    'program': student.program,
+                    'class_name': student.current_class.name if student.current_class else 'Unassigned',
+                    'state': student.state_of_origin,
+                    'status': student.status,
+                }
+                for student in students
+            ],
+        })
+    page_obj = Paginator(students, 10).get_page(request.GET.get('page'))
     context = {
-        'students': students,
+        'students': page_obj.object_list,
+        'page_obj': page_obj,
+        'page_range': page_obj.paginator.get_elided_page_range(page_obj.number),
+        'search_query': search_query,
         'can_register_students': can_register_students,
         'teacher_class_names_json': json.dumps(list(teacher.assigned_class.values_list('name', flat=True))) if teacher else '[]',
         'teacher_program_names_json': json.dumps(sorted({
@@ -4769,13 +4811,7 @@ def students_view(request):
             for classroom in teacher.assigned_class.all()
             if classroom.section in {'KG', 'Nursery', 'Primary'}
         })) if teacher else '[]',
-        'student_counts': {
-            'total': students.count(),
-            'Student': students.filter(status='Student').count(),
-            'Transferred': students.filter(status='Transferred').count(),
-            'Expelled': students.filter(status='Expelled').count(),
-            'Graduated': students.filter(status='Graduated').count(),
-        },
+        'student_counts': student_counts,
         'parent_registration_form': StudentParentForm(),
     }
     return render(request, 'portal/students.html', context)

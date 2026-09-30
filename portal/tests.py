@@ -16,6 +16,85 @@ from .utils import send_registration_email
 from .views import create_portal_account
 
 
+class StudentDirectoryTests(TestCase):
+    def setUp(self):
+        user = get_user_model().objects.create_user(username='directory-user', password='pass123')
+        self.client.force_login(user)
+        self.students = []
+        for index in range(12):
+            self.students.append(Student.objects.create(
+                student_id=f'DIR-{index:03d}',
+                lin=f'LIN-{index:03d}',
+                first_name=f'First {index:02d}',
+                last_name=f'Family {index:02d}',
+                sex='Female',
+                date_of_birth=datetime.date(2018, 1, 1),
+                state_of_origin='Lagos',
+                lga_of_origin=f'LGA {index:02d}',
+                program='Primary (PRY)',
+            ))
+
+    def test_directory_is_surname_ordered_and_has_ten_students_per_page(self):
+        response = self.client.get(reverse('students'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context['students']), 10)
+        self.assertEqual(response.context['page_obj'].paginator.count, 12)
+        self.assertEqual(response.context['students'][0], self.students[0])
+        self.assertContains(response, 'Page 1 of 2')
+        self.assertContains(response, reverse('student_profile', args=[self.students[0].pk]))
+
+        second_page = self.client.get(reverse('students'), {'page': 2})
+        self.assertEqual(len(second_page.context['students']), 2)
+        self.assertEqual(second_page.context['students'][0], self.students[10])
+
+    def test_search_matches_names_student_id_and_lin_case_insensitively(self):
+        full_name = self.client.get(reverse('students'), {'q': 'FIRST 07 FAMILY 07'})
+        student_id = self.client.get(reverse('students'), {'q': 'dir-007'})
+        learner_id = self.client.get(reverse('students'), {'q': 'lin-007'})
+
+        for response in (full_name, student_id, learner_id):
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(list(response.context['students']), [self.students[7]])
+
+    def test_search_paginates_matches_and_out_of_range_page_uses_last_page(self):
+        first_page = self.client.get(reverse('students'), {'q': 'family', 'page': 1})
+        second_page = self.client.get(reverse('students'), {'q': 'family', 'page': 2})
+        out_of_range = self.client.get(reverse('students'), {'page': 999})
+
+        self.assertEqual(len(first_page.context['students']), 10)
+        self.assertEqual(len(second_page.context['students']), 2)
+        self.assertEqual(second_page.context['page_obj'].number, 2)
+        self.assertEqual(len(out_of_range.context['students']), 2)
+        self.assertEqual(out_of_range.context['page_obj'].number, 2)
+
+    def test_duplicate_surnames_sort_by_first_name_and_empty_search_has_no_pages(self):
+        later_first_name = Student.objects.create(
+            student_id='DUP-002', first_name='Zoe', last_name='Shared', sex='Female',
+            date_of_birth=datetime.date(2018, 1, 1), state_of_origin='Lagos',
+            lga_of_origin='Ikeja', program='Primary (PRY)',
+        )
+        earlier_first_name = Student.objects.create(
+            student_id='DUP-001', first_name='Ada', last_name='Shared', sex='Female',
+            date_of_birth=datetime.date(2018, 1, 1), state_of_origin='Lagos',
+            lga_of_origin='Ikeja', program='Primary (PRY)',
+        )
+        ordered = self.client.get(reverse('students'), {'q': 'shared'})
+        empty = self.client.get(reverse('students'), {'q': 'no matching student'})
+
+        self.assertEqual(list(ordered.context['students']), [earlier_first_name, later_first_name])
+        self.assertEqual(empty.context['page_obj'].paginator.count, 0)
+        self.assertContains(empty, 'No students found matching your search.')
+
+    def test_print_data_returns_all_matching_statuses_across_pages(self):
+        response = self.client.get(reverse('students'), {
+            'print_data': '1', 'status': 'Student', 'q': 'family', 'page': 2,
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()['students']), 12)
+
+
 class AdmissionApprovalWorkflowTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(username='registrar', password='pass123')

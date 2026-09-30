@@ -56,10 +56,12 @@
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
             <h3 class="text-lg font-bold text-slate-900">Enrolled Students Directory</h3>
-            <p class="text-xs text-slate-500">All student profiles sorted by recent enrollment.</p>
+            <p class="text-xs text-slate-500">All student profiles sorted alphabetically by surname.</p>
         </div>
         <div class="relative w-full sm:w-80">
-            <input type="text" placeholder="Search by name, ID, or LGA..." class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 pl-10 text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:border-blue-500 transition-all">
+            <form id="student-directory-search-form" method="get">
+                <input id="student-directory-search" type="search" name="q" value="{{ search_query }}" placeholder="Search by name, ID, or LGA..." aria-label="Search students" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 pl-10 text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:border-blue-500 transition-all">
+            </form>
             <svg class="absolute left-3 top-3 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
         </div>
     </div>
@@ -81,7 +83,7 @@
             <tbody>
                 {% for student in students %}
                 <tr class="hover:bg-slate-50/80 transition-colors" data-status="{{ student.status }}" data-student-id="{{ student.student_id }}" data-name="{{ student.last_name }} {{ student.first_name }} {{ student.other_name|default:'' }}" data-class="{% if student.current_class %}{{ student.current_class.name }}{% else %}Unassigned{% endif %}" data-state="{{ student.state_of_origin }}" data-program="{{ student.program }}">
-                    <td class="py-4 px-6 text-slate-400 font-medium">{{ forloop.counter }}</td>
+                    <td class="py-4 px-6 text-slate-400 font-medium">{{ page_obj.start_index|add:forloop.counter0 }}</td>
                     <td class="py-4 px-6 font-semibold text-blue-600">{{ student.student_id }}</td>
                     
                     <td class="py-4 px-6">
@@ -140,11 +142,35 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="8" class="py-10 text-center text-slate-400 text-sm">No student records found in the database. Click "Register New Student" to add one!</td>
+                    <td colspan="8" class="py-10 text-center text-slate-400 text-sm">{% if search_query %}No students found matching your search.{% else %}No student records found in the database. Click "Register New Student" to add one!{% endif %}</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
+    </div>
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1" aria-label="Student directory pagination">
+        <p class="text-xs text-slate-500">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}{% if search_query %} · {{ page_obj.paginator.count }} matching students{% endif %}</p>
+        <nav class="flex flex-wrap items-center justify-center gap-1" aria-label="Pagination">
+            {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Previous</a>
+            {% else %}
+                <span class="rounded-lg border border-slate-100 px-3 py-2 text-xs font-semibold text-slate-400" aria-disabled="true">Previous</span>
+            {% endif %}
+            {% for page_number in page_range %}
+                {% if page_number == page_obj.paginator.ELLIPSIS %}
+                    <span class="px-2 py-2 text-xs text-slate-400" aria-hidden="true">...</span>
+                {% elif page_number == page_obj.number %}
+                    <span class="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white" aria-current="page">{{ page_number }}</span>
+                {% else %}
+                    <a href="?page={{ page_number }}{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">{{ page_number }}</a>
+                {% endif %}
+            {% endfor %}
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Next</a>
+            {% else %}
+                <span class="rounded-lg border border-slate-100 px-3 py-2 text-xs font-semibold text-slate-400" aria-disabled="true">Next</span>
+            {% endif %}
+        </nav>
     </div>
 </div>
 
@@ -365,14 +391,30 @@
 </div>
 
 <script>
+    const studentDirectorySearch = document.getElementById('student-directory-search');
+    let studentDirectorySearchTimer;
+    studentDirectorySearch.addEventListener('input', () => {
+        clearTimeout(studentDirectorySearchTimer);
+        studentDirectorySearchTimer = setTimeout(() => {
+            document.getElementById('student-directory-search-form').requestSubmit();
+        }, 350);
+    });
+
     function openStudentPrintModal() { const modal = document.getElementById('student-print-modal'); modal.classList.remove('hidden'); modal.classList.add('flex'); }
     function closeStudentPrintModal() { const modal = document.getElementById('student-print-modal'); modal.classList.add('hidden'); modal.classList.remove('flex'); }
-    function printStudentDetails() {
+    async function printStudentDetails() {
         const statuses = Array.from(document.querySelectorAll('.student-print-status:checked')).map(input => input.value);
         if (!statuses.length) { alert('Select at least one student status to print.'); return; }
-        const rows = Array.from(document.querySelectorAll('#student-directory-table tbody tr[data-status]')).filter(row => statuses.includes(row.dataset.status));
+        const printUrl = new URL(window.location.href);
+        printUrl.searchParams.delete('page');
+        printUrl.searchParams.set('print_data', '1');
+        statuses.forEach(status => printUrl.searchParams.append('status', status));
+        const response = await fetch(printUrl);
+        if (!response.ok) { alert('Student details could not be loaded for printing.'); return; }
+        const { students } = await response.json();
+        const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[character]));
         const report = document.getElementById('student-print-report');
-        report.innerHTML = `<h1 style="font:700 22px Arial;margin-bottom:6px">Future Leaders Private Academy</h1><h2 style="font:600 16px Arial;margin-bottom:6px">Student Details</h2><p style="font:12px Arial;margin-bottom:16px">Statuses: ${statuses.join(', ')}</p><table style="width:100%;border-collapse:collapse;font:12px Arial"><thead><tr><th style="border:1px solid #cbd5e1;padding:8px;text-align:left">#</th><th style="border:1px solid #cbd5e1;padding:8px;text-align:left">Student ID</th><th style="border:1px solid #cbd5e1;padding:8px;text-align:left">Full Name</th><th style="border:1px solid #cbd5e1;padding:8px;text-align:left">Program</th><th style="border:1px solid #cbd5e1;padding:8px;text-align:left">Class</th><th style="border:1px solid #cbd5e1;padding:8px;text-align:left">State</th><th style="border:1px solid #cbd5e1;padding:8px;text-align:left">Status</th></tr></thead><tbody>${rows.map((row, index) => `<tr><td style="border:1px solid #cbd5e1;padding:8px">${index + 1}</td><td style="border:1px solid #cbd5e1;padding:8px">${row.dataset.studentId}</td><td style="border:1px solid #cbd5e1;padding:8px">${row.dataset.name}</td><td style="border:1px solid #cbd5e1;padding:8px">${row.dataset.program}</td><td style="border:1px solid #cbd5e1;padding:8px">${row.dataset.class}</td><td style="border:1px solid #cbd5e1;padding:8px">${row.dataset.state}</td><td style="border:1px solid #cbd5e1;padding:8px">${row.dataset.status}</td></tr>`).join('') || '<tr><td colspan="7" style="border:1px solid #cbd5e1;padding:12px;text-align:center">No student records match these statuses.</td></tr>'}</tbody></table>`;
+        report.innerHTML = `<h1 style="font:700 22px Arial;margin-bottom:6px">Future Leaders Private Academy</h1><h2 style="font:600 16px Arial;margin-bottom:6px">Student Details</h2><p style="font:12px Arial;margin-bottom:16px">Statuses: ${statuses.map(escapeHtml).join(', ')}</p><table style="width:100%;border-collapse:collapse;font:12px Arial"><thead><tr><th style="border:1px solid #cbd5e1;padding:8px;text-align:left">#</th><th style="border:1px solid #cbd5e1;padding:8px;text-align:left">Student ID</th><th style="border:1px solid #cbd5e1;padding:8px;text-align:left">Full Name</th><th style="border:1px solid #cbd5e1;padding:8px;text-align:left">Program</th><th style="border:1px solid #cbd5e1;padding:8px;text-align:left">Class</th><th style="border:1px solid #cbd5e1;padding:8px;text-align:left">State</th><th style="border:1px solid #cbd5e1;padding:8px;text-align:left">Status</th></tr></thead><tbody>${students.map((student, index) => `<tr><td style="border:1px solid #cbd5e1;padding:8px">${index + 1}</td><td style="border:1px solid #cbd5e1;padding:8px">${escapeHtml(student.student_id)}</td><td style="border:1px solid #cbd5e1;padding:8px">${escapeHtml(student.name)}</td><td style="border:1px solid #cbd5e1;padding:8px">${escapeHtml(student.program)}</td><td style="border:1px solid #cbd5e1;padding:8px">${escapeHtml(student.class_name)}</td><td style="border:1px solid #cbd5e1;padding:8px">${escapeHtml(student.state)}</td><td style="border:1px solid #cbd5e1;padding:8px">${escapeHtml(student.status)}</td></tr>`).join('') || '<tr><td colspan="7" style="border:1px solid #cbd5e1;padding:12px;text-align:center">No student records match these statuses.</td></tr>'}</tbody></table>`;
         closeStudentPrintModal();
         report.classList.remove('hidden');
         window.print();
