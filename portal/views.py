@@ -4814,6 +4814,8 @@ def students_view(request):
         'student_counts': student_counts,
         'parent_registration_form': StudentParentForm(),
     }
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return render(request, 'portal/partials/student_directory_results.html', context)
     return render(request, 'portal/students.html', context)
 
 @login_required(login_url='login')

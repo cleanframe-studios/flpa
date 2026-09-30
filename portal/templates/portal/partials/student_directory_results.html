@@ -1,0 +1,66 @@
+<div class="overflow-x-auto border border-slate-100 rounded-2xl">
+    <table id="student-directory-table" class="w-full text-left border-collapse">
+        <thead>
+            <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 text-xs uppercase tracking-wider font-semibold">
+                <th class="py-4 px-6 w-12">#</th>
+                <th class="py-4 px-6">Student ID</th>
+                <th class="py-4 px-6">Full Name</th>
+                <th class="py-4 px-6">Class</th>
+                <th class="py-4 px-6">Parent / Guardian</th>
+                <th class="py-4 px-6">State</th>
+                <th class="py-4 px-6">Status</th>
+                <th class="py-4 px-6 text-right">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for student in students %}
+            <tr class="hover:bg-slate-50/80 transition-colors" data-status="{{ student.status }}" data-student-id="{{ student.student_id }}" data-name="{{ student.last_name }} {{ student.first_name }} {{ student.other_name|default:'' }}" data-class="{% if student.current_class %}{{ student.current_class.name }}{% else %}Unassigned{% endif %}" data-state="{{ student.state_of_origin }}" data-program="{{ student.program }}">
+                <td class="py-4 px-6 text-slate-400 font-medium">{{ page_obj.start_index|add:forloop.counter0 }}</td>
+                <td class="py-4 px-6 font-semibold text-blue-600">{{ student.student_id }}</td>
+                <td class="py-4 px-6">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-slate-100 overflow-hidden flex items-center justify-center">
+                            {% if student.passport %}
+                                <img src="{{ student.passport.url }}" class="w-full h-full object-cover" alt="Passport">
+                            {% else %}
+                                <div class="w-full h-full flex items-center justify-center text-slate-400 text-xs font-bold">{{ student.first_name|slice:":1" }}{{ student.last_name|slice:":1" }}</div>
+                            {% endif %}
+                        </div>
+                        <div><p class="font-medium text-slate-900">{{ student.last_name }} {{ student.first_name }} {{ student.other_name|default:"" }}</p></div>
+                    </div>
+                </td>
+                <td class="py-4 px-4 font-semibold">
+                    {% if student.current_class %}{{ student.current_class.name }}{% else %}<span class="text-rose-500 italic">Unassigned</span>{% endif %}
+                </td>
+                <td class="py-4 px-6">
+                    {% if student.parent %}<p class="font-semibold text-slate-800">{{ student.parent.display_name }}</p><p class="mt-1 text-xs text-slate-500">{{ student.parent.phone_number }}</p>{% else %}<span class="text-xs italic text-slate-400">Not linked</span>{% endif %}
+                </td>
+                <td class="py-4 px-6">{{ student.state_of_origin }}</td>
+                <td class="py-4 px-6">
+                    {% if student.status == 'Student' or student.status == 'Active' or student.status == 'Present' %}<span class="bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-emerald-200">Student</span>
+                    {% elif student.status == 'Transferred' %}<span class="bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-amber-200">Transferred</span>
+                    {% elif student.status == 'Expelled' %}<span class="bg-red-50 text-red-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-red-200">Expelled</span>
+                    {% elif student.status == 'Graduated' %}<span class="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-blue-200">Graduated</span>
+                    {% elif student.status == 'Left' %}<span class="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-slate-300">Left</span>
+                    {% else %}<span class="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full text-xs font-semibold">{{ student.status }}</span>{% endif %}
+                </td>
+                <td class="py-4 px-6 text-right"><a href="{% url 'student_profile' student.pk %}" class="bg-blue-50 hover:bg-blue-100 text-blue-600 font-semibold text-xs py-1.5 px-3 rounded-lg active:scale-95 transition-all inline-block shadow-sm">View Profile</a></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8" class="py-10 text-center text-slate-400 text-sm">{% if search_query %}No students found matching your search.{% else %}No student records found in the database. Click "Register New Student" to add one!{% endif %}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1" aria-label="Student directory pagination">
+    <p class="text-xs text-slate-500">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}{% if search_query %} · {{ page_obj.paginator.count }} matching students{% endif %}</p>
+    <nav class="flex flex-wrap items-center justify-center gap-1" aria-label="Pagination">
+        {% if page_obj.has_previous %}<a data-directory-page href="?page={{ page_obj.previous_page_number }}{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Previous</a>{% else %}<span class="rounded-lg border border-slate-100 px-3 py-2 text-xs font-semibold text-slate-400" aria-disabled="true">Previous</span>{% endif %}
+        {% for page_number in page_range %}
+            {% if page_number == page_obj.paginator.ELLIPSIS %}<span class="px-2 py-2 text-xs text-slate-400" aria-hidden="true">...</span>
+            {% elif page_number == page_obj.number %}<span class="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white" aria-current="page">{{ page_number }}</span>
+            {% else %}<a data-directory-page href="?page={{ page_number }}{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">{{ page_number }}</a>{% endif %}
+        {% endfor %}
+        {% if page_obj.has_next %}<a data-directory-page href="?page={{ page_obj.next_page_number }}{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Next</a>{% else %}<span class="rounded-lg border border-slate-100 px-3 py-2 text-xs font-semibold text-slate-400" aria-disabled="true">Next</span>{% endif %}
+    </nav>
+</div>

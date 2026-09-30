@@ -48,6 +48,19 @@ class StudentDirectoryTests(TestCase):
         self.assertEqual(len(second_page.context['students']), 2)
         self.assertEqual(second_page.context['students'][0], self.students[10])
 
+    def test_ajax_directory_request_returns_only_results_partial(self):
+        response = self.client.get(
+            reverse('students'), {'q': 'family', 'page': 2},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'student-directory-table')
+        self.assertContains(response, 'data-directory-page')
+        self.assertContains(response, 'aria-current="page">2</span>')
+        self.assertNotContains(response, 'student-directory-search-form')
+        self.assertNotContains(response, 'app-global-branding')
+
     def test_search_matches_names_student_id_and_lin_case_insensitively(self):
         full_name = self.client.get(reverse('students'), {'q': 'FIRST 07 FAMILY 07'})
         student_id = self.client.get(reverse('students'), {'q': 'dir-007'})
