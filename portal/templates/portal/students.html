@@ -21,6 +21,9 @@
     .field-label { display: block; margin-bottom: .4rem; font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #475569; }
     .parent-field { width: 100%; border: 1px solid #e2e8f0; border-radius: .75rem; background: #f8fafc; padding: .7rem .8rem; font-size: .875rem; color: #1e293b; }
     .parent-field:focus { outline: 0; border-color: #3b82f6; background: #fff; }
+    #student-directory-results { transition: opacity 180ms ease, filter 180ms ease; }
+    #student-directory-results-shell[aria-busy="true"] #student-directory-results { opacity: .45; filter: blur(2px); }
+    @media (prefers-reduced-motion: reduce) { #student-directory-results { transition: none; } }
 </style>
 
 <!-- Top Banner -->
@@ -70,7 +73,7 @@
         <div id="student-directory-results" aria-live="polite">
             {% include 'portal/partials/student_directory_results.html' %}
         </div>
-        <div id="student-directory-loading" class="absolute inset-0 z-20 hidden items-center justify-center rounded-2xl bg-slate-900/35 p-4 backdrop-blur-sm" aria-live="polite" aria-label="Loading student directory">
+        <div id="student-directory-loading" class="absolute inset-0 z-20 hidden items-center justify-center rounded-2xl bg-slate-900/15 p-4 backdrop-blur-[1px]" aria-live="polite" aria-label="Loading student directory">
             <div class="page-transition-card text-center text-white">
                 <img src="{% static 'portal/logo.png' %}" alt="" class="page-transition-logo">
                 <svg class="page-transition-spinner" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="12" stroke="white" stroke-opacity=".2" stroke-width="3"></circle><path d="M28 16a12 12 0 0 1-12 12" stroke="#38bdf8" stroke-width="3" stroke-linecap="round"></path><path d="M16 4a12 12 0 0 1 8.5 3.5" stroke="#f87171" stroke-width="3" stroke-linecap="round"></path></svg>
@@ -322,6 +325,7 @@
             });
             if (!response.ok || response.redirected) throw new Error('Directory request failed');
             const resultsHtml = await response.text();
+            await new Promise(resolve => window.setTimeout(resolve, 180));
             if (requestNumber !== studentDirectoryRequestNumber) return;
             studentDirectoryResults.innerHTML = resultsHtml;
             window.history.replaceState({}, '', url.pathname + url.search + url.hash);
