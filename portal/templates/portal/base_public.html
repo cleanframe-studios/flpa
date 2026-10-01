@@ -109,14 +109,14 @@
     <nav class="glass-header sticky top-0 z-50">
         <div class="w-full px-6 lg:px-10">
             <div class="flex h-16 sm:h-20 items-center justify-start">
-                <div class="flex w-full items-center justify-between space-x-5">
-                    <img src="{% static 'portal/logo.png' %}" alt="School Logo" class="h-7 sm:h-8 w-auto object-contain">
-                    <a href="{% url 'login' %}" class="public-brand-link hover:translate-y-0 text-base sm:text-xl font-extrabold tracking-widest uppercase">
+                <div class="flex w-full items-center gap-3">
+                    <img src="{% static 'portal/logo.png' %}" alt="School Logo" class="h-7 w-auto shrink-0 object-contain sm:h-8">
+                    <a href="{% url 'login' %}" class="public-brand-link min-w-0 text-left text-xs font-extrabold uppercase tracking-tight hover:translate-y-0 sm:text-xl sm:tracking-widest">
                         <span class="public-brand-name gradient-title bg-gradient-to-r from-blue-600 via-indigo-500 to-red-600 bg-clip-text text-transparent font-black tracking-tight">
                         FUTURE LEADERS PRIVATE ACADEMY
                         </span>
                     </a>
-                    <button type="button" class="public-mobile-menu inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white shadow-sm md:hidden" aria-controls="public-mobile-drawer" aria-expanded="false" aria-label="Open navigation menu">
+                    <button type="button" class="public-mobile-menu ml-auto inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white shadow-sm md:hidden" aria-controls="public-mobile-drawer" aria-expanded="false" aria-label="Open navigation menu">
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
                     </button>
                 </div>
