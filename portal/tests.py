@@ -148,18 +148,23 @@ class ResendEmailTests(TestCase):
         post.assert_not_called()
 
     @patch.dict(os.environ, {'RESEND_API_KEY': 'test-resend-key'})
-    @patch('portal.utils.requests.post')
-    def test_single_application_submission_sends_confirmation_once(self, post):
-        post.return_value.raise_for_status.return_value = None
+    @patch('portal.utils.requests.post', side_effect=__import__('requests').RequestException('offline'))
+    @patch('portal.views.threading.Thread')
+    def test_single_application_saves_and_redirects_before_email_task_runs(self, thread, post):
         registrar_client, _ = self._make_admission_client()
 
         response = registrar_client.post(reverse('apply_admission'), self._application_form_data())
 
         self.assertEqual(response.status_code, 302)
+        applicant = Applicant.objects.get(parent_email='parent@example.com')
+        self.assertEqual(response.url, reverse('admission_payment', args=[applicant.temp_reg_number]))
+        thread.assert_called_once()
+        thread.return_value.start.assert_called_once_with()
+        self.assertEqual(post.call_count, 0)
+
+        thread.call_args.kwargs['target'](*thread.call_args.kwargs['args'])
         self.assertEqual(post.call_count, 1)
-        payload = post.call_args.kwargs['json']
-        self.assertIn('FLA-', payload['html'])
-        self.assertIn('Zenith Bank', payload['html'])
+        self.assertTrue(Applicant.objects.filter(pk=applicant.pk).exists())
 
     @patch('portal.views._applicant_email')
     def test_admission_payment_verified_and_approval_emails_fire_once(self, send_applicant_email):

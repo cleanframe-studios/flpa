@@ -2,6 +2,7 @@ import json
 import csv
 import logging
 import os
+import threading
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponseForbidden, JsonResponse, HttpResponse
 from django.urls import reverse
@@ -417,6 +418,18 @@ def _application_payment_details(applicant):
     }
 
 
+def _queue_applicant_email(applicant, subject, heading, paragraphs, extra_details=None):
+    try:
+        threading.Thread(
+            target=_applicant_email,
+            args=(applicant, subject, heading, paragraphs, extra_details),
+            name=f'admission-email-{applicant.pk}',
+            daemon=True,
+        ).start()
+    except Exception:
+        logger.exception('Unable to start admission confirmation email task for applicant %s.', applicant.pk)
+
+
 def apply_admission_view(request):
     campaign = AdmissionCampaign.objects.filter(status='Active', deadline__gte=timezone.now()).select_related('target_session', 'target_term').first()
     if not campaign:
@@ -544,7 +557,7 @@ def apply_admission_view(request):
             next_of_kin_phone=next_of_kin_phone,
         )
 
-        _applicant_email(
+        _queue_applicant_email(
             applicant,
             f'Application received: {applicant.temp_reg_number}',
             'Admission application received',

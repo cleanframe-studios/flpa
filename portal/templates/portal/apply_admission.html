@@ -625,7 +625,7 @@
   let confirmed = false;
 
   function startFinalSubmission() {
-    const messages = ['Encrypting data...', 'Generating registration number...', 'Dispatching confirmation email...'];
+    const messages = ['Validating application...', 'Saving application...', 'Preparing payment instructions...'];
     let messageIndex = 0;
     saveDraft();
     submissionLoaderMessage.textContent = messages[messageIndex];
