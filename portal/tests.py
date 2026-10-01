@@ -153,11 +153,12 @@ class ResendEmailTests(TestCase):
     def test_single_application_saves_and_redirects_before_email_task_runs(self, thread, post):
         registrar_client, _ = self._make_admission_client()
 
-        response = registrar_client.post(reverse('apply_admission'), self._application_form_data())
+        response = registrar_client.post(reverse('apply_admission'), self._application_form_data(), follow=True)
 
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 200)
         applicant = Applicant.objects.get(parent_email='parent@example.com')
-        self.assertEqual(response.url, reverse('admission_payment', args=[applicant.temp_reg_number]))
+        self.assertEqual(response.redirect_chain[-1][0], reverse('admission_payment', args=[applicant.temp_reg_number]))
+        self.assertContains(response, 'Payment Instructions')
         thread.assert_called_once()
         thread.return_value.start.assert_called_once_with()
         self.assertEqual(post.call_count, 0)
@@ -165,6 +166,13 @@ class ResendEmailTests(TestCase):
         thread.call_args.kwargs['target'](*thread.call_args.kwargs['args'])
         self.assertEqual(post.call_count, 1)
         self.assertTrue(Applicant.objects.filter(pk=applicant.pk).exists())
+
+    def test_admission_form_skips_redundant_native_validation_before_final_request(self):
+        registrar_client, _ = self._make_admission_client()
+        response = registrar_client.get(reverse('apply_admission'))
+
+        self.assertContains(response, 'form.noValidate = true;')
+        self.assertNotContains(response, 'Dispatching confirmation email...')
 
     @patch('portal.views._applicant_email')
     def test_admission_payment_verified_and_approval_emails_fire_once(self, send_applicant_email):

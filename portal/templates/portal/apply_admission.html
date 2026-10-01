@@ -641,7 +641,10 @@
         submissionLoaderMessage.classList.remove('opacity-0');
       }, 200);
     }, 350);
-    setTimeout(function () { form.requestSubmit(); }, 1100);
+    setTimeout(function () {
+      form.noValidate = true;
+      form.requestSubmit();
+    }, 1100);
   }
 
   form.addEventListener('submit', function (event) {
