@@ -610,6 +610,35 @@ class ParentChildApplicationTests(TestCase):
         self.assertEqual(applicant.parent_profile, self.parent)
         self.assertEqual(applicant.parent_phone, self.parent.phone_number)
 
+    def test_parent_bursary_renders_without_fee_accounts(self):
+        Student.objects.create(
+            first_name='Ada', last_name='Lovelace', sex='Female', date_of_birth='2015-01-01',
+            state_of_origin='Lagos', lga_of_origin='Ikeja', program='Primary (PRY)', parent=self.parent,
+        )
+
+        response = self.client.get(reverse('parent_bursary'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context['children']), 1)
+        self.assertEqual(response.context['children'][0].fee_accounts_list, [])
+
+    def test_parent_bursary_renders_existing_fee_accounts_without_balance_error(self):
+        historical_term = AcademicTerm.objects.create(session=self.campaign.target_session, term_name='Second Term')
+        student = Student.objects.create(
+            first_name='Ada', last_name='Lovelace', sex='Female', date_of_birth='2015-01-01',
+            state_of_origin='Lagos', lga_of_origin='Ikeja', program='Primary (PRY)', parent=self.parent,
+        )
+        StudentFeeAccount.objects.create(
+            student=student, term=historical_term, session=self.campaign.target_session,
+            total_billed=5000, amount_paid=1000,
+        )
+
+        response = self.client.get(reverse('parent_bursary'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context['children']), 1)
+        self.assertEqual(len(response.context['children'][0].fee_accounts_list), 1)
+
 
 class PublicBatchApplicationTests(TestCase):
     def setUp(self):
@@ -842,6 +871,33 @@ class AcademicCalendarGuardTests(TestCase):
 
         self.assertEqual(audit_response.status_code, 200)
         self.assertNotEqual(results_response.status_code, 302)
+
+    def test_principal_mobile_nav_shows_bursary_class_ledger_instead_of_stats(self):
+        principal_user = get_user_model().objects.create_user(username='principal-nav-user', password='pass')
+        AccountProfile.objects.create(user=principal_user, role='principal')
+        self.client.force_login(principal_user)
+
+        response = self.client.get(reverse('dashboard'))
+
+        self.assertContains(response, 'Bursary Class Ledger')
+        self.assertContains(response, reverse('bursary_dashboard'))
+        self.assertNotContains(response, '>Stats<')
+
+    def test_admin_mobile_nav_still_shows_stats(self):
+        response = self.client.get(reverse('dashboard'))
+
+        self.assertContains(response, '>Stats<')
+        self.assertNotContains(response, 'Bursary Class Ledger')
+
+    def test_other_roles_mobile_nav_is_unchanged(self):
+        teacher_user = get_user_model().objects.create_user(username='teacher-nav-user', password='pass')
+        AccountProfile.objects.create(user=teacher_user, role='teacher')
+        self.client.force_login(teacher_user)
+
+        response = self.client.get(reverse('inbox'))
+
+        self.assertNotContains(response, 'Bursary Class Ledger')
+        self.assertNotContains(response, '>Stats<')
 
     def test_admin_user_roles_updates_profile_and_creates_audit_log(self):
         superuser = get_user_model().objects.create_superuser(username='role-superuser', password='pass', email='roles@example.com')
@@ -1671,6 +1727,53 @@ class AcademicCalendarGuardTests(TestCase):
         self.assertEqual(structure.optional_total, 2000)
         account = StudentFeeAccount.objects.get(student=student, term=term, session=session)
         self.assertEqual(account.total_billed, 5000)
+
+    def test_generate_all_class_invoices_creates_missing_accounts_across_classes(self):
+        session = AcademicSession.objects.create(name='2026/2027', is_active=True)
+        term = AcademicTerm.objects.create(session=session, term_name='First Term', is_active=True)
+        classroom_one = ClassRoom.objects.create(name='Primary 1', section='Primary', level_number=1)
+        classroom_two = ClassRoom.objects.create(name='Primary 2', section='Primary', level_number=2)
+        student_one = Student.objects.create(first_name='Ada', last_name='Lovelace', sex='Female', date_of_birth='2015-01-01', state_of_origin='Lagos', lga_of_origin='Ikeja', program='Primary (PRY)', current_class=classroom_one, status='Active')
+        student_two = Student.objects.create(first_name='Grace', last_name='Hopper', sex='Female', date_of_birth='2015-01-01', state_of_origin='Lagos', lga_of_origin='Ikeja', program='Primary (PRY)', current_class=classroom_two, status='Active')
+
+        response = self.client.post(reverse('generate_all_class_invoices'), {'session': session.pk, 'term': term.pk})
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['generated'], 2)
+        self.assertEqual(data['already_existing'], 0)
+        self.assertEqual(data['status'], 'all_generated')
+        self.assertTrue(StudentFeeAccount.objects.filter(student=student_one, term=term, session=session).exists())
+        self.assertTrue(StudentFeeAccount.objects.filter(student=student_two, term=term, session=session).exists())
+
+    def test_generate_all_class_invoices_is_idempotent_and_never_duplicates(self):
+        session = AcademicSession.objects.create(name='2026/2027', is_active=True)
+        term = AcademicTerm.objects.create(session=session, term_name='First Term', is_active=True)
+        classroom = ClassRoom.objects.create(name='Primary 1', section='Primary', level_number=1)
+        Student.objects.create(first_name='Ada', last_name='Lovelace', sex='Female', date_of_birth='2015-01-01', state_of_origin='Lagos', lga_of_origin='Ikeja', program='Primary (PRY)', current_class=classroom, status='Active')
+
+        first_response = self.client.post(reverse('generate_all_class_invoices'), {'session': session.pk, 'term': term.pk})
+        second_response = self.client.post(reverse('generate_all_class_invoices'), {'session': session.pk, 'term': term.pk})
+
+        self.assertEqual(first_response.json()['generated'], 1)
+        self.assertEqual(second_response.json()['generated'], 0)
+        self.assertEqual(second_response.json()['already_existing'], 1)
+        self.assertEqual(second_response.json()['status'], 'all_generated')
+        self.assertEqual(StudentFeeAccount.objects.filter(term=term, session=session).count(), 1)
+
+    def test_bursary_dashboard_reports_partial_invoice_generation_status(self):
+        session = AcademicSession.objects.create(name='2026/2027', is_active=True)
+        term = AcademicTerm.objects.create(session=session, term_name='First Term', is_active=True)
+        classroom_one = ClassRoom.objects.create(name='Primary 1', section='Primary', level_number=1)
+        classroom_two = ClassRoom.objects.create(name='Primary 2', section='Primary', level_number=2)
+        Student.objects.create(first_name='Ada', last_name='Lovelace', sex='Female', date_of_birth='2015-01-01', state_of_origin='Lagos', lga_of_origin='Ikeja', program='Primary (PRY)', current_class=classroom_one, status='Active')
+        Student.objects.create(first_name='Grace', last_name='Hopper', sex='Female', date_of_birth='2015-01-01', state_of_origin='Lagos', lga_of_origin='Ikeja', program='Primary (PRY)', current_class=classroom_two, status='Active')
+        self.client.post(reverse('generate_all_class_invoices'), {'session': session.pk, 'term': term.pk})
+        StudentFeeAccount.objects.filter(student__current_class=classroom_two).delete()
+
+        response = self.client.get(reverse('bursary_dashboard'), {'session': session.pk, 'term': term.pk})
+
+        self.assertEqual(response.context['invoice_generation_status']['state'], 'partial')
 
     def test_student_report_hub_prompts_when_no_report_period_is_selected(self):
         student = Student.objects.create(first_name='Ada', last_name='Lovelace', sex='Female', date_of_birth='2015-01-01', state_of_origin='Lagos', lga_of_origin='Ikeja', program='Primary (PRY)')

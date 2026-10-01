@@ -80,6 +80,7 @@ urlpatterns = [
     
     path('students/graduated-alumni/', views.graduated_alumni_view, name='graduated_alumni'),
     path('bursary/', views.bursary_dashboard, name='bursary_dashboard'),
+    path('bursary/generate-all-invoices/', views.generate_all_class_invoices_view, name='generate_all_class_invoices'),
     path('bursar-dashboard/', views.bursar_dashboard_view, name='bursar_dashboard'),
     path('bursary/export-ledger/', views.export_fee_ledger_view, name='export_fee_ledger'),
     path('bursary/payment-history/', views.payment_history_view, name='payment_history'),

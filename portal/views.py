@@ -2027,7 +2027,7 @@ def parent_bursary_view(request):
         ).prefetch_related('items').first() if active_term and child.current_class_id else None
         for account in child.fee_accounts_list:
             account.is_current_term = bool(active_term and account.term_id == active_term.pk)
-            account.is_rollover_debt = bool(not account.is_current_term and account.balance() > 0)
+            account.is_rollover_debt = bool(not account.is_current_term and account.balance > 0)
     return render(request, 'portal/parent_bursary.html', {
         'children': children,
         'active_term': active_term,
@@ -3204,6 +3204,80 @@ def manage_fee_book_lists(request):
     })
 
 
+def students_requiring_invoices(term, classroom):
+    """Resolve the student set a classroom/term invoice run applies to (shared by single-class and bulk generation)."""
+    students = students_in_term_classroom(term, classroom)
+    if not TermEnrollment.objects.filter(term=term).exists():
+        students = Student.objects.filter(
+            Q(current_class=classroom) | Q(subject_results__term=term),
+        ).distinct()
+    return students
+
+
+def generate_invoices_for_classroom(term, session, classroom):
+    """Create any missing StudentFeeAccount invoices for a class/term/session. Safe to call repeatedly - never duplicates existing invoices."""
+    students_list = list(students_requiring_invoices(term, classroom))
+    fee_structure = FeeStructure.objects.filter(
+        classroom=classroom,
+        term=term,
+        session=session,
+    ).prefetch_related('items').first()
+    created_count = 0
+    existing_count = 0
+    with transaction.atomic():
+        for student in students_list:
+            account, created = StudentFeeAccount.objects.get_or_create(
+                student=student,
+                term=term,
+                session=session,
+                defaults={'total_billed': fee_structure.compulsory_total if fee_structure else Decimal('0')},
+            )
+            if created:
+                created_count += 1
+                if account.balance > 0 and student.parent and student.parent.user:
+                    _notify_users(
+                        [student.parent.user],
+                        'School fees due',
+                        f'School fees for {student.first_name} {student.last_name} are now due. Please review the outstanding balance.',
+                        reverse('parent_bursary'),
+                    )
+            else:
+                existing_count += 1
+    return {
+        'students': students_list,
+        'student_count': len(students_list),
+        'created': created_count,
+        'existing': existing_count,
+    }
+
+
+def class_invoice_generation_status(term, session):
+    """Summarize how many applicable classes already have invoices fully generated for a term/session."""
+    if not term or not session:
+        return {'state': 'none', 'total_classes': 0, 'fully_invoiced_classes': 0}
+    total_classes = 0
+    fully_invoiced_classes = 0
+    for classroom in ClassRoom.objects.all():
+        students_list = list(students_requiring_invoices(term, classroom))
+        if not students_list:
+            continue
+        total_classes += 1
+        invoiced_count = StudentFeeAccount.objects.filter(
+            student__in=students_list, term=term, session=session,
+        ).count()
+        if invoiced_count >= len(students_list):
+            fully_invoiced_classes += 1
+    if total_classes == 0:
+        state = 'none'
+    elif fully_invoiced_classes == total_classes:
+        state = 'all_generated'
+    elif fully_invoiced_classes > 0:
+        state = 'partial'
+    else:
+        state = 'not_generated'
+    return {'state': state, 'total_classes': total_classes, 'fully_invoiced_classes': fully_invoiced_classes}
+
+
 @login_required(login_url='login')
 @bursar_required
 def bursary_dashboard(request):
@@ -3332,31 +3406,7 @@ def bursary_dashboard(request):
     classroom_id = request.GET.get('classroom')
     selected_class = ClassRoom.objects.filter(pk=classroom_id).first() if classroom_id else None
     if selected_term and selected_class:
-        students = students_in_term_classroom(selected_term, selected_class)
-        if not TermEnrollment.objects.filter(term=selected_term).exists():
-            students = Student.objects.filter(
-                Q(current_class=selected_class) | Q(subject_results__term=selected_term),
-            ).distinct()
-        fee_structure = FeeStructure.objects.filter(
-            classroom=selected_class,
-            term=selected_term,
-            session=selected_session,
-        ).prefetch_related('items').first()
-        with transaction.atomic():
-            for student in students:
-                account, created = StudentFeeAccount.objects.get_or_create(
-                    student=student,
-                    term=selected_term,
-                    session=selected_session,
-                    defaults={'total_billed': fee_structure.compulsory_total if fee_structure else Decimal('0')},
-                )
-                if created and account.balance > 0 and student.parent and student.parent.user:
-                    _notify_users(
-                        [student.parent.user],
-                        'School fees due',
-                        f'School fees for {student.first_name} {student.last_name} are now due. Please review the outstanding balance.',
-                        reverse('parent_bursary'),
-                    )
+        students = generate_invoices_for_classroom(selected_term, selected_session, selected_class)['students']
     accounts = StudentFeeAccount.objects.select_related('student', 'student__current_class', 'term', 'session').prefetch_related('payments')
     if selected_term:
         accounts = accounts.filter(term=selected_term, session=selected_session)
@@ -3402,6 +3452,47 @@ def bursary_dashboard(request):
         'classrooms': ClassRoom.objects.order_by('section', 'sequence', 'name'),
         'selected_classroom': classroom_id,
         'selected_class': selected_class,
+        'invoice_generation_status': class_invoice_generation_status(selected_term, selected_session),
+    })
+
+
+@login_required(login_url='login')
+@bursar_required
+def generate_all_class_invoices_view(request):
+    if not is_finance_user(request.user):
+        return JsonResponse({'error': 'Permission denied.'}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid request method.'}, status=405)
+    session = AcademicSession.objects.filter(pk=request.POST.get('session')).first()
+    term = AcademicTerm.objects.filter(pk=request.POST.get('term'), session=session).first() if session else None
+    if not session or not term:
+        return JsonResponse({'error': 'Select a valid academic session and term first.'}, status=400)
+    generated = 0
+    already_existing = 0
+    classes_processed = 0
+    skipped = []
+    for classroom in ClassRoom.objects.order_by('section', 'sequence', 'name'):
+        try:
+            result = generate_invoices_for_classroom(term, session, classroom)
+        except Exception as exc:
+            skipped.append(f'{classroom.name}: {exc}')
+            continue
+        if result['student_count'] == 0:
+            continue
+        classes_processed += 1
+        generated += result['created']
+        already_existing += result['existing']
+    log_security_action(request, 'INVOICES_GENERATED', f'{term} - {session}', {
+        'before': {},
+        'after': {'generated': generated, 'already_existing': already_existing, 'classes_processed': classes_processed, 'skipped': skipped},
+    })
+    status = class_invoice_generation_status(term, session)
+    return JsonResponse({
+        'generated': generated,
+        'already_existing': already_existing,
+        'classes_processed': classes_processed,
+        'skipped': skipped,
+        'status': status['state'],
     })
 
 

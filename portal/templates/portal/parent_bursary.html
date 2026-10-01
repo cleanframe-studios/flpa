@@ -42,14 +42,11 @@
               </p>
             </div>
             <div class="flex flex-wrap gap-2">{% if account.is_current_term %}<span
-                class="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-800">Current Term</span>{% elif
-              account.is_rollover_debt %}<span
-                class="rounded-full bg-amber-200 px-3 py-1 text-xs font-bold text-amber-900">Rolled-Over
-                Balance</span>{% else %}<span
-                class="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold text-slate-700">Previous Term</span>{%
-              endif %}<span
+                class="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-800">Current Term</span>{% elif account.is_rollover_debt %}<span
+                class="rounded-full bg-amber-200 px-3 py-1 text-xs font-bold text-amber-900">Rolled-Over Balance</span>{% else %}<span
+                class="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold text-slate-700">Previous Term</span>{% endif %}<span
                 class="rounded-full px-3 py-1 text-xs font-bold {% if account.is_cleared %}bg-emerald-100 text-emerald-800{% else %}bg-amber-100 text-amber-800{% endif %}">
-                {%if account.is_cleared %}Cleared{% else %}Pending{% endif %}</span></div>
+                {% if account.is_cleared %}Cleared{% else %}Pending{% endif %}</span></div>
           </div>
           <div class="mt-4 grid gap-3 text-sm sm:grid-cols-3">
             <div class="rounded-xl bg-white/80 p-3 shadow-sm backdrop-blur"><span
@@ -64,10 +61,11 @@
                 account.balance|floatformat:'2g' }}</strong></div>
           </div>
           <div class="mt-4 border-t border-slate-200/70 pt-3">
-            <p class="text-xs font-bold uppercase tracking-wider text-slate-500">Payment history</p>{% for payment in
-            account.payments.all %}<div class="mt-2 flex justify-between text-xs text-slate-600"><span>₦{{
-                payment.amount|floatformat:'2g' }}</span><span>{{ payment.paid_at|date:'d M Y' }}</span></div>{% empty
-            %}<p class="mt-2 text-xs text-slate-400">No payments recorded.</p>{% endfor %}
+            <p class="text-xs font-bold uppercase tracking-wider text-slate-500">Payment history</p>
+            {% for payment in account.payments.all %}<div class="mt-2 flex justify-between text-xs text-slate-600"><span>₦{{
+              payment.amount|floatformat:'2g' }}</span><span>{{ payment.paid_at|date:'d M Y' }}</span></div>
+            {% empty %}<p class="mt-2 text-xs text-slate-400">No payments recorded.</p>
+            {% endfor %}
           </div>
         </article>
         {% else %}<p class="text-sm text-slate-500">No linked fee accounts are available.</p>{% endif %}{% endwith %}
@@ -159,8 +157,7 @@
                 {% for item in child.fee_book_breakdown.book_items %}<div
                   class="flex items-center justify-between gap-4 px-4 py-3 text-sm transition-colors hover:bg-emerald-50/40">
                   <span class="font-medium text-slate-700">{{ item.title }}</span><span
-                    class="whitespace-nowrap font-bold text-slate-950">₦{{ item.price|floatformat:'2g' }}</span></div>{%
-                empty %}<p class="px-4 py-4 text-xs text-slate-400">No books set for this class yet.</p>{% endfor %}
+                    class="whitespace-nowrap font-bold text-slate-950">₦{{ item.price|floatformat:'2g' }}</span></div>{% empty %}<p class="px-4 py-4 text-xs text-slate-400">No books set for this class yet.</p>{% endfor %}
               </div>
             </div>
           </div>
@@ -175,8 +172,7 @@
         <h2 class="mt-2 text-xl font-black tracking-tight text-slate-950">Official Payment Channels</h2>
         <p class="mt-1 text-sm text-slate-500">Use the channel that matches the purpose of your payment.</p>
       </div>
-      <div class="mt-7 grid gap-5 lg:grid-cols-3">{% for purpose, institution, account_number, account_name in
-        payment_channels %}<article
+      <div class="mt-7 grid gap-5 lg:grid-cols-3">{% for purpose, institution, account_number, account_name in payment_channels %}<article
           class="rounded-2xl border border-white/70 bg-white/60 p-5 shadow-sm backdrop-blur-xl transition-shadow hover:shadow-md">
           <p class="text-xs font-bold uppercase tracking-wider text-emerald-700">{{ purpose }}</p>
           <h3 class="mt-3 text-lg font-black text-slate-900">{{ institution }}</h3>

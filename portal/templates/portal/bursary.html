@@ -17,6 +17,27 @@
       <button type="submit" class="self-end rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700">Filter Records</button>
     </form>
 
+    <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h3 class="text-sm font-bold uppercase tracking-wider text-slate-500">Class Ledger</h3>
+          <p id="generate-invoices-status" class="mt-1 text-xs text-slate-500">
+            {% if invoice_generation_status.state == 'all_generated' %}All {{ invoice_generation_status.total_classes }} class(es) have invoices generated for this session/term.
+            {% elif invoice_generation_status.state == 'partial' %}{{ invoice_generation_status.fully_invoiced_classes }} of {{ invoice_generation_status.total_classes }} class(es) fully invoiced for this session/term. You can generate the rest.
+            {% elif invoice_generation_status.state == 'not_generated' %}No class invoices have been generated yet for this session/term.
+            {% else %}No applicable classes found for this session/term.{% endif %}
+          </p>
+        </div>
+        <button type="button" id="generate-all-invoices-btn"
+          data-session="{{ selected_session }}" data-term="{{ selected_term }}"
+          {% if invoice_generation_status.state == 'all_generated' or invoice_generation_status.state == 'none' %}disabled{% endif %}
+          class="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300">
+          {% if invoice_generation_status.state == 'all_generated' %}All Class Invoices Generated{% else %}Generate All Class Invoices{% endif %}
+        </button>
+      </div>
+      <div id="generate-invoices-result" class="mt-3 hidden rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600"></div>
+    </section>
+
     <section class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
       <div class="overflow-x-auto"><table class="w-full min-w-[900px] text-left text-sm"><thead class="bg-slate-50 text-xs uppercase tracking-wider text-slate-500"><tr><th class="p-4">Student Name</th><th class="p-4">Class</th><th class="p-4">Total Billed</th><th class="p-4">Amount Paid</th><th class="p-4">Balance</th><th class="p-4">Status</th><th class="p-4 text-right">Action</th></tr></thead><tbody class="divide-y divide-slate-100">
         {% for account in accounts %}
@@ -33,5 +54,67 @@ function ensureFeeItemSelect() { const form = document.querySelector('#payment-m
 function openLedgerModal(id, name, billed, paid, balance, cleared, payments, items) { ensureFeeItemSelect(); document.getElementById('payment-account-id').value = id; document.getElementById('clearance-account-id').value = id; document.getElementById('clearance-value').value = cleared === '1' ? '0' : '1'; document.getElementById('payment-title').textContent = 'Ledger · ' + name; document.getElementById('ledger-billed').textContent = '₦' + billed; document.getElementById('ledger-paid').textContent = '₦' + paid; document.getElementById('ledger-balance').textContent = '₦' + balance; document.getElementById('payment-amount').value = ''; const itemSelect = document.getElementById('payment-fee-item'); itemSelect.innerHTML = '<option value="">Select a fee item</option>' + items.filter(item => Number(item.balance) > 0).map(item => '<option value="' + item.id + '">' + item.description + ' · ' + (item.compulsory ? 'Compulsory' : 'Optional') + ' · Remaining ₦' + item.balance + '</option>').join(''); itemSelect.value = ''; itemSelect.dispatchEvent(new Event('change', { bubbles: true })); window.customizePortalSelect(itemSelect); document.getElementById('payment-history').innerHTML = payments.length ? payments.map(payment => '<div class="flex justify-between rounded-xl bg-slate-50 px-3 py-2"><span>₦' + payment.amount + ' · ' + payment.item + '</span><span class="text-xs text-slate-400">' + payment.date + '</span></div>').join('') : '<p class="rounded-xl border border-dashed border-slate-200 p-3">No payments recorded.</p>'; const modal = document.getElementById('payment-modal'); modal.classList.remove('hidden'); modal.classList.add('flex'); }
 function submitClearance() { document.getElementById('clearance-form').submit(); }
 function closePaymentModal() { const modal = document.getElementById('payment-modal'); modal.classList.add('hidden'); modal.classList.remove('flex'); }
+
+(function () {
+  const btn = document.getElementById('generate-all-invoices-btn');
+  if (!btn) return;
+  const resultBox = document.getElementById('generate-invoices-result');
+  const statusLine = document.getElementById('generate-invoices-status');
+  function getCsrfToken() {
+    const match = document.cookie.match(/csrftoken=([^;]+)/);
+    return match ? match[1] : '';
+  }
+  btn.addEventListener('click', function () {
+    const session = btn.dataset.session;
+    const term = btn.dataset.term;
+    if (!session || !term) {
+      resultBox.textContent = 'Select an academic session and term before generating invoices.';
+      resultBox.classList.remove('hidden');
+      return;
+    }
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Generating...';
+    fetch("{% url 'generate_all_class_invoices' %}", {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrfToken(), 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ session: session, term: term }),
+    })
+      .then(function (response) { return response.json().then(function (data) { return { ok: response.ok, data: data }; }); })
+      .then(function (result) {
+        if (!result.ok) {
+          btn.disabled = false;
+          btn.textContent = originalLabel;
+          resultBox.textContent = result.data.error || 'Unable to generate invoices.';
+          resultBox.classList.remove('hidden');
+          return;
+        }
+        const data = result.data;
+        resultBox.innerHTML = 'Generated <strong>' + data.generated + '</strong> new invoice(s) across <strong>' + data.classes_processed + '</strong> class(es). <strong>' + data.already_existing + '</strong> invoice(s) already existed.' + (data.skipped.length ? ' Skipped: ' + data.skipped.join('; ') : '');
+        resultBox.classList.remove('hidden');
+        if (data.status === 'all_generated') {
+          btn.textContent = 'All Class Invoices Generated';
+          btn.disabled = true;
+          statusLine.textContent = 'All classes have invoices generated for this session/term.';
+        } else if (data.status === 'partial') {
+          btn.textContent = originalLabel;
+          btn.disabled = false;
+          statusLine.textContent = 'Some classes still need invoices. You can generate the rest.';
+        } else {
+          btn.textContent = originalLabel;
+          btn.disabled = false;
+        }
+        if (typeof window.location.reload === 'function') {
+          setTimeout(function () { window.location.reload(); }, 1600);
+        }
+      })
+      .catch(function () {
+        btn.disabled = false;
+        btn.textContent = originalLabel;
+        resultBox.textContent = 'Network error while generating invoices. Please try again.';
+        resultBox.classList.remove('hidden');
+      });
+  });
+})();
 </script>
 {% endblock %}

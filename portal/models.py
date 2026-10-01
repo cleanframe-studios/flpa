@@ -747,6 +747,7 @@ class AuditLog(models.Model):
         ('COMMENT_MODIFIED', 'Comment modified'),
         ('DEBT_OVERRIDDEN', 'Debt clearance changed'),
         ('PAYMENT_RECORDED', 'Payment recorded'),
+        ('INVOICES_GENERATED', 'Class invoices generated'),
         ('TRUANCY_FLAGGED', 'Truancy flag raised'),
         ('ROLE_CHANGED', 'User role changed'),
         ('PAYROLL_PROCESSED', 'Payroll processed'),

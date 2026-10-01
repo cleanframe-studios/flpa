@@ -860,9 +860,15 @@
         <a href="{% url 'dashboard' %}" aria-current="{% if request.resolver_match.url_name == 'dashboard' %}page{% endif %}" class="standalone-app-tab flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-slate-600 transition hover:bg-blue-50 hover:text-blue-700 {% if request.resolver_match.url_name == 'dashboard' %}is-active{% endif %}">
             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M4 13h6V4H4v9Zm0 7h6v-3H4v3Zm10 0h6v-9h-6v9Zm0-16v3h6V4h-6Z"/></svg><span class="text-[10px] font-bold">Dashboard</span>
         </a>
+        {% if request.user.account_profile.role == 'principal' and not request.user.is_superuser %}
+        <a href="{% url 'bursary_dashboard' %}" aria-current="{% if request.resolver_match.url_name == 'bursary_dashboard' %}page{% endif %}" class="standalone-app-tab flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-slate-600 transition hover:bg-blue-50 hover:text-blue-700 {% if request.resolver_match.url_name == 'bursary_dashboard' %}is-active{% endif %}">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M4 7h16M6 7v12h12V7M8 4h8v3H8z"/></svg><span class="text-[10px] font-bold">Bursary Class Ledger</span>
+        </a>
+        {% else %}
         <a href="{% url 'school_wide_analytics' %}" aria-current="{% if request.resolver_match.url_name == 'school_wide_analytics' %}page{% endif %}" class="standalone-app-tab flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-slate-600 transition hover:bg-blue-50 hover:text-blue-700 {% if request.resolver_match.url_name == 'school_wide_analytics' %}is-active{% endif %}">
             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M4 19V5m0 14h16M8 16v-4m4 4V8m4 8v-7m4 7v-3"/></svg><span class="text-[10px] font-bold">Stats</span>
         </a>
+        {% endif %}
         <a href="{% url 'inbox' %}" aria-current="{% if request.resolver_match.url_name == 'inbox' %}page{% endif %}" class="standalone-app-tab relative flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-slate-600 transition hover:bg-blue-50 hover:text-blue-700 {% if request.resolver_match.url_name == 'inbox' %}is-active{% endif %}">
             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M4 5h16v14H4zM4 8l8 5 8-5"/></svg><span class="text-[10px] font-bold">Alerts</span>{% if unread_message_count or unread_notification_count %}<span class="absolute right-4 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-black text-white">{{ unread_message_count|add:unread_notification_count }}</span>{% endif %}
         </a>
