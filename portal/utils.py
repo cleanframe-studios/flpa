@@ -1,59 +1,101 @@
 import logging
+import os
 
-from django.core.mail import send_mail
 from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
+from django.template.loader import render_to_string
+
+import requests
 
 from .models import AuditLog
 
 logger = logging.getLogger(__name__)
+RESEND_API_URL = 'https://api.resend.com/emails'
+RESEND_FROM_EMAIL = 'Future Leaders Private Academy <notifications@flpa.sch.ng>'
+
+
+def send_branded_email(recipient, subject, heading, greeting, paragraphs, details=None, action_url=None, action_label=None):
+    """Send a branded email through Resend without letting delivery break app workflows."""
+    if not recipient:
+        return False
+    try:
+        validate_email(recipient)
+    except ValidationError:
+        logger.warning('Resend email skipped because the recipient address is invalid.')
+        return False
+    api_key = os.environ.get('RESEND_API_KEY')
+    if not api_key:
+        logger.warning('Resend email skipped because RESEND_API_KEY is not configured.')
+        return False
+
+    try:
+        portal_url = getattr(settings, 'PORTAL_BASE_URL', 'https://flpa.sch.ng').rstrip('/')
+        html = render_to_string('portal/emails/notification.html', {
+            'heading': heading,
+            'greeting': greeting,
+            'paragraphs': paragraphs,
+            'details': details or {},
+            'action_url': action_url,
+            'action_label': action_label,
+            'logo_url': f'{portal_url}/static/portal/logo.png',
+            'portal_url': portal_url,
+        })
+        response = requests.post(
+            RESEND_API_URL,
+            json={'from': RESEND_FROM_EMAIL, 'to': [recipient], 'subject': subject, 'html': html},
+            headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
+            timeout=10,
+        )
+        response.raise_for_status()
+        return True
+    except Exception:
+        logger.exception('Resend delivery failed for notification email (subject=%r).', subject)
+        return False
 
 
 def send_registration_email(applicant):
     """Email the applicant their Registration Number after submission. Returns True/False."""
-    if not applicant.parent_email:
-        return False
-    subject = f'Application Received — Registration Number {applicant.temp_reg_number}'
-    body = (
-        f"Dear {applicant.parent_name or applicant.father_name or applicant.mother_name or 'Parent/Guardian'},\n\n"
-        f"Thank you for applying to Future Leaders Academy on behalf of {applicant.first_name} {applicant.last_name}.\n\n"
-        f"Your unique Registration Number is: {applicant.temp_reg_number}\n\n"
-        "Please keep this number safe — you will need it to track your application status and for "
-        "payment verification.\n\nRegards,\nFuture Leaders Academy Admissions Team"
+    recipient = applicant.parent_email or applicant.father_email or applicant.mother_email
+    return send_branded_email(
+        recipient=recipient,
+        subject=f'Application received: {applicant.temp_reg_number}',
+        heading='Admission application received',
+        greeting=applicant.parent_name or applicant.father_name or applicant.mother_name or 'Parent/Guardian',
+        paragraphs=[
+            f"We received the application for {applicant.first_name} {applicant.last_name}.",
+            'Keep the application number below for payment verification and status checks. Please follow the payment instructions on the application page and send your receipt to the admissions team.',
+        ],
+        details={
+            'Application number': applicant.temp_reg_number,
+            'Applied class': applicant.intended_class.name if applicant.intended_class_id else 'Not specified',
+        },
+        action_url=f"{settings.PORTAL_BASE_URL.rstrip('/')}/login/",
+        action_label='Continue on the admissions page',
     )
-    try:
-        send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [applicant.parent_email], fail_silently=False)
-        return True
-    except Exception:
-        logger.exception('Failed to send registration email for %s', applicant.temp_reg_number)
-        return False
 
 
-def send_admission_approval_email(applicant, student, parent, parent_password):
-    """Email the applicant's official Student ID and Parent portal credentials on approval. Returns True/False."""
+def send_admission_approval_email(applicant, student, parent, parent_password=None):
+    """Send a safe approval notice without including passwords in email."""
     recipient = applicant.parent_email or parent.email
-    if not recipient:
-        return False
-    subject = f'Admission Approved — {student.first_name} {student.last_name}'
-    portal_url = f"{settings.PORTAL_BASE_URL}/login/"
-    body = (
-        f"Dear {parent.name or applicant.parent_name or 'Parent/Guardian'},\n\n"
-        f"Congratulations! {student.first_name} {student.last_name}'s admission has been approved.\n\n"
-        "Official Student Portal Login:\n"
-        f"  Student ID: {student.student_id}\n"
-        f"  Password: {student.last_name.strip().lower()}\n\n"
-        "Official Parent Portal Login:\n"
-        f"  Parent ID: {parent.parent_id}\n"
-        f"  Password: {parent_password}\n\n"
-        f"School Portal: {portal_url}\n\n"
-        "Please log in and change your password as soon as possible.\n\n"
-        "Regards,\nFuture Leaders Academy Admissions Team"
+    return send_branded_email(
+        recipient=recipient,
+        subject=f'Admission approved: {student.first_name} {student.last_name}',
+        heading='Your application is approved',
+        greeting=parent.name or applicant.parent_name or 'Parent/Guardian',
+        paragraphs=[
+            'Complete the parent/guardian profile through the application status page to accept admission and finish account setup.',
+            'For account security, passwords are not sent by email. Use the secure application status page or contact the school office for help accessing your account.',
+        ],
+        details={
+            'Application number': applicant.temp_reg_number,
+            'Student': f'{student.first_name} {student.last_name}',
+            'Student ID': student.student_id,
+            'Parent ID': parent.parent_id,
+        },
+        action_url=f"{settings.PORTAL_BASE_URL.rstrip('/')}/login/",
+        action_label='Continue admission process',
     )
-    try:
-        send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [recipient], fail_silently=False)
-        return True
-    except Exception:
-        logger.exception('Failed to send approval email for %s', applicant.temp_reg_number)
-        return False
 
 
 def get_client_ip(request):

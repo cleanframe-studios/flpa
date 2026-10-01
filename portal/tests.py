@@ -1,7 +1,9 @@
 import datetime
+import io
 import re
 import os
 import tempfile
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
@@ -12,7 +14,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from .models import AcademicSession, AcademicTerm, AcademicWeek, AdmissionApplicationBatch, AdmissionCampaign, Applicant, Attendance, AttendanceRegister, AccountProfile, AuditLog, CBTAttempt, CBTExam, CBTQuestion, CBTResponse, ClassRoom, ClassRoomSubject, FeePayment, FeeStructure, FeeStructureItem, Parent, Student, StudentExamSession, Subject, SubjectResult, StudentFeeAccount, StudentTermRecord, Teacher, TermEnrollment
-from .utils import send_registration_email
+from .utils import send_branded_email, send_registration_email
 from .views import create_portal_account
 
 
@@ -108,6 +110,270 @@ class StudentDirectoryTests(TestCase):
         self.assertEqual(len(response.json()['students']), 12)
 
 
+class ResendEmailTests(TestCase):
+    @override_settings(PORTAL_BASE_URL='https://flpa.sch.ng')
+    @patch.dict(os.environ, {'RESEND_API_KEY': 'test-resend-key'})
+    @patch('portal.utils.requests.post')
+    def test_branded_sender_uses_verified_domain_and_rendered_template(self, post):
+        post.return_value.raise_for_status.return_value = None
+
+        sent = send_branded_email(
+            recipient='parent@example.com', subject='Application received',
+            heading='Application received', greeting='Parent',
+            paragraphs=['We received the application.'],
+            details={'Application number': 'FLA-TEST'},
+        )
+
+        self.assertTrue(sent)
+        payload = post.call_args.kwargs['json']
+        self.assertEqual(payload['from'], 'Future Leaders Private Academy <notifications@flpa.sch.ng>')
+        self.assertIn('FLA-TEST', payload['html'])
+        self.assertEqual(post.call_args.kwargs['headers']['Authorization'], 'Bearer test-resend-key')
+
+    @patch.dict(os.environ, {'RESEND_API_KEY': 'test-resend-key'})
+    @patch('portal.utils.requests.post', side_effect=__import__('requests').RequestException('offline'))
+    def test_resend_failure_returns_false_without_raising(self, _post):
+        self.assertFalse(send_branded_email(
+            recipient='parent@example.com', subject='Test', heading='Test',
+            greeting='Parent', paragraphs=['Message'],
+        ))
+
+    @patch.dict(os.environ, {'RESEND_API_KEY': 'test-resend-key'})
+    @patch('portal.utils.requests.post')
+    def test_invalid_recipient_is_skipped(self, post):
+        self.assertFalse(send_branded_email(
+            recipient='not-an-email', subject='Test', heading='Test',
+            greeting='Parent', paragraphs=['Message'],
+        ))
+        post.assert_not_called()
+
+    @patch.dict(os.environ, {'RESEND_API_KEY': 'test-resend-key'})
+    @patch('portal.utils.requests.post')
+    def test_single_application_submission_sends_confirmation_once(self, post):
+        post.return_value.raise_for_status.return_value = None
+        registrar_client, _ = self._make_admission_client()
+
+        response = registrar_client.post(reverse('apply_admission'), self._application_form_data())
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(post.call_count, 1)
+        payload = post.call_args.kwargs['json']
+        self.assertIn('FLA-', payload['html'])
+        self.assertIn('Zenith Bank', payload['html'])
+
+    @patch('portal.views._applicant_email')
+    def test_admission_payment_verified_and_approval_emails_fire_once(self, send_applicant_email):
+        from django.test import Client
+        from portal.models import AdmissionCampaign
+        from portal.views import provision_admission_accounts
+
+        client, (campaign, classroom) = self._make_admission_client()
+        registrar = get_user_model().objects.create_user(username='admission-email-registrar', is_staff=True)
+        AccountProfile.objects.create(user=registrar, role='admin')
+        client.force_login(registrar)
+        applicant = Applicant.objects.create(
+            campaign=campaign, first_name='Ada', last_name='Lovelace', other_name='Byron',
+            intended_class=classroom, parent_name='Grace Lovelace', parent_phone='08012345678',
+            parent_email='parent@example.com', father_name='Grace Lovelace', father_phone='08012345678',
+            father_email='parent@example.com', father_address='One Main Street',
+            state_of_origin='Lagos', lga='Ikeja', sex='Female', date_of_birth='2018-04-12',
+        )
+        for _ in range(2):
+            client.post(reverse('review_applicants'), {'action': 'verify_payment', 'applicant_id': applicant.pk})
+        applicant.refresh_from_db()
+        self.assertEqual(send_applicant_email.call_count, 1)
+        self.assertEqual(applicant.payment_status, 'Verified')
+
+        for _ in range(2):
+            client.post(reverse('review_applicants'), {'action': 'approve_enroll', 'applicant_id': applicant.pk})
+        applicant.refresh_from_db()
+        self.assertEqual(applicant.admission_status, 'Approved')
+        self.assertEqual(send_applicant_email.call_count, 2)
+
+    @patch.dict(os.environ, {'RESEND_API_KEY': 'test-resend-key'})
+    @patch('portal.views.send_branded_email')
+    def test_admission_acceptance_email_runs_after_commit_without_passwords(self, send_email):
+        from django.test import Client
+        client, (campaign, classroom) = self._make_admission_client()
+        applicant = Applicant.objects.create(
+            campaign=campaign, first_name='Ada', last_name='Lovelace', other_name='Byron',
+            intended_class=classroom, parent_name='Grace Lovelace', parent_phone='08012345678',
+            parent_email='parent@example.com', father_name='Grace Lovelace', father_phone='08012345678',
+            father_email='parent@example.com', father_address='One Main Street',
+            state_of_origin='Lagos', lga='Ikeja', sex='Female', date_of_birth='2018-04-12',
+            admission_status='Approved',
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            response = client.post(reverse('admission_complete_profile'), {
+                'temp_reg_number': applicant.temp_reg_number,
+                'parent_choice': 'father',
+                'guardian_name': 'Grace Lovelace',
+                'guardian_phone': '08012345678',
+                'guardian_email': 'parent@example.com',
+                'guardian_address': 'One Main Street',
+                'state_of_origin': 'Lagos',
+                'lga': 'Ikeja',
+            })
+
+        self.assertEqual(response.status_code, 200, response.content.decode())
+        self.assertEqual(Applicant.objects.get(pk=applicant.pk).admission_status, 'Accepted')
+        self.assertEqual(send_email.call_count, 1)
+        self.assertFalse(any('password' in key.lower() for key in send_email.call_args.kwargs))
+
+    @patch.dict(os.environ, {'RESEND_API_KEY': 'test-resend-key'})
+    @patch('portal.utils.requests.post')
+    def test_payroll_disbursement_emails_net_pay_once(self, post):
+        from portal.models import StaffSalaryProfile, PayrollRun, Payslip
+        from django.test import Client
+
+        post.return_value.raise_for_status.return_value = None
+        session = AcademicSession.objects.create(name='2026/2027', is_active=True)
+        term = AcademicTerm.objects.create(session=session, term_name='First Term', is_active=True)
+        staff = get_user_model().objects.create_user(username='payroll-email-staff', email='staff@example.com')
+        bursar = get_user_model().objects.create_user(username='payroll-email-bursar', is_staff=True)
+        AccountProfile.objects.create(user=bursar, role='admin')
+        profile = StaffSalaryProfile.objects.create(user=staff, academic_session=session, academic_term=term)
+        run = PayrollRun.objects.create(month=1, year=2026, academic_session=session, academic_term=term, status='Approved')
+        Payslip.objects.create(salary_profile=profile, payroll_run=run, gross_pay=100000, total_deductions=10000, net_pay=90000)
+        client = Client()
+        client.force_login(bursar)
+
+        for _ in range(2):
+            client.post(reverse('run_payroll'), {'action': 'disburse_run', 'run_id': run.pk, 'month': '1', 'year': '2026'})
+
+        self.assertEqual(post.call_count, 1)
+        self.assertIn('NGN 90,000.00', post.call_args.kwargs['json']['html'])
+
+    @patch.dict(os.environ, {'RESEND_API_KEY': 'test-resend-key'})
+    @patch('portal.views.send_branded_email')
+    def test_internal_message_email_is_additive_and_skips_no_email_users(self, send_email):
+        sender = get_user_model().objects.create_user(username='message-sender')
+        recipient = get_user_model().objects.create_user(username='message-recipient', email='parent@example.com')
+        no_email = get_user_model().objects.create_user(username='message-no-email')
+
+        from portal.views import _send_message
+        _send_message(sender, 'School update', 'Please read this update.', 'Important', [recipient, no_email])
+
+        self.assertEqual(send_email.call_count, 1)
+        self.assertEqual(send_email.call_args.kwargs['recipient'], 'parent@example.com')
+
+    @patch.dict(os.environ, {'RESEND_API_KEY': 'test-resend-key'})
+    @patch('portal.utils.requests.post', side_effect=__import__('requests').RequestException('offline'))
+    def test_fee_payment_is_saved_when_receipt_email_fails(self, _post):
+        self._make_bursary_setup()
+        from portal.models import FeeStructure, FeeStructureItem, StudentFeeAccount
+
+        classroom = ClassRoom.objects.get(name='Primary 4')
+        term = AcademicTerm.objects.get(term_name='First Term')
+        student = Student.objects.get(first_name='FeeTest')
+        structure = FeeStructure.objects.create(classroom=classroom, term=term, session=term.session)
+        fee_item = FeeStructureItem.objects.create(fee_structure=structure, description='Tuition', amount=5000)
+        account, _ = StudentFeeAccount.objects.get_or_create(
+            student=student, term=term, session=term.session, defaults={'total_billed': 5000},
+        )
+        bursar = get_user_model().objects.create_user(username='fee-email-bursar', is_staff=True)
+        AccountProfile.objects.create(user=bursar, role='admin')
+        self.client.force_login(bursar)
+
+        response = self.client.post(reverse('bursary_dashboard'), {
+            'action': 'record_payment', 'account_id': account.pk,
+            'fee_item_id': fee_item.pk, 'amount_paid': '1500',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(FeePayment.objects.filter(account=account).count(), 1)
+
+    @patch('portal.views.send_branded_email')
+    def test_successful_fee_receipt_contains_reference_and_remaining_item_balance(self, send_email):
+        self._make_bursary_setup()
+        from portal.models import FeeStructure, FeeStructureItem, StudentFeeAccount
+
+        classroom = ClassRoom.objects.get(name='Primary 4')
+        term = AcademicTerm.objects.get(term_name='First Term')
+        student = Student.objects.get(first_name='FeeTest')
+        structure = FeeStructure.objects.create(classroom=classroom, term=term, session=term.session)
+        fee_item = FeeStructureItem.objects.create(fee_structure=structure, description='Tuition', amount=5000)
+        account = StudentFeeAccount.objects.get(student=student, term=term, session=term.session)
+        bursar = get_user_model().objects.create_user(username='fee-receipt-bursar', is_staff=True)
+        AccountProfile.objects.create(user=bursar, role='admin')
+        self.client.force_login(bursar)
+
+        self.client.post(reverse('bursary_dashboard'), {
+            'action': 'record_payment', 'account_id': account.pk,
+            'fee_item_id': fee_item.pk, 'amount_paid': '1500',
+        })
+
+        email_details = send_email.call_args.kwargs['details']
+        self.assertEqual(email_details['Amount received'], 'NGN 1,500.00')
+        self.assertEqual(email_details['Receipt reference(s)'], f'FP-{FeePayment.objects.get(account=account).pk}')
+        self.assertEqual(email_details['Remaining Tuition balance'], 'NGN 3,500.00')
+
+    @patch.dict(os.environ, {'RESEND_API_KEY': 'test-resend-key'})
+    @patch('portal.management.commands.send_weekly_fee_reminders.send_branded_email')
+    def test_weekly_fee_reminder_skips_duplicates_within_seven_days(self, send_email):
+        self._make_bursary_setup()
+        from django.core.management import call_command
+        from portal.models import StudentFeeAccount
+
+        student = Student.objects.get(first_name='FeeTest')
+        account = StudentFeeAccount.objects.create(
+            student=student, term=AcademicTerm.objects.get(term_name='First Term'),
+            session=AcademicSession.objects.get(name='2026/2027'), total_billed=4000, amount_paid=1000,
+        )
+        account.total_billed = 4000
+        account.amount_paid = 1000
+        account.save()
+
+        call_command('send_weekly_fee_reminders', stdout=io.StringIO())
+        call_command('send_weekly_fee_reminders', stdout=io.StringIO())
+
+        self.assertEqual(send_email.call_count, 1)
+
+    def _make_bursary_setup(self):
+        session = AcademicSession.objects.create(name='2026/2027', is_active=True)
+        AcademicTerm.objects.create(session=session, term_name='First Term', is_active=True)
+        classroom = ClassRoom.objects.create(name='Primary 4', section='Primary', level_number=4)
+        parent_user = get_user_model().objects.create_user(username='fee-email-parent', email='parent@example.com')
+        parent = Parent.objects.create(
+            first_name='Fee', last_name='Parent', phone_number='08055550111', sex='Female',
+            marital_status='Married', address='Address', state='Lagos', lga='Ikeja',
+            email='parent@example.com', user=parent_user,
+        )
+        Student.objects.create(
+            first_name='FeeTest', last_name='Student', sex='Female', date_of_birth='2015-01-01',
+            state_of_origin='Lagos', lga_of_origin='Ikeja', program='Primary (PRY)',
+            current_class=classroom, parent=parent,
+        )
+
+    def _make_admission_client(self):
+        from django.test import Client
+        from portal.models import AcademicSession, AcademicTerm, AdmissionCampaign, ClassRoom
+
+        session = AcademicSession.objects.create(name='2026/2027')
+        term = AcademicTerm.objects.create(session=session, term_name='First Term')
+        campaign = AdmissionCampaign.objects.create(
+            campaign_name='Email Test', target_session=session, target_term=term,
+            deadline=timezone.now() + datetime.timedelta(days=10), status='Active', application_fee=2500,
+        )
+        classroom = ClassRoom.objects.create(name='Primary 1', section='Primary', level_number=1)
+        client = Client()
+        return client, (campaign, classroom)
+
+    @staticmethod
+    def _application_form_data():
+        from portal.models import ClassRoom
+        classroom = ClassRoom.objects.get(name='Primary 1')
+        return {
+            'first_name': 'Ada', 'last_name': 'Lovelace', 'other_name': 'Byron',
+            'date_of_birth': '2018-04-12', 'sex': 'Female', 'state_of_origin': 'Lagos',
+            'lga': 'Ikeja', 'programme_of_study': 'Primary (PRY)',
+            'intended_class': str(classroom.pk), 'father_name': 'Grace Lovelace',
+            'father_phone': '08012345678', 'father_email': 'parent@example.com',
+            'father_address': 'One Main Street', 'parent_email': 'parent@example.com',
+        }
+
+
 class AdmissionApprovalWorkflowTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(username='registrar', password='pass123')
@@ -150,13 +416,11 @@ class AdmissionApprovalWorkflowTests(TestCase):
         )
         self.assertNotEqual(self.applicant.temp_reg_number, second_applicant.temp_reg_number)
 
-    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
-    def test_registration_email_is_sent_with_application_number(self):
+    @patch('portal.utils.send_branded_email', return_value=True)
+    def test_registration_email_uses_branded_resend_sender(self, send_email):
         self.assertTrue(send_registration_email(self.applicant))
-        from django.core import mail
-        self.assertEqual(len(mail.outbox), 1)
-        self.assertIn(self.applicant.temp_reg_number, mail.outbox[0].body)
-        self.assertEqual(mail.outbox[0].to, [self.applicant.parent_email])
+        self.assertEqual(send_email.call_args.kwargs['recipient'], self.applicant.parent_email)
+        self.assertIn(self.applicant.temp_reg_number, send_email.call_args.kwargs['subject'])
 
     def test_approval_creates_and_links_parent_profile(self):
         response = self.client.post(reverse('review_applicants'), {
@@ -287,7 +551,8 @@ class PublicBatchApplicationTests(TestCase):
         )
         self.classroom = ClassRoom.objects.create(name='Primary 1', section='Primary', level_number=1)
 
-    def test_public_batch_submission_creates_one_batch_and_two_applicants(self):
+    @patch('portal.views.send_branded_email')
+    def test_public_batch_submission_creates_one_batch_and_two_applicants(self, send_email):
         response = self.client.post(reverse('batch_apply_admission'), {
             'parent_name': 'Grace Lovelace',
             'parent_phone': '08012345678',
@@ -307,6 +572,9 @@ class PublicBatchApplicationTests(TestCase):
         batch = AdmissionApplicationBatch.objects.get(parent_phone='08012345678')
         self.assertEqual(batch.applicants.count(), 2)
         self.assertEqual(batch.applicants.values_list('parent_phone', flat=True).distinct().count(), 1)
+        self.assertEqual(send_email.call_count, 1)
+        self.assertEqual(send_email.call_args.kwargs['recipient'], 'grace@example.com')
+        self.assertIn('FLA-', send_email.call_args.kwargs['details']['Application numbers'])
 
     def test_admin_approving_batch_creates_one_parent_and_two_students(self):
         self.client.post(reverse('batch_apply_admission'), {

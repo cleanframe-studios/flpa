@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;background:#f1f5f9;color:#1e293b;font-family:Arial,sans-serif;">
+  <div style="max-width:620px;margin:24px auto;padding:0 16px;">
+    <div style="overflow:hidden;border:1px solid #dbe3ee;border-radius:16px;background:#fff;box-shadow:0 8px 24px rgba(15,23,42,.08);">
+      <div style="padding:24px;background:#0f2d4a;color:#fff;text-align:center;">
+        <img src="{{ logo_url }}" width="56" height="56" alt="Future Leaders Private Academy" style="display:block;margin:0 auto 12px;background:#fff;border-radius:12px;padding:6px;">
+        <p style="margin:0;font-size:11px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;color:#bfdbfe;">Future Leaders Private Academy</p>
+      </div>
+      <div style="padding:28px 24px;line-height:1.6;">
+        <h1 style="margin:0 0 16px;color:#0f2d4a;font-size:22px;">{{ heading }}</h1>
+        <p style="margin:0 0 14px;">Hello {{ greeting }},</p>
+        {% for paragraph in paragraphs %}<p style="margin:0 0 14px;">{{ paragraph }}</p>{% endfor %}
+        {% if details %}
+        <table role="presentation" style="width:100%;margin:20px 0;border-collapse:collapse;background:#f8fafc;border:1px solid #e2e8f0;">
+          {% for label, value in details.items %}<tr><td style="padding:9px 12px;border-bottom:1px solid #e2e8f0;color:#475569;font-size:13px;">{{ label }}</td><td style="padding:9px 12px;border-bottom:1px solid #e2e8f0;color:#0f172a;font-size:13px;font-weight:bold;">{{ value }}</td></tr>{% endfor %}
+        </table>
+        {% endif %}
+        {% if action_url and action_label %}<p style="margin:22px 0;text-align:center;"><a href="{{ action_url }}" style="display:inline-block;border-radius:8px;background:#0f766e;padding:12px 20px;color:#fff;text-decoration:none;font-weight:bold;">{{ action_label }}</a></p>{% endif %}
+        <p style="margin:22px 0 0;color:#64748b;font-size:12px;">Future Leaders Private Academy<br><a href="{{ portal_url }}" style="color:#0f766e;">{{ portal_url }}</a></p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

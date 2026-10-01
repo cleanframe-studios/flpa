@@ -2,7 +2,6 @@ import json
 import csv
 import logging
 import os
-import requests
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponseForbidden, JsonResponse, HttpResponse
 from django.urls import reverse
@@ -77,7 +76,7 @@ from .models import (
 )
 from django.db.models import Case, When, Value, IntegerField, Q, Max, Min, Exists, OuterRef, Sum, Avg, F
 from .decorators import bursar_required, registrar_required, role_required, teacher_required, principal_required
-from .utils import log_security_action, send_registration_email, send_admission_approval_email
+from .utils import log_security_action, send_branded_email
 from .forms import BatchApplicantFormSet, BatchParentForm, ParentChildApplicationForm, ParentStudentLinkForm, StudentParentForm
 
 User = get_user_model()
@@ -389,48 +388,33 @@ def logout_view(request):
     logout(request)
     return redirect('login')
 
-def send_branded_admission_email(parent_email, student_name, reg_number, intended_class):
-    api_key = os.environ.get('RESEND_API_KEY')
-    if not api_key:
-        return  # Skip safely if key is missing
+def _applicant_email(applicant, subject, heading, paragraphs, extra_details=None):
+    recipient = applicant.parent_email or applicant.father_email or applicant.mother_email
+    details = {
+        'Applicant': ' '.join(filter(None, (applicant.first_name, applicant.other_name, applicant.last_name))),
+        'Application number': applicant.temp_reg_number,
+        'Applied class': applicant.intended_class.name if applicant.intended_class_id else 'Not specified',
+    }
+    details.update(extra_details or {})
+    return send_branded_email(
+        recipient=recipient,
+        subject=subject,
+        heading=heading,
+        greeting=applicant.parent_name or applicant.father_name or applicant.mother_name or 'Parent/Guardian',
+        paragraphs=paragraphs,
+        details=details,
+        action_url=f"{settings.PORTAL_BASE_URL.rstrip('/')}{reverse('login')}",
+        action_label='Continue on the admissions page',
+    )
 
-    payload = {
-        "from": "Future Leaders Academy <onboarding@resend.dev>",
-        "to": [parent_email],
-        "subject": f"Admission Confirmation - {student_name}",
-        "html": f"""
-        <div style="background-color: #f3f4f6; padding: 30px 0; font-family: 'Segoe UI', Arial, sans-serif;">
-            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
-                <div style="background: linear-gradient(135deg, #022c22 0%, #064e3b 100%); padding: 30px; text-align: center; color: #ffffff;">
-                    <img src="https://flpa.onrender.com/static/portal/logo.png" alt="Logo" style="width: 60px; height: 60px; margin-bottom: 10px; border-radius: 50%; background: #fff; padding: 4px;">
-                    <h1 style="margin: 0; font-size: 22px; font-weight: 800;">Future Leaders Academy</h1>
-                    <p style="margin: 5px 0 0 0; font-size: 12px; color: #6ee7b7; text-transform: uppercase;">Official Admission Notice</p>
-                </div>
-                <div style="padding: 30px; color: #334155; font-size: 14px; line-height: 1.6;">
-                    <p style="margin-top: 0;">Dear Parent / Guardian,</p>
-                    <p>We are delighted to inform you that your payment notice has been received and verified for <strong>{student_name}</strong>.</p>
-                    <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin: 20px 0;">
-                        <p style="margin: 0 0 10px 0; font-size: 12px; font-weight: 700; text-transform: uppercase; color: #64748b;">Registration Details</p>
-                        <p style="margin: 5px 0;"><strong>Student:</strong> {student_name}</p>
-                        <p style="margin: 5px 0;"><strong>Assigned Reg ID:</strong> <span style="color: #059669; font-family: monospace; font-size: 15px; font-weight: bold;">{reg_number}</span></p>
-                        <p style="margin: 5px 0;"><strong>Applied Class:</strong> {intended_class}</p>
-                    </div>
-                    <p>You can now log into the school parent portal using your registered credentials.</p>
-                    <div style="text-align: center; margin: 30px 0 10px 0;">
-                        <a href="https://flpa.onrender.com/login/" style="background-color: #059669; color: #ffffff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block;">Access Parent Portal</a>
-                    </div>
-                </div>
-            </div>
-        </div>
-        """
+
+def _application_payment_details(applicant):
+    return {
+        'Application fee': f"NGN {applicant.campaign.application_fee:,.2f}",
+        'Bank': 'Zenith Bank',
+        'Account name': 'Future Leaders Private Academy',
+        'Account number': '1015937482',
     }
-    
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
-    
-    requests.post("https://api.resend.com/emails", json=payload, headers=headers)
 
 
 def apply_admission_view(request):
@@ -560,15 +544,16 @@ def apply_admission_view(request):
             next_of_kin_phone=next_of_kin_phone,
         )
 
-        # Trigger Resend HTTP Branded Email
-        if applicant.parent_email:
-            student_full_name = f"{applicant.first_name} {applicant.last_name}"
-            send_branded_admission_email(
-                applicant.parent_email, 
-                student_full_name, 
-                applicant.temp_reg_number, 
-                applicant.intended_class.name if applicant.intended_class else 'N/A'
-            )
+        _applicant_email(
+            applicant,
+            f'Application received: {applicant.temp_reg_number}',
+            'Admission application received',
+            [
+                'We have received your admission application. Keep the application number below for payment verification and status checks.',
+                'Next: pay the application fee and send your receipt through the WhatsApp instructions on the payment page. The admissions team will verify the payment and review the application.',
+            ],
+            _application_payment_details(applicant),
+        )
 
         return redirect('admission_payment', temp_reg_number=applicant.temp_reg_number)
 
@@ -595,6 +580,7 @@ def batch_apply_admission_view(request):
         if Parent.objects.filter(phone_number=parent_phone).exists():
             parent_form.add_error('parent_phone', 'This phone number already belongs to a parent profile. Please use the existing parent application flow.')
         else:
+            submitted_applicants = []
             with transaction.atomic():
                 batch = parent_form.save(commit=False)
                 batch.campaign = campaign
@@ -615,6 +601,29 @@ def batch_apply_admission_view(request):
                     applicant.lga = 'Not provided'
                     applicant.sex = 'Male'
                     applicant.save()
+                    submitted_applicants.append(applicant)
+            if batch.parent_email:
+                application_numbers = ', '.join(item.temp_reg_number for item in submitted_applicants)
+                send_branded_email(
+                    recipient=batch.parent_email,
+                    subject=f'Admission applications received ({len(submitted_applicants)} children)',
+                    heading='Admission applications received',
+                    greeting=batch.parent_name or 'Parent/Guardian',
+                    paragraphs=[
+                        'We have received the applications for your children. Keep each application number below for payment verification and status checks.',
+                        'Next: pay the application fee for each application and send your receipt through the WhatsApp instructions on the payment page. The admissions team will verify payment and review each application.',
+                    ],
+                    details={
+                        'Applicants': ', '.join(f'{item.first_name} {item.last_name}' for item in submitted_applicants),
+                        'Application numbers': application_numbers,
+                        'Application fee per child': f'NGN {campaign.application_fee:,.2f}',
+                        'Bank': 'Zenith Bank',
+                        'Account name': 'Future Leaders Private Academy',
+                        'Account number': '1015937482',
+                    },
+                    action_url=f"{settings.PORTAL_BASE_URL.rstrip('/')}{reverse('login')}",
+                    action_label='Continue on the admissions page',
+                )
             messages.success(request, f'{child_formset.total_form_count()} applications submitted for {batch.parent_name}.')
             return redirect('login')
     return render(request, 'portal/batch_apply_admission.html', {
@@ -628,8 +637,6 @@ def admission_payment_view(request, temp_reg_number):
         Applicant.objects.select_related('campaign'),
         temp_reg_number__iexact=temp_reg_number,
     )
-    # Call it right here when the form is saved
-    send_branded_admission_email(parent_email, student_full_name, application.reg_number, application.intended_class.name)
     receipt_message = (
         f'Hello Admin, I have paid the admission application fee for {applicant.first_name} '
         f'{applicant.other_name} {applicant.last_name}. Registration number: {applicant.temp_reg_number}. '
@@ -885,6 +892,23 @@ def admission_complete_profile_view(request):
                 raise ValidationError('Unable to provision the admission accounts.')
             applicant.admission_status = 'Accepted'
             applicant.save()
+            recipient = values['guardian_email'] or parent.email
+            guardian_greeting = values['guardian_name'] or parent.display_name
+            transaction.on_commit(lambda: send_branded_email(
+                recipient=recipient,
+                subject=f'Admission accepted: {applicant.temp_reg_number}',
+                heading='Admission accepted',
+                greeting=guardian_greeting or 'Parent/Guardian',
+                paragraphs=['The admission profile has been completed and the student and parent portal accounts are ready. Use the credentials shown on the application status page to sign in, then change the initial passwords.'],
+                details={
+                    'Student': f'{student.first_name} {student.last_name}',
+                    'Application number': applicant.temp_reg_number,
+                    'Student ID': student.student_id,
+                    'Parent ID': parent.parent_id,
+                },
+                action_url=f'{settings.PORTAL_BASE_URL.rstrip("/")}/login/',
+                action_label='Open the school portal',
+            ))
             portal_login_url = f'{settings.PORTAL_BASE_URL}{reverse("login")}'
             credentials = [
                 {'role': 'parent', 'username': parent.parent_id, 'password': (parent.last_name or parent.first_name).strip().lower(), 'portal_url': portal_login_url},
@@ -1000,12 +1024,30 @@ def review_applicants_view(request):
         )
         action = request.POST.get('action')
         if action == 'verify_payment':
+            previous_payment_status = applicant.payment_status
             applicant.payment_status = 'Verified'
             applicant.save(update_fields=['payment_status'])
+            if previous_payment_status != 'Verified':
+                _applicant_email(
+                    applicant,
+                    f'Admission application payment verified: {applicant.temp_reg_number}',
+                    'Application payment verified',
+                    ['Your admission application payment has been verified. The admissions team can now review the application; please check the application status page for updates.'],
+                    {'Payment status': 'Verified'},
+                )
             messages.success(request, f'Payment verified for {applicant.temp_reg_number}.')
         elif action == 'reject':
+            previous_admission_status = applicant.admission_status
             applicant.admission_status = 'Rejected'
             applicant.save(update_fields=['admission_status'])
+            if previous_admission_status != 'Rejected':
+                _applicant_email(
+                    applicant,
+                    f'Admission application update: {applicant.temp_reg_number}',
+                    'Admission application update',
+                    ['The admissions team has reviewed your application and is unable to offer admission at this time. Please contact the school office if you need clarification.'],
+                    {'Admission status': 'Not approved'},
+                )
             messages.success(request, f'Application {applicant.temp_reg_number} rejected.')
         elif action == 'approve_enroll':
             if applicant.admission_status not in ('Pending', 'Verified'):
@@ -1028,6 +1070,20 @@ def review_applicants_view(request):
                         parent, students = provision_batch_admission_accounts(batch, matched_parent)
                         batch.parent_profile = parent
                         batch.save(update_fields=['parent_profile'])
+                    if batch.parent_email:
+                        send_branded_email(
+                            recipient=batch.parent_email,
+                            subject='Admission approved for your applications',
+                            heading='Admission applications approved',
+                            greeting=batch.parent_name or 'Parent/Guardian',
+                            paragraphs=['The applications listed below have been approved. Please complete the parent/guardian profile for each application to accept admission and finish account setup.'],
+                            details={
+                                'Approved applicants': ', '.join(f'{item.first_name} {item.last_name} ({item.temp_reg_number})' for item in batch.applicants.all()),
+                                'Next step': 'Complete the admission profile using the application status page.',
+                            },
+                            action_url=f'{settings.PORTAL_BASE_URL.rstrip("/")}/login/',
+                            action_label='Continue admission process',
+                        )
                     messages.success(request, f'{len(students)} child applications approved under one parent profile.')
                     return redirect('review_applicants')
                 matched_parent = Parent.objects.filter(
@@ -1042,14 +1098,31 @@ def review_applicants_view(request):
                             'parent': matched_parent,
                         },
                     })
+                previous_admission_status = applicant.admission_status
                 applicant.admission_status = 'Approved'
                 if matched_parent:
                     applicant.parent_profile = matched_parent
                     applicant.parent_profile_is_existing = True
                     applicant.save(update_fields=['admission_status', 'parent_profile', 'parent_profile_is_existing'])
+                    if previous_admission_status != 'Approved':
+                        _applicant_email(
+                            applicant,
+                            f'Admission ready to complete: {applicant.temp_reg_number}',
+                            'Your application is approved',
+                            ['Your admission application is approved. Complete the parent/guardian profile through the application status page to accept admission and finish portal account setup.'],
+                            {'Admission status': 'Approved', 'Next step': 'Complete the admission profile'},
+                        )
                     messages.success(request, f'Application {applicant.temp_reg_number} approved and linked to {matched_parent.display_name}.')
                 else:
                     applicant.save(update_fields=['admission_status'])
+                    if previous_admission_status != 'Approved':
+                        _applicant_email(
+                            applicant,
+                            f'Admission ready to complete: {applicant.temp_reg_number}',
+                            'Your application is approved',
+                            ['Your admission application is approved. Complete the parent/guardian profile through the application status page to accept admission and finish portal account setup.'],
+                            {'Admission status': 'Approved', 'Next step': 'Complete the admission profile'},
+                        )
                     messages.success(request, f'Application {applicant.temp_reg_number} approved. Accounts will be created when the applicant accepts admission.')
         return redirect('review_applicants')
     return render(request, 'portal/review_applicants.html', {
@@ -1180,6 +1253,17 @@ def _send_message(sender, subject, body, priority, recipient_users):
         except Exception as e:
             logger.error(f'Failed to send push for message {message.id} to {user.username}: {str(e)}')
             print(f'Push failed: {e}', flush=True)
+        if user.email:
+            send_branded_email(
+                recipient=user.email,
+                subject=subject,
+                heading='New school portal message',
+                greeting=user.get_full_name() or user.username,
+                paragraphs=[body[:4000]],
+                details={'From': sender.get_full_name() or sender.username, 'Priority': priority},
+                action_url=f'{settings.PORTAL_BASE_URL.rstrip("/")}{reverse("inbox")}',
+                action_label='Open your inbox',
+            )
     
     return message
 
@@ -1209,6 +1293,16 @@ def _notify_users(recipient_users, title, message, link=''):
             logger.error(f'Failed to send push notification to {user.username}: {str(e)}')
             print(f'Push failed: {e}', flush=True)
             print(f'Push failed: {e}')
+        if user.email:
+            send_branded_email(
+                recipient=user.email,
+                subject=title,
+                heading=title,
+                greeting=user.get_full_name() or user.username,
+                paragraphs=[message[:4000]],
+                action_url=f'{settings.PORTAL_BASE_URL.rstrip("/")}{link}' if link.startswith('/') else None,
+                action_label='Open the school portal' if link.startswith('/') else None,
+            )
 
 
 @login_required(login_url='login')
@@ -1588,6 +1682,22 @@ def run_payroll_view(request):
                 run.status = 'Disbursed'
                 run.save(update_fields=['status'])
                 run.payslips.update(is_disbursed=True)
+                for payslip in run.payslips.select_related('salary_profile__user'):
+                    staff_user = payslip.salary_profile.user
+                    send_branded_email(
+                        recipient=staff_user.email,
+                        subject=f'Salary payment recorded: {run.get_month_display()} {run.year}',
+                        heading='Salary payment recorded',
+                        greeting=staff_user.get_full_name() or staff_user.username,
+                        paragraphs=['Your salary payment has been marked as disbursed. For a confidential breakdown, sign in to view your payslip.'],
+                        details={
+                            'Payment period': f'{run.get_month_display()} {run.year}',
+                            'Net amount disbursed': f'NGN {payslip.net_pay:,.2f}',
+                            'Status': 'Disbursed',
+                        },
+                        action_url=f'{settings.PORTAL_BASE_URL.rstrip("/")}{reverse("staff_my_payslips")}',
+                        action_label='View payslip',
+                    )
                 log_security_action(request, 'PAYROLL_DISBURSED', f'Payroll {run.month:02d}/{run.year}', {
                     'before': {'status': previous_status}, 'after': {'status': run.status},
                 })
@@ -1900,7 +2010,7 @@ def fee_accounts_through(account):
     return []
 
 
-def apply_fifo_payment(account, amount, recorded_by):
+def apply_fifo_payment(account, amount, recorded_by, created_payment_ids=None):
     accounts = fee_accounts_through(account)
     outstanding = sum((max(candidate.balance, Decimal('0')) for candidate in accounts), Decimal('0'))
     if amount > outstanding:
@@ -1910,7 +2020,9 @@ def apply_fifo_payment(account, amount, recorded_by):
         allocation = min(max(candidate.balance, Decimal('0')), remaining)
         if allocation <= 0:
             continue
-        FeePayment.objects.create(account=candidate, amount=allocation, recorded_by=recorded_by)
+        payment = FeePayment.objects.create(account=candidate, amount=allocation, recorded_by=recorded_by)
+        if created_payment_ids is not None:
+            created_payment_ids.append(payment.pk)
         candidate.amount_paid += allocation
         candidate.save(update_fields=['amount_paid', 'is_cleared'])
         remaining -= allocation
@@ -3045,6 +3157,8 @@ def bursary_dashboard(request):
             except (InvalidOperation, TypeError, ValueError):
                 messages.error(request, 'Enter a valid non-negative payment amount.')
             else:
+                payment_ids = []
+                paid_fee_item = None
                 try:
                     with transaction.atomic():
                         fee_item_id = request.POST.get('fee_item_id')
@@ -3063,22 +3177,54 @@ def bursary_dashboard(request):
                             item_balance = fee_item.amount - item_paid
                             if payment > item_balance:
                                 raise ValueError(f'Payment exceeds the remaining balance for {fee_item.description}.')
-                            FeePayment.objects.create(
+                            paid_fee_item = fee_item
+                            fee_payment = FeePayment.objects.create(
                                 account=account,
                                 fee_item=fee_item,
                                 amount=payment,
                                 recorded_by=request.user,
                             )
+                            payment_ids.append(fee_payment.pk)
                             if fee_item.is_compulsory:
                                 account.amount_paid += payment
                                 account.save(update_fields=['amount_paid', 'is_cleared'])
                             payment_label = fee_item.description
                         else:
-                            apply_fifo_payment(account, payment, request.user)
+                            apply_fifo_payment(account, payment, request.user, payment_ids)
                             payment_label = None
                 except ValueError as error:
                     messages.error(request, str(error))
                 else:
+                    parent = account.student.parent
+                    parent_recipient = (parent.email if parent else '') or (parent.user.email if parent and parent.user else '')
+                    latest_payment = FeePayment.objects.filter(pk__in=payment_ids).order_by('-paid_at', '-pk').first()
+                    if paid_fee_item:
+                        item_paid_total = sum(
+                            (entry.amount for entry in paid_fee_item.payments.all()),
+                            Decimal('0'),
+                        )
+                        remaining_balance = max(paid_fee_item.amount - item_paid_total, Decimal('0'))
+                        remaining_balance_label = f'Remaining {paid_fee_item.description} balance'
+                    else:
+                        remaining_balance = student_outstanding_balance(account.student)
+                        remaining_balance_label = 'Remaining outstanding balance'
+                    send_branded_email(
+                        recipient=parent_recipient,
+                        subject=f'Fee payment received for {account.student.first_name} {account.student.last_name}',
+                        heading='School fee payment received',
+                        greeting=(parent.display_name if parent else '') or 'Parent/Guardian',
+                        paragraphs=['The school has recorded your payment. Keep the receipt reference below for your records.'],
+                        details={
+                            'Student': f'{account.student.first_name} {account.student.last_name}',
+                            'Payment type': payment_label or 'School fees (allocated to oldest balance)',
+                            'Amount received': f'NGN {payment:,.2f}',
+                            'Date recorded': timezone.localtime(latest_payment.paid_at).strftime('%d %b %Y %H:%M') if latest_payment else timezone.localtime().strftime('%d %b %Y %H:%M'),
+                            'Receipt reference(s)': ', '.join(f'FP-{payment_id}' for payment_id in payment_ids),
+                            remaining_balance_label: f'NGN {remaining_balance:,.2f}',
+                        },
+                        action_url=f'{settings.PORTAL_BASE_URL.rstrip("/")}{reverse("parent_bursary")}',
+                        action_label='View fee account',
+                    )
                     log_security_action(request, 'PAYMENT_RECORDED', f'{account.student} - {account.term}', {
                         'before': {'amount_paid': str(account.amount_paid)},
                         'after': {'payment_received': str(payment), 'fee_item': payment_label},
