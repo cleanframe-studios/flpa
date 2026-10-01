@@ -487,6 +487,63 @@ class AdmissionApprovalWorkflowTests(TestCase):
         self.assertFalse(Student.objects.filter(pk=student_id).exists())
         self.assertFalse(Parent.objects.filter(pk=parent_id).exists())
 
+    @patch('portal.views._queue_applicant_email')
+    def test_revoke_approved_admission_queues_one_branded_status_email(self, queue_email):
+        self.client.post(reverse('review_applicants'), {
+            'action': 'approve_enroll',
+            'applicant_id': self.applicant.pk,
+        })
+        self.applicant.refresh_from_db()
+        self.assertEqual(self.applicant.admission_status, 'Approved')
+
+        response = self.client.post(reverse('revoke_admission', args=[self.applicant.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.applicant.refresh_from_db()
+        self.assertEqual(self.applicant.admission_status, 'Verified')
+        queue_email.assert_called_once()
+        email_call = queue_email.call_args
+        self.assertEqual(email_call.args[0], self.applicant)
+        self.assertEqual(email_call.args[2], 'Admission approval has been revoked')
+        self.assertEqual(email_call.args[4]['Admission status'], 'Approval revoked')
+        self.assertEqual(email_call.args[4]['Previous status'], 'Approved')
+        self.assertEqual(email_call.kwargs['action_label'], 'View application status')
+
+        repeated_response = self.client.post(reverse('revoke_admission', args=[self.applicant.pk]))
+        self.assertEqual(repeated_response.status_code, 404)
+        queue_email.assert_called_once()
+
+    @patch('portal.views.threading.Thread')
+    def test_revoke_persists_when_revocation_email_fails(self, thread):
+        self.client.post(reverse('review_applicants'), {
+            'action': 'approve_enroll',
+            'applicant_id': self.applicant.pk,
+        })
+        thread.return_value.start.side_effect = lambda: thread.call_args.kwargs['target'](
+            *thread.call_args.kwargs['args']
+        )
+
+        with patch('portal.views.send_branded_email', side_effect=__import__('requests').RequestException('offline')):
+            response = self.client.post(reverse('revoke_admission', args=[self.applicant.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.applicant.refresh_from_db()
+        self.assertEqual(self.applicant.admission_status, 'Verified')
+
+    @patch('portal.views._queue_applicant_email')
+    @patch('portal.views._applicant_email')
+    def test_normal_rejection_does_not_queue_revocation_email(self, approval_email, queue_email):
+        response = self.client.post(reverse('review_applicants'), {
+            'action': 'reject',
+            'applicant_id': self.applicant.pk,
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.applicant.refresh_from_db()
+        self.assertEqual(self.applicant.admission_status, 'Rejected')
+        queue_email.assert_not_called()
+        approval_email.assert_called_once()
+
     def test_approval_prompts_to_reuse_existing_parent_and_revoke_preserves_it(self):
         parent_user = get_user_model().objects.create_user(username='existing-parent', password='pass123')
         parent = Parent.objects.create(

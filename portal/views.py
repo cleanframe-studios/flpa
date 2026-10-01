@@ -389,7 +389,7 @@ def logout_view(request):
     logout(request)
     return redirect('login')
 
-def _applicant_email(applicant, subject, heading, paragraphs, extra_details=None):
+def _applicant_email(applicant, subject, heading, paragraphs, extra_details=None, action_label='Continue on the admissions page'):
     recipient = applicant.parent_email or applicant.father_email or applicant.mother_email
     details = {
         'Applicant': ' '.join(filter(None, (applicant.first_name, applicant.other_name, applicant.last_name))),
@@ -405,7 +405,7 @@ def _applicant_email(applicant, subject, heading, paragraphs, extra_details=None
         paragraphs=paragraphs,
         details=details,
         action_url=f"{settings.PORTAL_BASE_URL.rstrip('/')}{reverse('login')}",
-        action_label='Continue on the admissions page',
+        action_label=action_label,
     )
 
 
@@ -418,11 +418,11 @@ def _application_payment_details(applicant):
     }
 
 
-def _queue_applicant_email(applicant, subject, heading, paragraphs, extra_details=None):
+def _queue_applicant_email(applicant, subject, heading, paragraphs, extra_details=None, action_label='Continue on the admissions page'):
     try:
         threading.Thread(
             target=_applicant_email,
-            args=(applicant, subject, heading, paragraphs, extra_details),
+            args=(applicant, subject, heading, paragraphs, extra_details, action_label),
             name=f'admission-email-{applicant.pk}',
             daemon=True,
         ).start()
@@ -1149,17 +1149,24 @@ def review_applicants_view(request):
 def revoke_admission_view(request, pk):
     if principal_action_denied(request):
         return JsonResponse({'success': False, 'message': 'This sensitive action is restricted to administrators.'}, status=403)
-    applicant = get_object_or_404(
-        Applicant.objects.select_related('enrolled_student__user', 'provisioned_parent__user'),
-        pk=pk,
-        admission_status='Approved',
-    )
-    student = applicant.enrolled_student
-    parent = applicant.provisioned_parent
     with transaction.atomic():
+        applicant = get_object_or_404(
+            Applicant.objects.select_for_update(of=('self',)).select_related(
+                'application_batch', 'enrolled_student__user', 'provisioned_parent__user', 'intended_class',
+            ),
+            pk=pk,
+            admission_status='Approved',
+        )
+        student = applicant.enrolled_student
+        parent = applicant.provisioned_parent
+        revoked_applicants = [applicant]
         if applicant.application_batch_id:
             batch = applicant.application_batch
-            batch_applicants = list(batch.applicants.select_related('enrolled_student__user'))
+            batch_applicants = list(batch.applicants.select_related('enrolled_student__user', 'intended_class'))
+            revoked_applicants = [
+                batch_applicant for batch_applicant in batch_applicants
+                if batch_applicant.admission_status == 'Approved'
+            ]
             batch_parent = batch.parent_profile
             batch_parent_is_existing = any(item.parent_profile_is_existing for item in batch_applicants)
             for batch_applicant in batch_applicants:
@@ -1184,25 +1191,68 @@ def revoke_admission_view(request, pk):
                     batch_parent_user.delete()
             batch.parent_profile = None
             batch.save(update_fields=['parent_profile'])
-            return JsonResponse({'success': True, 'message': 'Batch admission approval was revoked.'})
-        if student:
-            student_user = student.user if hasattr(student, 'user') else None
-            student.delete()
-            if student_user:
-                student_user.delete()
-        if parent and not applicant.parent_profile_is_existing:
-            parent_user = parent.user if hasattr(parent, 'user') else None
-            parent.delete()
-            if parent_user:
-                parent_user.delete()
-        applicant.enrolled_student = None
-        applicant.provisioned_parent = None
-        applicant.parent_profile = None
-        applicant.parent_profile_is_existing = False
-        applicant.student_id = ''
-        applicant.parent_id = ''
-        applicant.admission_status = 'Verified'
-        applicant.save(update_fields=['enrolled_student', 'provisioned_parent', 'parent_profile', 'parent_profile_is_existing', 'student_id', 'parent_id', 'admission_status'])
+        else:
+            if student:
+                student_user = student.user if hasattr(student, 'user') else None
+                student.delete()
+                if student_user:
+                    student_user.delete()
+            if parent and not applicant.parent_profile_is_existing:
+                parent_user = parent.user if hasattr(parent, 'user') else None
+                parent.delete()
+                if parent_user:
+                    parent_user.delete()
+            applicant.enrolled_student = None
+            applicant.provisioned_parent = None
+            applicant.parent_profile = None
+            applicant.parent_profile_is_existing = False
+            applicant.student_id = ''
+            applicant.parent_id = ''
+            applicant.admission_status = 'Verified'
+            applicant.save(update_fields=['enrolled_student', 'provisioned_parent', 'parent_profile', 'parent_profile_is_existing', 'student_id', 'parent_id', 'admission_status'])
+
+    if applicant.application_batch_id:
+        email_applicant = next((
+            item for item in revoked_applicants
+            if item.parent_email or item.father_email or item.mother_email
+        ), applicant)
+        revoked_names = ', '.join(
+            ' '.join(filter(None, (item.first_name, item.other_name, item.last_name)))
+            for item in revoked_applicants
+        )
+        application_numbers = ', '.join(item.temp_reg_number for item in revoked_applicants)
+        applied_classes = ', '.join(dict.fromkeys(
+            item.intended_class.name for item in revoked_applicants if item.intended_class_id
+        )) or 'Not specified'
+        revocation_details = {
+            'Applicant': revoked_names,
+            'Application number': application_numbers,
+            'Applied class': applied_classes,
+            'Admission status': 'Approval revoked',
+            'Previous status': 'Approved',
+        }
+        subject = 'Admission approval has been revoked'
+    else:
+        email_applicant = applicant
+        revocation_details = {
+            'Admission status': 'Approval revoked',
+            'Previous status': 'Approved',
+        }
+        subject = f'Admission approval revoked: {applicant.temp_reg_number}'
+    _queue_applicant_email(
+        email_applicant,
+        subject,
+        'Admission approval has been revoked',
+        [
+            'Your admission application that was previously approved has been revoked and the previous approval is no longer valid.',
+            'The approval for this application has been withdrawn by Future Leaders Private Academy. Please do not proceed with the previous admission approval.',
+        ],
+        revocation_details,
+        action_label='View application status',
+    )
+
+    if applicant.application_batch_id:
+        return JsonResponse({'success': True, 'message': 'Batch admission approval was revoked.'})
     return JsonResponse({'success': True, 'message': 'Admission approval was revoked. Generated student and parent profiles were removed.'})
 
 
