@@ -519,6 +519,87 @@ class SchoolPaymentAccount(models.Model):
         return f'{self.bank_name} - {self.account_name}'
 
 
+class ParentPaymentAccount(models.Model):
+    """A parent's School Payment Balance account. Balance is always derived from ParentLedgerEntry, never stored directly."""
+    STATUS_CHOICES = [('Active', 'Active'), ('Suspended', 'Suspended')]
+
+    parent = models.OneToOneField(Parent, on_delete=models.CASCADE, related_name='payment_account')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Active')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['parent__name']
+
+    @property
+    def balance(self):
+        from django.db.models import Q as _Q
+        totals = self.ledger_entries.filter(status='Successful').aggregate(
+            credit=Sum('amount', filter=_Q(entry_type='CREDIT')),
+            debit=Sum('amount', filter=_Q(entry_type='DEBIT')),
+        )
+        return (totals['credit'] or Decimal('0')) - (totals['debit'] or Decimal('0'))
+
+    def __str__(self):
+        return f'School Payment Balance - {self.parent}'
+
+
+class ParentLedgerEntry(models.Model):
+    """Immutable ledger of every credit/debit against a parent's School Payment Balance."""
+    ENTRY_TYPE_CHOICES = [('CREDIT', 'Credit'), ('DEBIT', 'Debit')]
+    SOURCE_CHOICES = [
+        ('PAYSTACK_DVA', 'Paystack Dedicated Virtual Account'),
+        ('MANUAL_ADJUSTMENT', 'Manual Adjustment / Test Credit'),
+        ('CHARGE_PAYMENT', 'Applied to a school charge'),
+        ('REVERSAL', 'Reversal / Adjustment'),
+    ]
+    STATUS_CHOICES = [('Successful', 'Successful'), ('Reversed', 'Reversed'), ('Failed', 'Failed')]
+
+    account = models.ForeignKey(ParentPaymentAccount, on_delete=models.PROTECT, related_name='ledger_entries')
+    entry_type = models.CharField(max_length=10, choices=ENTRY_TYPE_CHOICES)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    reference = models.CharField(max_length=150, unique=True)
+    source = models.CharField(max_length=30, choices=SOURCE_CHOICES)
+    description = models.CharField(max_length=255, blank=True)
+    student = models.ForeignKey(Student, on_delete=models.SET_NULL, null=True, blank=True, related_name='parent_ledger_entries')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Successful')
+    recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='recorded_ledger_entries')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-pk']
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValueError('Ledger entries are immutable. Use a reversal entry instead.')
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValueError('Ledger entries are immutable and cannot be deleted.')
+
+    def __str__(self):
+        return f'{self.entry_type} NGN{self.amount} - {self.account.parent} ({self.reference})'
+
+
+class ResultAccessFee(models.Model):
+    """One-time ₦200 result-access charge for a specific student + academic term."""
+    DEFAULT_AMOUNT = Decimal('200')
+
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='result_access_fees')
+    term = models.ForeignKey(AcademicTerm, on_delete=models.PROTECT, related_name='result_access_fees')
+    session = models.ForeignKey(AcademicSession, on_delete=models.PROTECT, related_name='result_access_fees')
+    amount = models.DecimalField(max_digits=12, decimal_places=2, default=DEFAULT_AMOUNT)
+    is_paid = models.BooleanField(default=False)
+    paid_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-session__name', 'term__start_date']
+        constraints = [models.UniqueConstraint(fields=['student', 'term', 'session'], name='unique_student_term_session_result_access_fee')]
+
+    def __str__(self):
+        return f'Result access - {self.student} - {self.term}'
+
+
+
 class AttendanceRegister(models.Model):
     classroom = models.ForeignKey(ClassRoom, on_delete=models.PROTECT, related_name='attendance_registers')
     session = models.ForeignKey(AcademicSession, on_delete=models.PROTECT, related_name='attendance_registers')
@@ -753,6 +834,9 @@ class AuditLog(models.Model):
         ('PAYROLL_PROCESSED', 'Payroll processed'),
         ('PAYROLL_APPROVED', 'Payroll approved'),
         ('PAYROLL_DISBURSED', 'Payroll disbursed'),
+        ('PARENT_BALANCE_CREDITED', 'Parent school payment balance credited'),
+        ('PARENT_BALANCE_DEBITED', 'Parent school payment balance debited'),
+        ('RESULT_ACCESS_PAID', 'Result access fee paid'),
     ]
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='audit_logs')

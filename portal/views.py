@@ -3,6 +3,7 @@ import csv
 import logging
 import os
 import threading
+import uuid
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponseForbidden, JsonResponse, HttpResponse
 from django.urls import reverse
@@ -72,6 +73,9 @@ from .models import (
     Payslip,
     PushSubscription,
     BookItem,
+    ParentPaymentAccount,
+    ParentLedgerEntry,
+    ResultAccessFee,
     normalize_phone_number,
     find_cross_role_account,
 )
@@ -1982,14 +1986,15 @@ def _parent_published_results(request, template_name):
             term=term,
         ).first() if term and child.current_class else None
         child.is_published = bool(publication and publication.is_live)
-        child.is_cleared = True
+        access_status = student_result_access_status(child, term)
+        child.fees_cleared = access_status['fees_cleared']
+        child.result_access_fee = access_status['result_access_fee']
+        child.is_cleared = access_status['access_granted']
         child.fee_account = StudentFeeAccount.objects.filter(
             student=child,
             term=term,
             session=term.session,
         ).first() if term else None
-        if child.fee_account:
-            child.is_cleared = child.fee_account.is_cleared
         child.results = valid_subject_results(
             SubjectResult.objects.filter(student=child, term=term)
         ).select_related('subject') if child.is_published and child.is_cleared else SubjectResult.objects.none()
@@ -2036,6 +2041,71 @@ def parent_bursary_view(request):
             ('Books / Uniform', 'Providus Bank', '6507146199', 'Funmilayo Fasina'),
         ],
     })
+
+
+@login_required(login_url='login')
+def parent_payments_view(request):
+    parent = getattr(request.user, 'parent_record', None)
+    if not parent:
+        return redirect('dashboard')
+    payment_account = get_or_create_payment_account(parent)
+    return render(request, 'portal/parent_payments.html', {
+        'payment_account': payment_account,
+        'balance': payment_account.balance,
+        'charges_by_child': parent_payable_charges(parent),
+        'ledger_entries': payment_account.ledger_entries.select_related('student').order_by('-created_at')[:100],
+    })
+
+
+@login_required(login_url='login')
+@require_POST
+def parent_pay_charge_view(request):
+    parent = getattr(request.user, 'parent_record', None)
+    if not parent:
+        return redirect('dashboard')
+    charge_type = request.POST.get('charge_type')
+    charge_id = request.POST.get('charge_id', '')
+    try:
+        if charge_type == 'fee_account':
+            account = get_object_or_404(StudentFeeAccount.objects.select_related('student', 'term', 'session'), pk=charge_id, student__parent=parent)
+            amount = Decimal(request.POST.get('amount') or account.balance)
+            student = account.student
+            description = f'School fees payment for {student.first_name} {student.last_name}'
+            pay_fee_account_balance_from_wallet(parent, request.user, account.pk, amount)
+        elif charge_type == 'fee_item':
+            account_pk, _, item_pk = charge_id.partition(':')
+            account = get_object_or_404(StudentFeeAccount.objects.select_related('student'), pk=account_pk, student__parent=parent)
+            item = get_object_or_404(FeeStructureItem, pk=item_pk)
+            amount = Decimal(request.POST.get('amount') or fee_item_balance(account, item))
+            student = account.student
+            description = f'{item.description} payment for {student.first_name} {student.last_name}'
+            pay_fee_item_from_wallet(parent, request.user, account.pk, item.pk, amount)
+        elif charge_type == 'result_access':
+            fee = get_object_or_404(ResultAccessFee.objects.select_related('student', 'term', 'session'), pk=charge_id, student__parent=parent)
+            amount = fee.amount
+            student = fee.student
+            description = f'Result access payment for {student.first_name} {student.last_name} ({fee.term.term_name})'
+            pay_result_access_fee_from_wallet(parent, request.user, fee.pk)
+        else:
+            messages.error(request, 'Unrecognized charge type.')
+            return redirect('parent_payments')
+    except (InsufficientBalanceError, ChargeAlreadySettledError, DuplicateReferenceError, ValueError, InvalidOperation) as error:
+        messages.error(request, str(error) or 'Unable to process this payment.')
+        return redirect('parent_payments')
+    log_security_action(request, 'PARENT_BALANCE_DEBITED', f'{student} - {description}', {
+        'after': {'amount': str(amount), 'charge_type': charge_type},
+    })
+    messages.success(request, f'₦{amount:,.2f} applied successfully. {description}.')
+    try:
+        _notify_users(
+            [request.user],
+            'Payment applied',
+            f'₦{amount:,.2f} was applied from your School Payment Balance. {description}.',
+            reverse('parent_payments'),
+        )
+    except Exception:
+        logger.exception('Failed to send payment-applied notification for parent %s.', parent.pk)
+    return redirect('parent_payments')
 
 
 def classroom_fee_book_breakdown(classroom):
@@ -2090,6 +2160,279 @@ def apply_fifo_payment(account, amount, recorded_by, created_payment_ids=None):
         candidate.save(update_fields=['amount_paid', 'is_cleared'])
         remaining -= allocation
     return amount - remaining
+
+
+def fee_item_balance(account, fee_item):
+    """Outstanding balance for one specific FeeStructureItem on an account."""
+    item_paid = sum(
+        (entry.amount for entry in account.payments.all() if entry.fee_item_id == fee_item.pk),
+        Decimal('0'),
+    )
+    return fee_item.amount - item_paid
+
+
+def record_fee_item_payment(account, fee_item, amount, recorded_by):
+    """Record a payment against one specific FeeStructureItem, enforcing the item's own balance. Shared by the staff bursary flow and parent balance payments."""
+    item_balance = fee_item_balance(account, fee_item)
+    if amount > item_balance:
+        raise ValueError(f'Payment exceeds the remaining balance for {fee_item.description}.')
+    fee_payment = FeePayment.objects.create(
+        account=account,
+        fee_item=fee_item,
+        amount=amount,
+        recorded_by=recorded_by,
+    )
+    if fee_item.is_compulsory:
+        account.amount_paid += amount
+        account.save(update_fields=['amount_paid', 'is_cleared'])
+    return fee_payment
+
+
+# ============================================================================
+# School Payment Balance (parent payment account + ledger)
+# ============================================================================
+# Design note: `credit_parent_balance()` is the single intended entry point for
+# funding the balance. A future Paystack webhook will call it directly, e.g.
+# credit_parent_balance(parent, amount, source='PAYSTACK_DVA', reference=paystack_tx_ref).
+# No Paystack API calls/keys/webhooks exist yet - this only builds the internal ledger.
+
+class InsufficientBalanceError(ValueError):
+    """Raised when a parent tries to spend more than their available School Payment Balance."""
+
+
+class ChargeAlreadySettledError(ValueError):
+    """Raised when a parent tries to pay a charge that is already fully paid."""
+
+
+class DuplicateReferenceError(ValueError):
+    """Raised when a ledger reference has already been processed - callers (e.g. a webhook) should treat this as an idempotent no-op."""
+
+
+def get_or_create_payment_account(parent):
+    account, _ = ParentPaymentAccount.objects.get_or_create(parent=parent)
+    return account
+
+
+def _generate_ledger_reference(prefix):
+    return f'{prefix}-{uuid.uuid4().hex[:12].upper()}'
+
+
+def credit_parent_balance(parent, amount, source, description='', reference=None, recorded_by=None, student=None):
+    """Credit a parent's School Payment Balance. Reused for manual/admin test credits today and
+    intended as the exact function a future Paystack webhook calls after verifying a deposit.
+    Idempotent: a reference that was already successfully processed raises DuplicateReferenceError
+    instead of double-crediting, so a retried webhook call is safe.
+    """
+    try:
+        amount = Decimal(amount)
+    except (InvalidOperation, TypeError):
+        raise ValueError('Enter a valid credit amount.')
+    if amount <= 0:
+        raise ValueError('Credit amount must be greater than zero.')
+    reference = reference or _generate_ledger_reference('CR')
+    with transaction.atomic():
+        account = ParentPaymentAccount.objects.select_for_update().get_or_create(parent=parent)[0]
+        if ParentLedgerEntry.objects.filter(reference=reference).exists():
+            raise DuplicateReferenceError(f'Reference {reference} has already been processed.')
+        try:
+            entry = ParentLedgerEntry.objects.create(
+                account=account,
+                entry_type='CREDIT',
+                amount=amount,
+                reference=reference,
+                source=source,
+                description=description,
+                student=student,
+                recorded_by=recorded_by,
+            )
+        except IntegrityError:
+            raise DuplicateReferenceError(f'Reference {reference} has already been processed.')
+    return entry
+
+
+def pay_fee_account_balance_from_wallet(parent, user, account_pk, amount):
+    """Apply a parent's School Payment Balance to a specific StudentFeeAccount's balance (FIFO across earlier unpaid terms, reusing apply_fifo_payment)."""
+    try:
+        amount = Decimal(amount)
+    except (InvalidOperation, TypeError):
+        raise ValueError('Enter a valid payment amount.')
+    if amount <= 0:
+        raise ValueError('Enter a valid payment amount.')
+    with transaction.atomic():
+        payment_account = ParentPaymentAccount.objects.select_for_update().get_or_create(parent=parent)[0]
+        if payment_account.status != 'Active':
+            raise ValueError('This School Payment Balance account is suspended. Please contact the bursary.')
+        account = get_object_or_404(
+            StudentFeeAccount.objects.select_related('student', 'term', 'session'),
+            pk=account_pk, student__parent=parent,
+        )
+        if account.balance <= 0:
+            raise ChargeAlreadySettledError('This fee balance has already been cleared.')
+        if amount > payment_account.balance:
+            raise InsufficientBalanceError('Insufficient School Payment Balance for this payment.')
+        payment_ids = []
+        apply_fifo_payment(account, amount, user, payment_ids)
+        reference = _generate_ledger_reference('DR')
+        entry = ParentLedgerEntry.objects.create(
+            account=payment_account,
+            entry_type='DEBIT',
+            amount=amount,
+            reference=reference,
+            source='CHARGE_PAYMENT',
+            description=f'School fees - {account.student.first_name} {account.student.last_name} ({account.term.term_name} {account.session.name})',
+            student=account.student,
+            recorded_by=user,
+        )
+    return entry
+
+
+def pay_fee_item_from_wallet(parent, user, account_pk, fee_item_pk, amount):
+    """Apply a parent's School Payment Balance to one specific optional FeeStructureItem (e.g. Transport, Trips, Uniforms, Books)."""
+    try:
+        amount = Decimal(amount)
+    except (InvalidOperation, TypeError):
+        raise ValueError('Enter a valid payment amount.')
+    if amount <= 0:
+        raise ValueError('Enter a valid payment amount.')
+    with transaction.atomic():
+        payment_account = ParentPaymentAccount.objects.select_for_update().get_or_create(parent=parent)[0]
+        if payment_account.status != 'Active':
+            raise ValueError('This School Payment Balance account is suspended. Please contact the bursary.')
+        account = get_object_or_404(
+            StudentFeeAccount.objects.select_related('student', 'term', 'session'),
+            pk=account_pk, student__parent=parent,
+        )
+        fee_item = get_object_or_404(
+            FeeStructureItem.objects.select_related('fee_structure'),
+            pk=fee_item_pk,
+            fee_structure__classroom=account.student.current_class,
+            fee_structure__term=account.term,
+            fee_structure__session=account.session,
+        )
+        item_balance = fee_item_balance(account, fee_item)
+        if item_balance <= 0:
+            raise ChargeAlreadySettledError(f'{fee_item.description} has already been paid in full.')
+        if amount > item_balance:
+            raise ValueError(f'Payment exceeds the remaining balance for {fee_item.description}.')
+        if amount > payment_account.balance:
+            raise InsufficientBalanceError('Insufficient School Payment Balance for this payment.')
+        record_fee_item_payment(account, fee_item, amount, user)
+        reference = _generate_ledger_reference('DR')
+        entry = ParentLedgerEntry.objects.create(
+            account=payment_account,
+            entry_type='DEBIT',
+            amount=amount,
+            reference=reference,
+            source='CHARGE_PAYMENT',
+            description=f'{fee_item.description} - {account.student.first_name} {account.student.last_name}',
+            student=account.student,
+            recorded_by=user,
+        )
+    return entry
+
+
+def get_or_create_result_access_fee(student, term):
+    """Lazily create the one-time ₦200 result-access record for a student/term. Does not grant access by itself."""
+    if not term or not student:
+        return None
+    fee, _ = ResultAccessFee.objects.get_or_create(
+        student=student, term=term, session=term.session, defaults={'amount': ResultAccessFee.DEFAULT_AMOUNT},
+    )
+    return fee
+
+
+def student_result_access_status(student, term):
+    """Centralizes result-access gating: required fees must be cleared AND the exact student/term result-access fee paid."""
+    if not term:
+        return {'outstanding_balance': Decimal('0'), 'fees_cleared': True, 'result_access_fee': None, 'access_granted': False}
+    outstanding_balance = student_outstanding_balance(student, term)
+    fees_cleared = outstanding_balance <= 0
+    result_access_fee = get_or_create_result_access_fee(student, term)
+    access_granted = fees_cleared and bool(result_access_fee and result_access_fee.is_paid)
+    return {
+        'outstanding_balance': outstanding_balance,
+        'fees_cleared': fees_cleared,
+        'result_access_fee': result_access_fee,
+        'access_granted': access_granted,
+    }
+
+
+def pay_result_access_fee_from_wallet(parent, user, result_access_fee_pk):
+    """Apply a parent's School Payment Balance to a student's one-time ₦200 Result Access charge for one term."""
+    with transaction.atomic():
+        payment_account = ParentPaymentAccount.objects.select_for_update().get_or_create(parent=parent)[0]
+        if payment_account.status != 'Active':
+            raise ValueError('This School Payment Balance account is suspended. Please contact the bursary.')
+        fee = get_object_or_404(
+            ResultAccessFee.objects.select_for_update().select_related('student', 'term', 'session'),
+            pk=result_access_fee_pk, student__parent=parent,
+        )
+        if fee.is_paid:
+            raise ChargeAlreadySettledError('Result access for this term has already been paid.')
+        if fee.amount > payment_account.balance:
+            raise InsufficientBalanceError('Insufficient School Payment Balance for this payment.')
+        reference = _generate_ledger_reference('DR')
+        entry = ParentLedgerEntry.objects.create(
+            account=payment_account,
+            entry_type='DEBIT',
+            amount=fee.amount,
+            reference=reference,
+            source='CHARGE_PAYMENT',
+            description=f'Result Access - {fee.student.first_name} {fee.student.last_name} ({fee.term.term_name} {fee.session.name})',
+            student=fee.student,
+            recorded_by=user,
+        )
+        fee.is_paid = True
+        fee.paid_at = timezone.now()
+        fee.save(update_fields=['is_paid', 'paid_at'])
+    return entry
+
+
+def parent_payable_charges(parent):
+    """Build the list of outstanding charges a parent can pay from their School Payment Balance, grouped by child."""
+    active_term = AcademicTerm.objects.select_related('session').filter(is_active=True).first()
+    children = list(parent.children.select_related('current_class').all())
+    charges_by_child = []
+    for child in children:
+        child_charges = []
+        fee_accounts = list(child.fee_accounts.select_related('term', 'session').filter(
+            total_billed__gt=F('amount_paid'),
+        ).order_by('session__name', 'term__start_date'))
+        for account in fee_accounts:
+            child_charges.append({
+                'charge_type': 'fee_account',
+                'charge_id': account.pk,
+                'label': f'School Fees - {account.term.term_name} {account.session.name}',
+                'amount': account.balance,
+            })
+        current_account = None
+        fee_structure = None
+        if active_term and child.current_class_id:
+            current_account = StudentFeeAccount.objects.filter(student=child, term=active_term, session=active_term.session).first()
+            fee_structure = FeeStructure.objects.filter(
+                classroom=child.current_class, term=active_term, session=active_term.session,
+            ).prefetch_related('items').first()
+        if fee_structure and current_account:
+            for item in fee_structure.items.filter(is_compulsory=False):
+                balance = fee_item_balance(current_account, item)
+                if balance > 0:
+                    child_charges.append({
+                        'charge_type': 'fee_item',
+                        'charge_id': f'{current_account.pk}:{item.pk}',
+                        'label': item.description,
+                        'amount': balance,
+                    })
+        if active_term:
+            result_fee = get_or_create_result_access_fee(child, active_term)
+            if result_fee and not result_fee.is_paid:
+                child_charges.append({
+                    'charge_type': 'result_access',
+                    'charge_id': result_fee.pk,
+                    'label': f'Result Access - {active_term.term_name} {active_term.session.name}',
+                    'amount': result_fee.amount,
+                })
+        charges_by_child.append({'child': child, 'charges': child_charges})
+    return charges_by_child
 
 
 def historical_classroom(student, term):
@@ -2172,15 +2515,17 @@ def student_report_hub(request):
             SubjectResult.objects.filter(student=report_student, term=selected_term)
         ).select_related('subject') if selected_term else SubjectResult.objects.none()
         term_record = StudentTermRecord.objects.filter(student=report_student, term=selected_term).first() if selected_term else None
-        outstanding_balance = student_outstanding_balance(report_student, selected_term)
+        access_status = student_result_access_status(report_student, selected_term)
         report_cards.append({
             'student': report_student,
             'classroom': classroom,
             'results': results,
             'term_record': term_record,
             'is_published': bool(selected_term and (selected_term.reports_published or class_published)),
-            'outstanding_balance': outstanding_balance,
-            'is_cleared': outstanding_balance <= 0,
+            'outstanding_balance': access_status['outstanding_balance'],
+            'fees_cleared': access_status['fees_cleared'],
+            'result_access_fee': access_status['result_access_fee'],
+            'is_cleared': access_status['access_granted'],
         })
     return render(request, 'portal/student_reports_hub.html', {
         'sessions': sessions,
@@ -3307,24 +3652,9 @@ def bursary_dashboard(request):
                                 fee_structure__term=account.term,
                                 fee_structure__session=account.session,
                             )
-                            item_paid = sum(
-                                (entry.amount for entry in account.payments.all() if entry.fee_item_id == fee_item.pk),
-                                Decimal('0'),
-                            )
-                            item_balance = fee_item.amount - item_paid
-                            if payment > item_balance:
-                                raise ValueError(f'Payment exceeds the remaining balance for {fee_item.description}.')
                             paid_fee_item = fee_item
-                            fee_payment = FeePayment.objects.create(
-                                account=account,
-                                fee_item=fee_item,
-                                amount=payment,
-                                recorded_by=request.user,
-                            )
+                            fee_payment = record_fee_item_payment(account, fee_item, payment, request.user)
                             payment_ids.append(fee_payment.pk)
-                            if fee_item.is_compulsory:
-                                account.amount_paid += payment
-                                account.save(update_fields=['amount_paid', 'is_cleared'])
                             payment_label = fee_item.description
                         else:
                             apply_fifo_payment(account, payment, request.user, payment_ids)
@@ -3493,6 +3823,57 @@ def generate_all_class_invoices_view(request):
         'classes_processed': classes_processed,
         'skipped': skipped,
         'status': status['state'],
+    })
+
+
+@login_required(login_url='login')
+@bursar_required
+def parent_payment_accounts_view(request):
+    """Staff-only view of every parent's School Payment Balance, with a Manual Adjustment/Test Credit form.
+    This is the only way to fund a balance until the Paystack funding layer is connected.
+    """
+    if request.method == 'POST':
+        parent = get_object_or_404(Parent, pk=request.POST.get('parent_id'))
+        try:
+            amount = Decimal(request.POST.get('amount', '0'))
+            if amount <= 0:
+                raise ValueError
+        except (InvalidOperation, TypeError, ValueError):
+            messages.error(request, 'Enter a valid credit amount.')
+        else:
+            description = request.POST.get('description', '').strip() or 'Manual Adjustment / Test Credit'
+            try:
+                entry = credit_parent_balance(
+                    parent, amount,
+                    source='MANUAL_ADJUSTMENT',
+                    description=description,
+                    recorded_by=request.user,
+                )
+            except DuplicateReferenceError as error:
+                messages.error(request, str(error))
+            else:
+                log_security_action(request, 'PARENT_BALANCE_CREDITED', f'{parent} - {description}', {
+                    'after': {'amount': str(amount), 'reference': entry.reference, 'source': 'MANUAL_ADJUSTMENT'},
+                })
+                messages.success(request, f'₦{amount:,.2f} credited to {parent.display_name}\'s School Payment Balance (Manual Adjustment / Test Credit).')
+                if parent.user:
+                    try:
+                        _notify_users(
+                            [parent.user],
+                            'School Payment Balance credited',
+                            f'₦{amount:,.2f} was added to your School Payment Balance ({description}).',
+                            reverse('parent_payments'),
+                        )
+                    except Exception:
+                        logger.exception('Failed to send manual-credit notification for parent %s.', parent.pk)
+        return redirect('parent_payment_accounts')
+    accounts = ParentPaymentAccount.objects.select_related('parent').order_by('parent__name')
+    accounts_list = list(accounts)
+    for account in accounts_list:
+        account.current_balance = account.balance
+    return render(request, 'portal/parent_payment_accounts.html', {
+        'accounts': accounts_list,
+        'parents': Parent.objects.order_by('name'),
     })
 
 
@@ -4222,11 +4603,20 @@ def report_card_view(request, student_pk):
     if not term:
         return render(request, 'portal/report_card.html', {'student': student, 'term': None, 'results': []})
     classroom = historical_classroom(student, term)
-    outstanding_balance = student_outstanding_balance(student, term)
-    if outstanding_balance > 0 and not is_admin_user(request.user):
+    access_status = student_result_access_status(student, term)
+    outstanding_balance = access_status['outstanding_balance']
+    if not access_status['fees_cleared'] and not is_admin_user(request.user):
         return render(request, 'portal/report_locked.html', {
             'student': student,
             'outstanding_balance': outstanding_balance,
+            'parent_lock': bool(getattr(request.user, 'parent_record', None)),
+        })
+    result_access_fee = access_status['result_access_fee']
+    if result_access_fee and not result_access_fee.is_paid and not is_admin_user(request.user):
+        return render(request, 'portal/report_locked.html', {
+            'student': student,
+            'locked_reason': 'result_access',
+            'result_access_fee': result_access_fee,
             'parent_lock': bool(getattr(request.user, 'parent_record', None)),
         })
     class_publication = ClassResultStatus.objects.filter(

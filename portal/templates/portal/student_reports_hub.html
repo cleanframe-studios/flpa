@@ -17,8 +17,10 @@
   {% for card in report_cards %}
     {% if selected_term and not card.is_published %}
     <section class="rounded-3xl border border-amber-200 bg-amber-50 p-6 shadow-sm"><p class="font-bold text-amber-900">This report card has not been published yet.</p></section>
-    {% elif selected_term and not card.is_cleared %}
+    {% elif selected_term and not card.fees_cleared %}
     <section class="rounded-3xl border border-rose-200 bg-rose-50 p-6 shadow-sm"><p class="font-bold text-rose-900">Report card locked due to an outstanding balance of ₦{{ card.outstanding_balance|floatformat:'2g' }}. Please clear all current and previous term fees with the bursary before viewing results.</p></section>
+    {% elif selected_term and not card.is_cleared %}
+    <section class="rounded-3xl border border-rose-200 bg-rose-50 p-6 shadow-sm"><p class="font-bold text-rose-900">Report card locked - the ₦{{ card.result_access_fee.amount|floatformat:'2g' }} Result Access charge for this term has not been paid yet.</p>{% if request.user.parent_record %}<a href="{% url 'parent_payments' %}" class="mt-3 inline-flex rounded-xl bg-rose-900 px-4 py-2.5 text-xs font-bold text-white hover:bg-rose-800">Pay Result Access from School Payment Balance</a>{% endif %}</section>
     {% elif selected_term and card.is_published and not card.results %}
     <section class="rounded-3xl border border-blue-200 bg-blue-50 p-6 shadow-sm"><p class="font-bold text-blue-900">No academic records were found for {{ card.student.first_name }} in this term.</p></section>
     {% elif selected_term and card.is_published and card.results %}

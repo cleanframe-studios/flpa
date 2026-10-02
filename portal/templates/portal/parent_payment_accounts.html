@@ -1,0 +1,45 @@
+{% extends 'portal/base.html' %}
+{% block page_title %}Parent Payment Accounts{% endblock %}
+{% block content %}
+<div class="min-h-full bg-slate-100 p-6 lg:p-8">
+  <div class="mx-auto max-w-6xl space-y-6">
+    <header class="rounded-3xl bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-900 p-8 text-white shadow-lg">
+      <p class="text-xs font-bold uppercase tracking-[0.2em] text-emerald-200">Finance Operations</p>
+      <h1 class="mt-2 text-2xl font-black">Parent School Payment Balances</h1>
+      <p class="mt-1 text-sm text-emerald-100">Until Paystack funding is connected, use Manual Adjustment / Test Credit to add test balance for a parent.</p>
+    </header>
+
+    <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <h2 class="text-lg font-bold text-slate-900">Manual Adjustment / Test Credit</h2>
+      <form method="post" class="mt-4 grid gap-3 sm:grid-cols-4">
+        {% csrf_token %}
+        <label class="block sm:col-span-2"><span class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Parent</span>
+          <select name="parent_id" required class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+            {% for parent in parents %}<option value="{{ parent.pk }}">{{ parent.display_name }} ({{ parent.parent_id }})</option>{% endfor %}
+          </select>
+        </label>
+        <label class="block"><span class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Amount</span>
+          <input type="number" name="amount" min="0.01" step="0.01" required class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+        </label>
+        <label class="block"><span class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Note</span>
+          <input type="text" name="description" placeholder="Manual Adjustment / Test Credit" class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+        </label>
+        <button type="submit" class="self-end rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700 sm:col-span-4">Credit Balance</button>
+      </form>
+    </section>
+
+    <section class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[700px] text-left text-sm">
+          <thead class="bg-slate-50 text-xs uppercase tracking-wider text-slate-500"><tr><th class="p-4">Parent</th><th class="p-4">Status</th><th class="p-4">Balance</th></tr></thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for account in accounts %}
+            <tr><td class="p-4 font-bold text-slate-800">{{ account.parent.display_name }} ({{ account.parent.parent_id }})</td><td class="p-4 text-slate-600">{{ account.status }}</td><td class="p-4 font-black text-emerald-700">₦{{ account.current_balance|floatformat:'2g' }}</td></tr>
+            {% empty %}<tr><td colspan="3" class="p-12 text-center text-sm text-slate-500">No parent payment accounts yet.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

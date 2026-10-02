@@ -3,6 +3,7 @@ import io
 import re
 import os
 import tempfile
+from decimal import Decimal
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -13,9 +14,9 @@ from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import AcademicSession, AcademicTerm, AcademicWeek, AdmissionApplicationBatch, AdmissionCampaign, Applicant, Attendance, AttendanceRegister, AccountProfile, AuditLog, CBTAttempt, CBTExam, CBTQuestion, CBTResponse, ClassRoom, ClassRoomSubject, FeePayment, FeeStructure, FeeStructureItem, Parent, Student, StudentExamSession, Subject, SubjectResult, StudentFeeAccount, StudentTermRecord, Teacher, TermEnrollment
+from .models import AcademicSession, AcademicTerm, AcademicWeek, AdmissionApplicationBatch, AdmissionCampaign, Applicant, Attendance, AttendanceRegister, AccountProfile, AuditLog, CBTAttempt, CBTExam, CBTQuestion, CBTResponse, ClassRoom, ClassRoomSubject, FeePayment, FeeStructure, FeeStructureItem, Parent, ParentLedgerEntry, ParentPaymentAccount, ResultAccessFee, Student, StudentExamSession, Subject, SubjectResult, StudentFeeAccount, StudentTermRecord, Teacher, TermEnrollment
 from .utils import send_branded_email, send_registration_email
-from .views import create_portal_account
+from .views import create_portal_account, credit_parent_balance, pay_fee_account_balance_from_wallet, pay_result_access_fee_from_wallet, get_or_create_result_access_fee, student_result_access_status, InsufficientBalanceError, ChargeAlreadySettledError, DuplicateReferenceError
 
 
 class StudentDirectoryTests(TestCase):
@@ -786,6 +787,126 @@ class StudentRegistrationParentToggleTests(TestCase):
         self.assertFalse(Student.objects.filter(first_name='Ada', last_name='Lovelace').exists())
 
 
+class SchoolPaymentBalanceTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(username='balance-parent', password='pass')
+        self.parent = Parent.objects.create(
+            first_name='Grace', last_name='Hopper', phone_number='08011112222', sex='Female',
+            marital_status='Married', address='Address', state='Lagos', lga='Ikeja', user=self.user,
+        )
+        AccountProfile.objects.create(user=self.user, role='parent')
+        self.client.force_login(self.user)
+        self.session = AcademicSession.objects.create(name='2026/2027', is_active=True)
+        self.term = AcademicTerm.objects.create(session=self.session, term_name='First Term', is_active=True)
+        self.classroom = ClassRoom.objects.create(name='Primary 4', section='Primary', level_number=4)
+        self.child_a = Student.objects.create(first_name='Ada', last_name='Lovelace', sex='Female', date_of_birth='2015-01-01', state_of_origin='Lagos', lga_of_origin='Ikeja', program='Primary (PRY)', current_class=self.classroom, parent=self.parent)
+        self.child_b = Student.objects.create(first_name='Augusta', last_name='Lovelace', sex='Female', date_of_birth='2016-01-01', state_of_origin='Lagos', lga_of_origin='Ikeja', program='Primary (PRY)', current_class=self.classroom, parent=self.parent)
+
+    def test_creating_parent_payment_account_and_crediting(self):
+        entry = credit_parent_balance(self.parent, Decimal('100000'), source='MANUAL_ADJUSTMENT', description='Test credit')
+        account = ParentPaymentAccount.objects.get(parent=self.parent)
+        self.assertEqual(account.balance, Decimal('100000'))
+        self.assertEqual(entry.entry_type, 'CREDIT')
+
+    def test_paying_one_child_charge_reduces_balance_correctly(self):
+        credit_parent_balance(self.parent, Decimal('100000'), source='MANUAL_ADJUSTMENT')
+        account = StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=60000)
+        pay_fee_account_balance_from_wallet(self.parent, self.user, account.pk, Decimal('50000'))
+        payment_account = ParentPaymentAccount.objects.get(parent=self.parent)
+        self.assertEqual(payment_account.balance, Decimal('50000'))
+        account.refresh_from_db()
+        self.assertEqual(account.amount_paid, Decimal('50000'))
+
+    def test_paying_charge_for_another_child_uses_shared_balance(self):
+        credit_parent_balance(self.parent, Decimal('100000'), source='MANUAL_ADJUSTMENT')
+        account_a = StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=60000)
+        account_b = StudentFeeAccount.objects.create(student=self.child_b, term=self.term, session=self.session, total_billed=15000)
+        pay_fee_account_balance_from_wallet(self.parent, self.user, account_a.pk, Decimal('60000'))
+        pay_fee_account_balance_from_wallet(self.parent, self.user, account_b.pk, Decimal('15000'))
+        payment_account = ParentPaymentAccount.objects.get(parent=self.parent)
+        self.assertEqual(payment_account.balance, Decimal('25000'))
+
+    def test_insufficient_balance_raises_and_does_not_debit(self):
+        credit_parent_balance(self.parent, Decimal('10000'), source='MANUAL_ADJUSTMENT')
+        account = StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=60000)
+        with self.assertRaises(InsufficientBalanceError):
+            pay_fee_account_balance_from_wallet(self.parent, self.user, account.pk, Decimal('50000'))
+        payment_account = ParentPaymentAccount.objects.get(parent=self.parent)
+        self.assertEqual(payment_account.balance, Decimal('10000'))
+        account.refresh_from_db()
+        self.assertEqual(account.amount_paid, Decimal('0'))
+
+    def test_duplicate_charge_payment_is_rejected(self):
+        credit_parent_balance(self.parent, Decimal('100000'), source='MANUAL_ADJUSTMENT')
+        account = StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=60000)
+        pay_fee_account_balance_from_wallet(self.parent, self.user, account.pk, Decimal('60000'))
+        with self.assertRaises(ChargeAlreadySettledError):
+            pay_fee_account_balance_from_wallet(self.parent, self.user, account.pk, Decimal('60000'))
+
+    def test_duplicate_credit_reference_is_rejected(self):
+        credit_parent_balance(self.parent, Decimal('5000'), source='MANUAL_ADJUSTMENT', reference='FIXED-REF-1')
+        with self.assertRaises(DuplicateReferenceError):
+            credit_parent_balance(self.parent, Decimal('5000'), source='MANUAL_ADJUSTMENT', reference='FIXED-REF-1')
+        payment_account = ParentPaymentAccount.objects.get(parent=self.parent)
+        self.assertEqual(payment_account.balance, Decimal('5000'))
+
+    def test_result_locked_when_fees_outstanding(self):
+        StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=5000)
+        status = student_result_access_status(self.child_a, self.term)
+        self.assertFalse(status['fees_cleared'])
+        self.assertFalse(status['access_granted'])
+
+    def test_result_locked_when_fees_paid_but_access_fee_unpaid(self):
+        StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=5000, amount_paid=5000)
+        status = student_result_access_status(self.child_a, self.term)
+        self.assertTrue(status['fees_cleared'])
+        self.assertFalse(status['access_granted'])
+        self.assertFalse(status['result_access_fee'].is_paid)
+
+    def test_result_unlocked_after_access_fee_paid(self):
+        StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=5000, amount_paid=5000)
+        credit_parent_balance(self.parent, Decimal('200'), source='MANUAL_ADJUSTMENT')
+        fee = get_or_create_result_access_fee(self.child_a, self.term)
+        pay_result_access_fee_from_wallet(self.parent, self.user, fee.pk)
+        status = student_result_access_status(self.child_a, self.term)
+        self.assertTrue(status['access_granted'])
+
+    def test_first_term_payment_does_not_unlock_second_term(self):
+        second_term = AcademicTerm.objects.create(session=self.session, term_name='Second Term')
+        StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=5000, amount_paid=5000)
+        credit_parent_balance(self.parent, Decimal('200'), source='MANUAL_ADJUSTMENT')
+        fee = get_or_create_result_access_fee(self.child_a, self.term)
+        pay_result_access_fee_from_wallet(self.parent, self.user, fee.pk)
+        second_term_status = student_result_access_status(self.child_a, second_term)
+        self.assertFalse(second_term_status['access_granted'])
+        self.assertFalse(second_term_status['result_access_fee'].is_paid)
+
+    def test_parent_with_multiple_children_shares_one_balance(self):
+        credit_parent_balance(self.parent, Decimal('100000'), source='MANUAL_ADJUSTMENT')
+        account_a = StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=60000)
+        account_b = StudentFeeAccount.objects.create(student=self.child_b, term=self.term, session=self.session, total_billed=15000)
+        pay_fee_account_balance_from_wallet(self.parent, self.user, account_a.pk, Decimal('60000'))
+        pay_fee_account_balance_from_wallet(self.parent, self.user, account_b.pk, Decimal('15000'))
+        payment_account = ParentPaymentAccount.objects.get(parent=self.parent)
+        self.assertEqual(payment_account.balance, Decimal('25000'))
+        self.assertEqual(payment_account.ledger_entries.filter(entry_type='DEBIT').count(), 2)
+
+    @patch('portal.views._notify_users', side_effect=Exception('notification system down'))
+    def test_notification_failure_does_not_reverse_successful_payment(self, mock_notify):
+        credit_parent_balance(self.parent, Decimal('100000'), source='MANUAL_ADJUSTMENT')
+        account = StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=60000)
+
+        response = self.client.post(reverse('parent_pay_charge'), {
+            'charge_type': 'fee_account', 'charge_id': account.pk, 'amount': '60000',
+        })
+
+        self.assertRedirects(response, reverse('parent_payments'))
+        payment_account = ParentPaymentAccount.objects.get(parent=self.parent)
+        self.assertEqual(payment_account.balance, Decimal('40000'))
+        account.refresh_from_db()
+        self.assertEqual(account.amount_paid, Decimal('60000'))
+
+
 class DjangoCleanupImageTests(TestCase):
     def test_replacing_and_deleting_student_passport_removes_files(self):
         classroom = ClassRoom.objects.create(name='Primary 1', section='Primary', level_number=1)
@@ -1084,6 +1205,7 @@ class AcademicCalendarGuardTests(TestCase):
         student.save(update_fields=['user'])
         AccountProfile.objects.create(user=user, role='student')
         self.client.force_login(user)
+        ResultAccessFee.objects.create(student=student, term=historical_term, session=historical_session, amount=200, is_paid=True)
 
         response = self.client.get(reverse('student_report_hub'), {'session': historical_session.pk, 'term': historical_term.pk})
 
@@ -1492,12 +1614,17 @@ class AcademicCalendarGuardTests(TestCase):
 
         term.reports_published = True
         term.save(update_fields=['reports_published'])
+        ResultAccessFee.objects.update_or_create(student=student, term=term, session=session, defaults={'amount': 200, 'is_paid': True})
         response = self.client.get(reverse('student_report_hub'), {'session': session.pk, 'term': term.pk})
         self.assertContains(response, 'No academic records were found for Ada in this term.')
 
         SubjectResult.objects.create(student=student, term=term, subject=Subject.objects.create(name='Mathematics'))
         response = self.client.get(reverse('student_report_hub'), {'session': session.pk, 'term': term.pk})
         self.assertContains(response, 'View Report Card')
+
+        ResultAccessFee.objects.filter(student=student, term=term).update(is_paid=False)
+        response = self.client.get(reverse('student_report_hub'), {'session': session.pk, 'term': term.pk})
+        self.assertContains(response, 'Result Access charge for this term has not been paid yet.')
 
         term.reports_published = False
         term.save(update_fields=['reports_published'])
