@@ -5,6 +5,28 @@
   @keyframes modalPop { from { opacity: 0; transform: translateY(16px) scale(.97); } to { opacity: 1; transform: none; } }
   @keyframes comingSoonIn { 0% { opacity: 0; transform: translateY(28px) scale(.92); } 60% { opacity: 1; transform: translateY(-4px) scale(1.02); } 100% { opacity: 1; transform: none; } }
   @keyframes comingSoonPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, .35); } 50% { box-shadow: 0 0 0 8px rgba(124, 58, 237, 0); } }
+  .pick { border: 1px solid rgba(203, 213, 225, .8); border-radius: 1.1rem; background: rgba(255, 255, 255, .9); transition: border-color .2s, background .2s, box-shadow .2s; }
+  .pick:hover { border-color: rgba(16, 185, 129, .45); }
+  .pick.is-selected { border-color: rgba(16, 185, 129, .7); background: linear-gradient(180deg, rgba(236, 253, 245, .9), rgba(255, 255, 255, .95)); box-shadow: 0 10px 24px -14px rgba(5, 150, 105, .55); }
+  .pick-main { display: flex; align-items: center; gap: .85rem; padding: .85rem 1rem; cursor: pointer; position: relative; }
+  .pick-main input { position: absolute; opacity: 0; pointer-events: none; }
+  .pick .tick { flex: none; display: grid; place-items: center; width: 1.5rem; height: 1.5rem; border-radius: 999px; border: 1.5px solid #cbd5e1; background: #fff; color: #fff; transition: all .2s ease; }
+  .pick .tick svg { width: .95rem; height: .95rem; opacity: 0; transform: scale(.5); transition: all .2s cubic-bezier(.34, 1.56, .64, 1); }
+  .pick.is-selected .tick { background: linear-gradient(180deg, #10b981, #059669); border-color: #059669; box-shadow: 0 4px 10px -3px rgba(5, 150, 105, .6); }
+  .pick.is-selected .tick svg { opacity: 1; transform: none; }
+  .pick-text { display: flex; flex: 1; min-width: 0; flex-direction: column; }
+  .pick-label { font-size: .875rem; font-weight: 700; color: #0f172a; }
+  .pick-amount { margin-top: .1rem; font-size: .8rem; font-weight: 800; color: #64748b; }
+  .pick-chevron { display: none; width: 1.1rem; height: 1.1rem; color: #94a3b8; }
+  .pick-amount-edit { display: none; align-items: center; justify-content: space-between; gap: .75rem; padding: 0 1rem .85rem 3.35rem; font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #94a3b8; }
+  .pick.is-selected .pick-amount-edit { display: flex; }
+  .pick-amount-edit input { width: 8.5rem; border: 1px solid #e2e8f0; border-radius: .7rem; background: #f8fafc; padding: .45rem .7rem; font-size: .85rem; font-weight: 800; color: #0f172a; text-align: right; }
+  .pick-amount-edit input:focus { outline: 2px solid #10b981; background: #fff; }
+  .account-mode .pick .tick { display: none; }
+  .account-mode .pick-chevron { display: block; }
+  .account-mode .pick-amount-edit { display: none !important; }
+  .account-mode .pick { border-radius: 1rem; }
+  .account-mode .pick:active { transform: scale(.985); }
   @keyframes modalOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(20px) scale(.96); } }
   @keyframes backdropOut { from { opacity: 1; } to { opacity: 0; } }
   [role=dialog].is-closing { animation: backdropOut .22s ease-in both; }
@@ -152,14 +174,13 @@
       <div class="flex items-start justify-between"><h2 id="pay-heading" class="text-lg font-black text-slate-900">Pay</h2><button type="button" data-close class="rounded-xl p-2 text-xl text-slate-400 hover:bg-slate-100">&times;</button></div>
 
       <div id="step-mode" class="mt-4 space-y-3">
-                <button type="button" data-mode="balance" class="flex w-full items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 text-left transition hover:bg-emerald-100"><span class="text-sm font-black text-emerald-900">Pay from Balance</span><span class="text-sm font-bold text-emerald-800">₦{{ balance|floatformat:'2g' }}</span></button>
-        <button type="button" data-mode="online" class="flex w-full items-center justify-between rounded-2xl border border-violet-200 bg-violet-50/70 p-4 text-left transition hover:bg-violet-100"><span class="text-sm font-black text-violet-900">Pay Online</span><span class="rounded-full bg-violet-600 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-white">Coming Soon</span></button>
+        <button type="button" data-mode="balance" class="flex w-full items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 text-left transition hover:bg-emerald-100"><span class="text-sm font-black text-emerald-900">Pay from Balance</span><span id="balance-chip" class="text-sm font-bold text-emerald-800">₦{{ balance|floatformat:'2g' }}</span></button>
         <button type="button" data-mode="account" class="flex w-full items-center justify-between rounded-2xl border border-blue-200 bg-blue-50/70 p-4 text-left transition hover:bg-blue-100"><span class="text-sm font-black text-blue-900">Pay to Account</span><span class="text-xs font-bold text-blue-700">Bank transfer</span></button>
-        <div id="online-note" class="coming-soon-card hidden rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-indigo-50 p-4"><p class="text-sm font-black text-violet-900">Online Payment — Coming Soon</p><p class="mt-1 text-xs text-violet-800">Online payments are currently being set up. Please use Bank Transfer for now.</p></div>
+        <div id="online-note" class="coming-soon-card hidden rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-indigo-50 p-4"><div class="flex items-center justify-between gap-2"><p class="text-sm font-black text-violet-900">Online Payment — Coming Soon</p><span class="coming-soon-badge rounded-full bg-violet-600 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-white">Soon</span></div><p class="mt-1 text-xs text-violet-800">Online payments are currently being set up. Please use Bank Transfer for now.</p></div>
       </div>
 
       <div id="step-select" class="mt-4 hidden">
-        <div class="flex items-center justify-between"><p class="text-xs font-bold uppercase tracking-wider text-slate-500">What are you paying for?</p><label class="flex items-center gap-2 text-xs font-bold text-slate-600"><input type="checkbox" id="select-all" class="h-4 w-4 rounded border-slate-300 text-emerald-600"> Select all</label></div>
+        <div class="flex items-center justify-between"><p id="select-title" class="text-xs font-bold uppercase tracking-wider text-slate-500">Select what to pay</p><button type="button" id="select-all" class="text-xs font-bold text-emerald-700 hover:underline">Select all</button></div>
         {% if has_charges %}
         <div class="mt-3 space-y-4">
           {% for entry in charges_by_child %}{% if entry.charges %}
@@ -167,12 +188,17 @@
             <p class="text-sm font-black text-slate-900">{{ entry.child.first_name }} {{ entry.child.last_name }}</p>
             <div class="mt-2 space-y-2">
               {% for charge in entry.charges %}
-              <div class="charge-row rounded-xl border border-slate-200 p-3" data-category="{{ charge.category }}" data-label="{{ charge.label }}" data-student="{{ entry.child.first_name }}">
-                <label class="flex items-start gap-3">
-                  <input type="checkbox" class="charge-check mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600" name="charge" value="{{ charge.charge_type }}|{{ charge.charge_id }}" data-charge-type="{{ charge.charge_type }}">
-                  <span class="min-w-0 flex-1"><span class="block text-sm font-bold text-slate-900">{{ charge.label }}</span><span class="block text-xs text-slate-500">Up to ₦{{ charge.amount|floatformat:'2g' }}</span></span>
+              <div class="charge-row pick" data-category="{{ charge.category }}" data-label="{{ charge.label }}" data-student="{{ entry.child.first_name }} {{ entry.child.last_name }}">
+                <label class="pick-main">
+                  <input type="checkbox" class="charge-check" name="charge" value="{{ charge.charge_type }}|{{ charge.charge_id }}" data-charge-type="{{ charge.charge_type }}">
+                  <span class="tick"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 10.5l3.2 3.2L15 6.8"/></svg></span>
+                  <span class="pick-text"><span class="pick-label">{{ charge.label }}</span><span class="pick-amount">₦{{ charge.amount|floatformat:'2g' }}</span></span>
+                  <svg class="pick-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5l5 5-5 5"/></svg>
                 </label>
-                <input type="number" step="0.01" min="0.01" max="{{ charge.amount|stringformat:'.2f' }}" value="{{ charge.amount|stringformat:'.2f' }}" name="amount::{{ charge.charge_type }}|{{ charge.charge_id }}" disabled {% if charge.charge_type == 'result_access' %}readonly{% endif %} class="charge-amount mt-2 hidden w-full rounded-lg border border-slate-200 bg-slate-50 p-2 text-sm font-bold">
+                <div class="pick-amount-edit">
+                  <span>Amount</span>
+                  <input type="number" step="0.01" min="0.01" max="{{ charge.amount|stringformat:'.2f' }}" value="{{ charge.amount|stringformat:'.2f' }}" name="amount::{{ charge.charge_type }}|{{ charge.charge_id }}" disabled {% if charge.charge_type == 'result_access' %}readonly{% endif %} class="charge-amount">
+                </div>
               </div>
               {% endfor %}
             </div>
@@ -183,14 +209,17 @@
         <p class="mt-4 rounded-xl bg-slate-50 p-4 text-center text-sm text-slate-600">Nothing to pay right now.</p>
         {% endif %}
         <div id="pay-insufficient" class="mt-3 hidden rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">Your balance is not enough. <button type="button" id="pay-add-money" class="font-black underline">Pay to Account instead</button></div>
-        <div class="mt-4 flex items-center justify-between text-sm"><span class="font-bold text-slate-500">Total</span><span id="pay-total" class="text-lg font-black text-slate-900">₦0.00</span></div>
-        <div class="mt-4 flex gap-3"><button type="button" id="back-to-mode" class="flex-1 rounded-xl bg-slate-100 px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-200">Back</button><button type="submit" id="pay-confirm" class="hidden flex-1 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300" disabled>Pay from Balance</button><button type="button" id="show-account" class="hidden flex-1 rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300" disabled>Continue</button></div>
+        <div id="select-footer">
+          <div class="mt-4 flex items-center justify-between text-sm"><span class="font-bold text-slate-500">Total</span><span id="pay-total" class="text-lg font-black text-slate-900">₦0.00</span></div>
+          <button type="submit" id="pay-confirm" class="mt-3 w-full rounded-xl bg-emerald-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none" disabled>Pay from Balance</button>
+        </div>
+        <button type="button" id="back-to-mode" class="mt-3 w-full rounded-xl bg-slate-100 px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-200">Back</button>
       </div>
 
       <div id="step-account" class="mt-4 hidden">
         <div id="account-details" class="space-y-3"></div>
-        <p class="mt-4 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-900">After making the transfer, send your payment receipt/proof to WhatsApp: {{ whatsapp_number }}</p>
-        <a href="{{ whatsapp_url }}?text=Hello%2C%20I%20have%20made%20a%20bank%20transfer.%20Sending%20my%20receipt." target="_blank" rel="noopener" class="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700">Send proof on WhatsApp</a>
+        <p id="whatsapp-note" class="mt-4 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-900">After making the transfer, send your payment receipt/proof to WhatsApp: {{ whatsapp_number }}</p>
+        <a id="whatsapp-link" href="{{ whatsapp_url }}?text=Hello%2C%20I%20have%20made%20a%20bank%20transfer.%20Sending%20my%20receipt." target="_blank" rel="noopener" class="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700">Send proof on WhatsApp</a>
         <button type="button" id="back-to-select" class="mt-3 w-full rounded-xl bg-slate-100 px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-200">Back</button>
       </div>
     </form>
@@ -215,9 +244,9 @@
   var steps = {mode: document.getElementById('step-mode'), select: document.getElementById('step-select'), account: document.getElementById('step-account')};
   var heading = document.getElementById('pay-heading');
   var confirmBtn = document.getElementById('pay-confirm');
-  var accountBtn = document.getElementById('show-account');
   var warn = document.getElementById('pay-insufficient');
   var onlineNote = document.getElementById('online-note');
+  var selectStep = steps.select;
   var mode = null;
 
   function show(el) { el.classList.remove('hidden'); el.classList.add('flex'); }
@@ -226,12 +255,11 @@
     el.classList.add('is-closing');
     setTimeout(function () { el.classList.remove('is-closing', 'flex'); el.classList.add('hidden'); }, 220);
   }
-  function showStep(name) {
-    Object.keys(steps).forEach(function (key) { steps[key].classList.toggle('hidden', key !== name); });
-  }
+  function showStep(name) { Object.keys(steps).forEach(function (key) { steps[key].classList.toggle('hidden', key !== name); }); }
   function rows() { return Array.prototype.slice.call(document.querySelectorAll('.charge-row')); }
   function checked() { return rows().filter(function (row) { return row.querySelector('.charge-check').checked; }); }
   function rowAmount(row) { return parseFloat(row.querySelector('.charge-amount').value) || 0; }
+  function replay(el) { el.classList.remove('hidden'); el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; }
 
   function refresh() {
     var total = 0;
@@ -239,7 +267,7 @@
       var on = row.querySelector('.charge-check').checked;
       var input = row.querySelector('.charge-amount');
       input.disabled = !on;
-      input.classList.toggle('hidden', !on);
+      row.classList.toggle('is-selected', on);
       if (on) total += rowAmount(row);
     });
     var any = checked().length > 0;
@@ -247,83 +275,77 @@
     document.getElementById('pay-total').textContent = money(total);
     warn.classList.toggle('hidden', !tooMuch);
     confirmBtn.disabled = !any || tooMuch || total <= 0;
-    accountBtn.disabled = !any || total <= 0;
-    confirmBtn.textContent = total > 0 ? 'Pay ' + money(total) + ' from Balance' : 'Pay from Balance';
-    document.getElementById('select-all').checked = any && checked().length === rows().length;
+    confirmBtn.textContent = total > 0 ? 'Pay ' + money(total) : 'Pay from Balance';
+    document.getElementById('select-all').textContent = any && checked().length === rows().length ? 'Clear' : 'Select all';
   }
 
-  function accountInstructions() {
-    var groups = {};
-    checked().forEach(function (row) {
-      var key = row.dataset.category;
-      groups[key] = groups[key] || {total: 0, labels: []};
-      groups[key].total += rowAmount(row);
-      groups[key].labels.push(row.dataset.student + ' – ' + row.dataset.label);
-    });
-    var html = '';
-    Object.keys(groups).forEach(function (key) {
-      var group = groups[key];
-      var bank = banks[key];
-      var title = key === 'Contact School' ? 'Contact the school' : key;
-      html += '<div class="rounded-2xl border border-blue-100 bg-blue-50/50 p-4 text-sm"><p class="text-xs font-bold uppercase tracking-wider text-blue-700"></p>';
-      html += '<p class="mt-1 text-xs text-slate-600 labels"></p>';
-      html += '<p class="mt-1 font-black text-slate-900">' + money(group.total) + '</p>';
-      if (bank && key !== 'Contact School') {
-        html += '<p class="mt-2 font-black text-slate-900 bank-name"></p><p class="font-mono text-base font-bold text-slate-900 bank-number"></p><p class="text-xs text-slate-600 bank-holder"></p>';
-      } else {
-        html += '<p class="mt-2 text-sm font-bold text-amber-800">Please contact school management to get the account for this payment.</p>';
-      }
-      html += '</div>';
-      var holder = document.createElement('div');
-      holder.innerHTML = html;
-      holder.querySelector('p.text-xs.font-bold').textContent = title;
-      holder.querySelector('.labels').textContent = group.labels.join(', ');
-      if (bank && key !== 'Contact School') {
-        holder.querySelector('.bank-name').textContent = bank.bank_name;
-        holder.querySelector('.bank-number').textContent = bank.account_number;
-        holder.querySelector('.bank-holder').textContent = bank.account_name;
-      }
-      groups[key].node = holder.firstChild;
-    });
+  function accountInstructions(row) {
+    var key = row.dataset.category;
+    var bank = banks[key];
     var container = document.getElementById('account-details');
     container.innerHTML = '';
-    Object.keys(groups).forEach(function (key) { container.appendChild(groups[key].node); });
+    var card = document.createElement('div');
+    card.className = 'rounded-2xl border border-blue-100 bg-blue-50/50 p-4 text-sm';
+    var add = function (tag, cls, text) { var el = document.createElement(tag); el.className = cls; el.textContent = text; card.appendChild(el); };
+    add('p', 'text-xs font-bold uppercase tracking-wider text-blue-700', row.dataset.student);
+    add('p', 'mt-1 text-base font-black text-slate-900', row.dataset.label);
+    add('p', 'text-lg font-black text-slate-900', money(rowAmount(row)));
+    var contactOnly = key === 'Contact School' || !bank;
+    document.getElementById('whatsapp-note').classList.toggle('hidden', contactOnly);
+    document.getElementById('whatsapp-link').classList.toggle('hidden', contactOnly);
+    if (contactOnly) {
+      add('p', 'mt-3 rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-800', 'Please ask school management for the account details for this payment.');
+    } else {
+      add('p', 'mt-3 font-black text-slate-900', bank.bank_name);
+      add('p', 'font-mono text-xl font-bold text-slate-900', bank.account_number);
+      add('p', 'text-xs text-slate-600', bank.account_name);
+    }
+    container.appendChild(card);
   }
 
-  function openPay() {
+  document.getElementById('open-pay').addEventListener('click', function () {
     mode = null;
     heading.textContent = 'Pay';
     onlineNote.classList.add('hidden');
     showStep('mode');
     show(payModal);
-  }
+  });
 
-  document.getElementById('open-pay').addEventListener('click', openPay);
   document.querySelectorAll('[data-mode]').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      if (btn.dataset.mode === 'online') {
-        onlineNote.classList.remove('hidden');
-        onlineNote.style.animation = 'none';
-        void onlineNote.offsetWidth;
-        onlineNote.style.animation = '';
-        return;
-      }
-      mode = btn.dataset.mode;
+      var chosen = btn.dataset.mode;
+      // Online funding isn't live yet, so an empty balance has nothing to pay from.
+      if (chosen === 'balance' && balance <= 0) { replay(onlineNote); return; }
+      mode = chosen;
+      selectStep.classList.toggle('account-mode', mode === 'account');
       heading.textContent = mode === 'balance' ? 'Pay from Balance' : 'Pay to Account';
-      confirmBtn.classList.toggle('hidden', mode !== 'balance');
-      accountBtn.classList.toggle('hidden', mode !== 'account');
+      document.getElementById('select-title').textContent = mode === 'balance' ? 'Select what to pay' : 'Which payment?';
+      document.getElementById('select-all').classList.toggle('hidden', mode === 'account');
+      document.getElementById('select-footer').classList.toggle('hidden', mode === 'account');
+      rows().forEach(function (row) { row.querySelector('.charge-check').checked = false; });
       showStep('select');
       refresh();
     });
   });
-  document.querySelectorAll('.charge-check, .charge-amount').forEach(function (el) { el.addEventListener('input', refresh); el.addEventListener('change', refresh); });
-  document.getElementById('select-all').addEventListener('change', function () {
-    var on = this.checked;
-    rows().forEach(function (row) { row.querySelector('.charge-check').checked = on; });
+
+  rows().forEach(function (row) {
+    var check = row.querySelector('.charge-check');
+    check.addEventListener('change', function () {
+      if (mode === 'account') {
+        if (check.checked) { accountInstructions(row); showStep('account'); }
+        check.checked = false;
+      }
+      refresh();
+    });
+    row.querySelector('.charge-amount').addEventListener('input', refresh);
+  });
+
+  document.getElementById('select-all').addEventListener('click', function () {
+    var all = checked().length === rows().length;
+    rows().forEach(function (row) { row.querySelector('.charge-check').checked = !all; });
     refresh();
   });
   document.getElementById('back-to-mode').addEventListener('click', function () { heading.textContent = 'Pay'; showStep('mode'); });
-  accountBtn.addEventListener('click', function () { accountInstructions(); showStep('account'); });
   document.getElementById('back-to-select').addEventListener('click', function () { showStep('select'); });
   document.getElementById('pay-add-money').addEventListener('click', function () { document.querySelector('[data-mode=account]').click(); });
   document.querySelectorAll('[data-open]').forEach(function (btn) {
