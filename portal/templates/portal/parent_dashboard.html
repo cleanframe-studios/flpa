@@ -1,7 +1,65 @@
 {% extends 'portal/base.html' %}
 {% block page_title %}Parent Dashboard{% endblock %}
 {% block content %}
-<div class="min-h-full bg-slate-100 p-6 lg:p-8"><div class="mx-auto w-full max-w-7xl space-y-6">
+<style>
+  @keyframes glassIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  .glass-dashboard {
+    background:
+      radial-gradient(48rem 26rem at -5% -8%, rgba(147, 197, 253, .55), transparent 60%),
+      radial-gradient(36rem 24rem at 105% 8%, rgba(167, 243, 208, .45), transparent 58%),
+      radial-gradient(40rem 28rem at 45% 112%, rgba(254, 205, 211, .38), transparent 60%),
+      #eef2f7 !important;
+  }
+  .glass-dashboard > div > * { animation: glassIn .55s cubic-bezier(.22, 1, .36, 1) both; }
+  .glass-dashboard > div > *:nth-child(2) { animation-delay: .06s; }
+  .glass-dashboard > div > *:nth-child(3) { animation-delay: .12s; }
+  .glass-dashboard > div > *:nth-child(4) { animation-delay: .18s; }
+  .glass-dashboard > div > header {
+    background: linear-gradient(135deg, rgba(30, 58, 138, .8), rgba(15, 23, 42, .74)) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(1.6); backdrop-filter: blur(24px) saturate(1.6);
+    border: 1px solid rgba(255, 255, 255, .28); border-radius: 1.75rem !important; padding: 1.5rem !important;
+    box-shadow: 0 22px 50px -22px rgba(15, 23, 42, .55), inset 0 1px 0 rgba(255, 255, 255, .35) !important;
+  }
+  .glass-dashboard > div > header h1 { font-size: 1.35rem; letter-spacing: -.01em; }
+  .glass-dashboard section:not(#priority-banner) {
+    background: rgba(255, 255, 255, .55) !important;
+    -webkit-backdrop-filter: blur(22px) saturate(1.5); backdrop-filter: blur(22px) saturate(1.5);
+    border: 1px solid rgba(255, 255, 255, .75) !important; border-radius: 1.75rem !important; padding: 1.25rem !important;
+    box-shadow: 0 18px 40px -24px rgba(15, 23, 42, .28), inset 0 1px 0 rgba(255, 255, 255, .9) !important;
+  }
+  .glass-dashboard #priority-banner {
+    background: rgba(255, 251, 235, .62) !important;
+    -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+    border: 1px solid rgba(251, 191, 36, .32) !important; border-radius: 1.25rem !important; box-shadow: none !important;
+  }
+  .glass-dashboard article {
+    background: rgba(255, 255, 255, .5) !important; border: 1px solid rgba(255, 255, 255, .8) !important;
+    border-radius: 1.4rem !important; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9);
+  }
+  .glass-dashboard article .grid > div {
+    background: rgba(255, 255, 255, .62) !important; border: 1px solid rgba(255, 255, 255, .85); border-radius: 1rem !important;
+  }
+  .glass-dashboard section a.rounded-xl { border-radius: 999px !important; }
+  .glass-dashboard section a.bg-blue-600 {
+    background: linear-gradient(180deg, rgba(59, 130, 246, .96), rgba(37, 99, 235, .96)) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .4), 0 8px 18px -8px rgba(37, 99, 235, .65);
+  }
+  .glass-dashboard section a.bg-slate-900 {
+    background: linear-gradient(180deg, rgba(30, 41, 59, .92), rgba(15, 23, 42, .92)) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .2), 0 8px 18px -8px rgba(15, 23, 42, .6);
+  }
+  .glass-dashboard table { font-size: .8rem; }
+  #payment-account-modal section { border-radius: 1.75rem; }
+  @media (max-width: 640px) {
+    .glass-dashboard { padding: 1rem !important; }
+    .glass-dashboard article .grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: .5rem !important; }
+    .glass-dashboard article .grid > div { padding: .6rem !important; }
+    .glass-dashboard article .grid > div p:first-child { font-size: 10px; line-height: 1.25; }
+    .glass-dashboard article .grid > div p.font-black { font-size: .78rem; }
+  }
+  @media (prefers-reduced-motion: reduce) { .glass-dashboard > div > * { animation: none; } }
+</style>
+<div class="glass-dashboard min-h-full bg-slate-100 p-6 lg:p-8"><div class="mx-auto w-full max-w-7xl space-y-6">
   <header class="flex flex-col justify-between gap-5 rounded-3xl bg-gradient-to-r from-blue-950 via-blue-900 to-slate-900 p-8 text-white shadow-lg sm:flex-row sm:items-start"><div><p class="text-xs font-bold uppercase tracking-[0.2em] text-blue-200">Parent Dashboard</p><h1 class="mt-2 text-2xl font-black">{{ parent.display_name }}</h1><p class="mt-1 text-sm text-blue-100">{{ parent.parent_id }}</p></div>{% if portal_profile_picture_url %}<img src="{{ portal_profile_picture_url }}" alt="{{ parent.display_name }} profile picture" class="h-16 w-16 rounded-full border-2 border-white/40 object-cover">{% endif %}</header>
   <section id="priority-banner" class="relative rounded-2xl border border-amber-200 bg-amber-50 p-5 pr-12 shadow-sm"><button type="button" onclick="document.getElementById('priority-banner').remove()" class="absolute right-4 top-4 text-xl text-amber-600" aria-label="Dismiss priority message">&times;</button><p class="text-xs font-bold uppercase tracking-wider text-amber-800">Priority message</p><p class="mt-1 text-sm leading-6 text-amber-900">Please review your children's fee status and settle any outstanding balance before report cards are released.</p></section>
   <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><div class="flex flex-wrap items-center justify-between gap-3"><div><h2 class="text-lg font-bold text-slate-900">Linked Children</h2><p class="mt-1 text-sm text-slate-500">Academic and financial overview{% if active_term %} for {{ active_term.term_name }}{% endif %}.</p></div><div class="flex flex-wrap gap-2"><a href="{% url 'parent_child_application' %}" class="rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-700">Apply for Another Child</a><a href="{% url 'parent_bursary' %}" class="rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-bold text-white hover:bg-slate-700">Bursary &amp; Payments</a></div></div><div class="mt-5 space-y-5">
