@@ -519,6 +519,28 @@ class SchoolPaymentAccount(models.Model):
         return f'{self.bank_name} - {self.account_name}'
 
 
+class SchoolBankAccount(models.Model):
+    """Bank account shown to parents for manual bank transfers, one active account per payment category."""
+    CATEGORY_CHOICES = [('School Fees', 'School Fees'), ('Other Payments', 'Other Payments')]
+
+    category = models.CharField(max_length=30, choices=CATEGORY_CHOICES)
+    bank_name = models.CharField(max_length=100)
+    account_number = models.CharField(max_length=100)
+    account_name = models.CharField(max_length=150)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['category', '-is_active']
+
+    def save(self, *args, **kwargs):
+        if self.is_active:
+            SchoolBankAccount.objects.filter(category=self.category).exclude(pk=self.pk).update(is_active=False)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'{self.category}: {self.bank_name} - {self.account_number}'
+
+
 class ParentPaymentAccount(models.Model):
     """A parent's School Payment Balance account. Balance is always derived from ParentLedgerEntry, never stored directly."""
     STATUS_CHOICES = [('Active', 'Active'), ('Suspended', 'Suspended')]
@@ -548,7 +570,9 @@ class ParentLedgerEntry(models.Model):
     ENTRY_TYPE_CHOICES = [('CREDIT', 'Credit'), ('DEBIT', 'Debit')]
     SOURCE_CHOICES = [
         ('PAYSTACK_DVA', 'Paystack Dedicated Virtual Account'),
-        ('MANUAL_ADJUSTMENT', 'Manual Adjustment / Test Credit'),
+        ('MANUAL_ADJUSTMENT', 'Manual Adjustment'),
+        ('MANUAL_BANK_TRANSFER', 'Manual Bank Transfer Credit'),
+        ('MANUAL_CORRECTION', 'Correction'),
         ('CHARGE_PAYMENT', 'Applied to a school charge'),
         ('REVERSAL', 'Reversal / Adjustment'),
     ]
@@ -558,6 +582,7 @@ class ParentLedgerEntry(models.Model):
     entry_type = models.CharField(max_length=10, choices=ENTRY_TYPE_CHOICES)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     reference = models.CharField(max_length=150, unique=True)
+    external_reference = models.CharField(max_length=150, blank=True, default='')
     source = models.CharField(max_length=30, choices=SOURCE_CHOICES)
     description = models.CharField(max_length=255, blank=True)
     student = models.ForeignKey(Student, on_delete=models.SET_NULL, null=True, blank=True, related_name='parent_ledger_entries')
@@ -567,6 +592,12 @@ class ParentLedgerEntry(models.Model):
 
     class Meta:
         ordering = ['-created_at', '-pk']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['external_reference'], condition=~models.Q(external_reference=''),
+                name='unique_ledger_external_reference',
+            ),
+        ]
 
     def save(self, *args, **kwargs):
         if self.pk:

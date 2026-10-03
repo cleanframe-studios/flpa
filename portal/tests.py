@@ -891,6 +891,82 @@ class SchoolPaymentBalanceTests(TestCase):
         self.assertEqual(payment_account.balance, Decimal('25000'))
         self.assertEqual(payment_account.ledger_entries.filter(entry_type='DEBIT').count(), 2)
 
+    def _staff_client(self):
+        from django.test import Client
+        staff = get_user_model().objects.create_user(username='manual-bursar', password='pass', is_staff=True)
+        AccountProfile.objects.create(user=staff, role='bursar')
+        client = Client()
+        client.force_login(staff)
+        return staff, client
+
+    def test_bursar_manual_bank_transfer_credit_is_ledgered_audited_and_not_auto_allocated(self):
+        staff, client = self._staff_client()
+        account = StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=60000)
+
+        response = client.post(reverse('parent_payment_accounts'), {
+            'parent_id': self.parent.pk, 'kind': 'bank_transfer', 'direction': 'credit',
+            'amount': '100000', 'description': 'Verified from receipt', 'external_reference': 'BANK-REF-1',
+        })
+
+        self.assertRedirects(response, reverse('parent_payment_accounts'))
+        entry = ParentLedgerEntry.objects.get(external_reference='BANK-REF-1')
+        self.assertEqual(entry.source, 'MANUAL_BANK_TRANSFER')
+        self.assertEqual(entry.recorded_by, staff)
+        self.assertIn('Manual Bank Transfer Credit', entry.description)
+        self.assertEqual(ParentPaymentAccount.objects.get(parent=self.parent).balance, Decimal('100000'))
+        account.refresh_from_db()
+        self.assertEqual(account.amount_paid, 0)
+        audit = AuditLog.objects.get(action_type='PARENT_BALANCE_CREDITED')
+        self.assertEqual(audit.user, staff)
+        self.assertEqual(audit.changes_json['after']['external_reference'], 'BANK-REF-1')
+
+    def test_duplicate_bank_reference_is_not_credited_twice(self):
+        _, client = self._staff_client()
+        data = {'parent_id': self.parent.pk, 'kind': 'bank_transfer', 'direction': 'credit', 'amount': '5000', 'description': 'x', 'external_reference': 'DUP-1'}
+        client.post(reverse('parent_payment_accounts'), data)
+        client.post(reverse('parent_payment_accounts'), data)
+        self.assertEqual(ParentPaymentAccount.objects.get(parent=self.parent).balance, Decimal('5000'))
+
+    def test_manual_debit_is_audited_and_cannot_go_negative(self):
+        staff, client = self._staff_client()
+        credit_parent_balance(self.parent, Decimal('1000'), source='MANUAL_ADJUSTMENT')
+        base = {'parent_id': self.parent.pk, 'kind': 'correction', 'direction': 'debit', 'description': 'Wrong parent credited'}
+        client.post(reverse('parent_payment_accounts'), {**base, 'amount': '5000'})
+        self.assertEqual(ParentPaymentAccount.objects.get(parent=self.parent).balance, Decimal('1000'))
+        client.post(reverse('parent_payment_accounts'), {**base, 'amount': '400'})
+        self.assertEqual(ParentPaymentAccount.objects.get(parent=self.parent).balance, Decimal('600'))
+        self.assertTrue(AuditLog.objects.filter(action_type='PARENT_BALANCE_DEBITED', user=staff).exists())
+        self.assertTrue(ParentLedgerEntry.objects.filter(source='MANUAL_CORRECTION', entry_type='DEBIT').exists())
+
+    def test_manual_entry_requires_reason(self):
+        _, client = self._staff_client()
+        client.post(reverse('parent_payment_accounts'), {'parent_id': self.parent.pk, 'kind': 'adjustment', 'direction': 'credit', 'amount': '100', 'description': ''})
+        self.assertFalse(ParentLedgerEntry.objects.exists())
+
+    def test_parent_sees_balance_spends_part_and_balance_updates(self):
+        credit_parent_balance(self.parent, Decimal('100000'), source='MANUAL_BANK_TRANSFER')
+        account = StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=60000)
+        self.assertContains(self.client.get(reverse('parent_payments')), '100,000.00')
+        self.client.post(reverse('parent_pay_charge'), {'charge_type': 'fee_account', 'charge_id': account.pk, 'amount': '30000'})
+        self.assertEqual(ParentPaymentAccount.objects.get(parent=self.parent).balance, Decimal('70000'))
+        self.assertContains(self.client.get(reverse('parent_payments')), '70,000.00')
+
+    def test_bank_transfer_shows_correct_account_whatsapp_and_online_coming_soon(self):
+        StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=60000)
+
+        response = self.client.get(reverse('parent_payments'))
+
+        self.assertContains(response, 'Zenith Bank')
+        self.assertContains(response, '1223688239')
+        self.assertContains(response, 'Providus Bank')
+        self.assertContains(response, '6507146199')
+        self.assertContains(response, '07063747789')
+        self.assertContains(response, 'https://wa.me/2347063747789')
+        self.assertContains(response, 'Pay Online — Coming Soon')
+        self.assertContains(response, 'Online payments are currently being set up. Please use Bank Transfer for now.')
+        self.assertContains(response, 'Pay from School Balance')
+        self.assertNotContains(response, 'paystack')
+
     @patch('portal.views._notify_users', side_effect=Exception('notification system down'))
     def test_notification_failure_does_not_reverse_successful_payment(self, mock_notify):
         credit_parent_balance(self.parent, Decimal('100000'), source='MANUAL_ADJUSTMENT')

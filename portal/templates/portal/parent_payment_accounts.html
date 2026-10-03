@@ -6,11 +6,11 @@
     <header class="rounded-3xl bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-900 p-8 text-white shadow-lg">
       <p class="text-xs font-bold uppercase tracking-[0.2em] text-emerald-200">Finance Operations</p>
       <h1 class="mt-2 text-2xl font-black">Parent School Payment Balances</h1>
-      <p class="mt-1 text-sm text-emerald-100">Until Paystack funding is connected, use Manual Adjustment / Test Credit to add test balance for a parent.</p>
+      <p class="mt-1 text-sm text-emerald-100">Credit verified bank transfers and post adjustments or corrections. Manual entries never pay a charge automatically.</p>
     </header>
 
     <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 class="text-lg font-bold text-slate-900">Manual Adjustment / Test Credit</h2>
+      <h2 class="text-lg font-bold text-slate-900">Manual balance entry</h2>
       <form method="post" class="mt-4 grid gap-3 sm:grid-cols-4">
         {% csrf_token %}
         <label class="block sm:col-span-2"><span class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Parent</span>
@@ -18,13 +18,29 @@
             {% for parent in parents %}<option value="{{ parent.pk }}">{{ parent.display_name }} ({{ parent.parent_id }})</option>{% endfor %}
           </select>
         </label>
+        <label class="block"><span class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Entry type</span>
+          <select name="kind" required class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+            <option value="bank_transfer">Manual Bank Transfer Credit</option>
+            <option value="adjustment">Manual Adjustment</option>
+            <option value="correction">Correction</option>
+          </select>
+        </label>
+        <label class="block"><span class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Direction</span>
+          <select name="direction" required class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+            <option value="credit">Credit (add)</option>
+            <option value="debit">Debit (deduct)</option>
+          </select>
+        </label>
         <label class="block"><span class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Amount</span>
           <input type="number" name="amount" min="0.01" step="0.01" required class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
         </label>
-        <label class="block"><span class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Note</span>
-          <input type="text" name="description" placeholder="Manual Adjustment / Test Credit" class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+        <label class="block sm:col-span-2"><span class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Reason / description</span>
+          <input type="text" name="description" required class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
         </label>
-        <button type="submit" class="self-end rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700 sm:col-span-4">Credit Balance</button>
+        <label class="block"><span class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Bank/payment reference (optional)</span>
+          <input type="text" name="external_reference" class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+        </label>
+        <button type="submit" class="self-end rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700 sm:col-span-4">Record Entry</button>
       </form>
     </section>
 
@@ -36,6 +52,29 @@
             {% for account in accounts %}
             <tr><td class="p-4 font-bold text-slate-800">{{ account.parent.display_name }} ({{ account.parent.parent_id }})</td><td class="p-4 text-slate-600">{{ account.status }}</td><td class="p-4 font-black text-emerald-700">₦{{ account.current_balance|floatformat:'2g' }}</td></tr>
             {% empty %}<tr><td colspan="3" class="p-12 text-center text-sm text-slate-500">No parent payment accounts yet.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <h2 class="p-6 pb-0 text-lg font-bold text-slate-900">Manual entry audit trail</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[900px] text-left text-sm">
+          <thead class="bg-slate-50 text-xs uppercase tracking-wider text-slate-500"><tr><th class="p-4">When</th><th class="p-4">Parent</th><th class="p-4">Type</th><th class="p-4">Amount</th><th class="p-4">Description</th><th class="p-4">Bank ref</th><th class="p-4">Recorded by</th><th class="p-4">Ref</th></tr></thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for entry in manual_entries %}
+            <tr>
+              <td class="p-4 text-slate-600">{{ entry.created_at|date:'d M Y H:i' }}</td>
+              <td class="p-4 font-semibold text-slate-800">{{ entry.account.parent.display_name }}</td>
+              <td class="p-4 text-slate-600">{{ entry.get_source_display }}</td>
+              <td class="p-4 font-bold {% if entry.entry_type == 'CREDIT' %}text-emerald-700{% else %}text-amber-700{% endif %}">{% if entry.entry_type == 'CREDIT' %}+{% else %}-{% endif %}₦{{ entry.amount|floatformat:'2g' }}</td>
+              <td class="p-4 text-slate-600">{{ entry.description }}</td>
+              <td class="p-4 font-mono text-xs text-slate-500">{{ entry.external_reference|default:'-' }}</td>
+              <td class="p-4 text-slate-600">{{ entry.recorded_by.get_full_name|default:entry.recorded_by.username }}</td>
+              <td class="p-4 font-mono text-xs text-slate-400">{{ entry.reference }}</td>
+            </tr>
+            {% empty %}<tr><td colspan="8" class="p-8 text-center text-sm text-slate-500">No manual entries yet.</td></tr>{% endfor %}
           </tbody>
         </table>
       </div>

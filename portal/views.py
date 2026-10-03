@@ -60,6 +60,7 @@ from .models import (
     StudentFeeAccount,
     FeePayment,
     SchoolPaymentAccount,
+    SchoolBankAccount,
     AutomatedCommentBank,
     ClassResultStatus,
     AuditLog,
@@ -2049,10 +2050,19 @@ def parent_payments_view(request):
     if not parent:
         return redirect('dashboard')
     payment_account = get_or_create_payment_account(parent)
+    bank_accounts = {account.category: account for account in SchoolBankAccount.objects.filter(is_active=True)}
+    charges_by_child = parent_payable_charges(parent)
+    for entry in charges_by_child:
+        for charge in entry['charges']:
+            charge['bank_account'] = bank_accounts.get(charge['category'])
     return render(request, 'portal/parent_payments.html', {
         'payment_account': payment_account,
         'balance': payment_account.balance,
-        'charges_by_child': parent_payable_charges(parent),
+        'charges_by_child': charges_by_child,
+        # Flip when Paystack is connected; the Pay Online UI branches on this flag.
+        'online_payments_enabled': getattr(settings, 'ONLINE_PAYMENTS_ENABLED', False),
+        'whatsapp_number': '07063747789',
+        'whatsapp_url': 'https://wa.me/2347063747789',
         'ledger_entries': payment_account.ledger_entries.select_related('student').order_by('-created_at')[:100],
     })
 
@@ -2217,11 +2227,12 @@ def _generate_ledger_reference(prefix):
     return f'{prefix}-{uuid.uuid4().hex[:12].upper()}'
 
 
-def credit_parent_balance(parent, amount, source, description='', reference=None, recorded_by=None, student=None):
+def credit_parent_balance(parent, amount, source, description='', reference=None, recorded_by=None, student=None, external_reference=''):
     """Credit a parent's School Payment Balance. Reused for manual/admin test credits today and
     intended as the exact function a future Paystack webhook calls after verifying a deposit.
     Idempotent: a reference that was already successfully processed raises DuplicateReferenceError
-    instead of double-crediting, so a retried webhook call is safe.
+    instead of double-crediting, so a retried webhook call is safe. An external bank/payment
+    reference, when given, may also only be credited once.
     """
     try:
         amount = Decimal(amount)
@@ -2230,16 +2241,20 @@ def credit_parent_balance(parent, amount, source, description='', reference=None
     if amount <= 0:
         raise ValueError('Credit amount must be greater than zero.')
     reference = reference or _generate_ledger_reference('CR')
+    external_reference = (external_reference or '').strip()
     with transaction.atomic():
         account = ParentPaymentAccount.objects.select_for_update().get_or_create(parent=parent)[0]
         if ParentLedgerEntry.objects.filter(reference=reference).exists():
             raise DuplicateReferenceError(f'Reference {reference} has already been processed.')
+        if external_reference and ParentLedgerEntry.objects.filter(external_reference__iexact=external_reference).exists():
+            raise DuplicateReferenceError(f'Payment reference {external_reference} has already been credited.')
         try:
             entry = ParentLedgerEntry.objects.create(
                 account=account,
                 entry_type='CREDIT',
                 amount=amount,
                 reference=reference,
+                external_reference=external_reference,
                 source=source,
                 description=description,
                 student=student,
@@ -2248,6 +2263,33 @@ def credit_parent_balance(parent, amount, source, description='', reference=None
         except IntegrityError:
             raise DuplicateReferenceError(f'Reference {reference} has already been processed.')
     return entry
+
+
+def debit_parent_balance_manual(parent, amount, source, description, recorded_by, external_reference=''):
+    """Staff-only manual debit (adjustment/correction). Appends a DEBIT ledger entry; never edits history and never allows a negative balance."""
+    try:
+        amount = Decimal(amount)
+    except (InvalidOperation, TypeError):
+        raise ValueError('Enter a valid debit amount.')
+    if amount <= 0:
+        raise ValueError('Debit amount must be greater than zero.')
+    external_reference = (external_reference or '').strip()
+    with transaction.atomic():
+        account = ParentPaymentAccount.objects.select_for_update().get_or_create(parent=parent)[0]
+        if amount > account.balance:
+            raise InsufficientBalanceError('This debit would make the School Payment Balance negative.')
+        if external_reference and ParentLedgerEntry.objects.filter(external_reference__iexact=external_reference).exists():
+            raise DuplicateReferenceError(f'Payment reference {external_reference} has already been recorded.')
+        return ParentLedgerEntry.objects.create(
+            account=account,
+            entry_type='DEBIT',
+            amount=amount,
+            reference=_generate_ledger_reference('MD'),
+            external_reference=external_reference,
+            source=source,
+            description=description,
+            recorded_by=recorded_by,
+        )
 
 
 def pay_fee_account_balance_from_wallet(parent, user, account_pk, amount):
@@ -2404,6 +2446,7 @@ def parent_payable_charges(parent):
                 'charge_id': account.pk,
                 'label': f'School Fees - {account.term.term_name} {account.session.name}',
                 'amount': account.balance,
+                'category': 'School Fees',
             })
         current_account = None
         fee_structure = None
@@ -2421,6 +2464,7 @@ def parent_payable_charges(parent):
                         'charge_id': f'{current_account.pk}:{item.pk}',
                         'label': item.description,
                         'amount': balance,
+                        'category': 'Other Payments',
                     })
         if active_term:
             result_fee = get_or_create_result_access_fee(child, active_term)
@@ -2430,6 +2474,7 @@ def parent_payable_charges(parent):
                     'charge_id': result_fee.pk,
                     'label': f'Result Access - {active_term.term_name} {active_term.session.name}',
                     'amount': result_fee.amount,
+                    'category': 'Other Payments',
                 })
         charges_by_child.append({'child': child, 'charges': child_charges})
     return charges_by_child
@@ -3829,51 +3874,80 @@ def generate_all_class_invoices_view(request):
 @login_required(login_url='login')
 @bursar_required
 def parent_payment_accounts_view(request):
-    """Staff-only view of every parent's School Payment Balance, with a Manual Adjustment/Test Credit form.
-    This is the only way to fund a balance until the Paystack funding layer is connected.
+    """Staff-only management of every parent's School Payment Balance.
+    Used to credit verified bank transfers and to post adjustments/corrections until Paystack funding is connected.
+    Every action appends an immutable ledger entry plus an audit log record; money is never auto-allocated to charges.
     """
+    kind_sources = {
+        'bank_transfer': 'MANUAL_BANK_TRANSFER',
+        'adjustment': 'MANUAL_ADJUSTMENT',
+        'correction': 'MANUAL_CORRECTION',
+    }
+    kind_labels = {'bank_transfer': 'Manual Bank Transfer Credit', 'adjustment': 'Manual Adjustment', 'correction': 'Correction'}
     if request.method == 'POST':
         parent = get_object_or_404(Parent, pk=request.POST.get('parent_id'))
+        direction = request.POST.get('direction')
+        kind = request.POST.get('kind')
+        description = request.POST.get('description', '').strip()
+        external_reference = request.POST.get('external_reference', '').strip()
         try:
             amount = Decimal(request.POST.get('amount', '0'))
-            if amount <= 0:
-                raise ValueError
-        except (InvalidOperation, TypeError, ValueError):
-            messages.error(request, 'Enter a valid credit amount.')
+        except (InvalidOperation, TypeError):
+            amount = Decimal('0')
+        if kind not in kind_sources or direction not in ('credit', 'debit'):
+            messages.error(request, 'Choose the entry type and direction.')
+        elif kind == 'bank_transfer' and direction == 'debit':
+            messages.error(request, 'A bank transfer can only be credited. Use Manual Adjustment or Correction to debit.')
+        elif amount <= 0:
+            messages.error(request, 'Enter a valid amount.')
+        elif not description:
+            messages.error(request, 'A reason/description is required for every manual entry.')
         else:
-            description = request.POST.get('description', '').strip() or 'Manual Adjustment / Test Credit'
+            label = kind_labels[kind]
+            full_description = f'{label}: {description}'
             try:
-                entry = credit_parent_balance(
-                    parent, amount,
-                    source='MANUAL_ADJUSTMENT',
-                    description=description,
-                    recorded_by=request.user,
-                )
-            except DuplicateReferenceError as error:
+                if direction == 'credit':
+                    entry = credit_parent_balance(
+                        parent, amount, source=kind_sources[kind], description=full_description,
+                        recorded_by=request.user, external_reference=external_reference,
+                    )
+                    action_type = 'PARENT_BALANCE_CREDITED'
+                else:
+                    entry = debit_parent_balance_manual(
+                        parent, amount, source=kind_sources[kind], description=full_description,
+                        recorded_by=request.user, external_reference=external_reference,
+                    )
+                    action_type = 'PARENT_BALANCE_DEBITED'
+            except (DuplicateReferenceError, InsufficientBalanceError, ValueError) as error:
                 messages.error(request, str(error))
             else:
-                log_security_action(request, 'PARENT_BALANCE_CREDITED', f'{parent} - {description}', {
-                    'after': {'amount': str(amount), 'reference': entry.reference, 'source': 'MANUAL_ADJUSTMENT'},
+                log_security_action(request, action_type, f'{parent} - {full_description}', {
+                    'after': {
+                        'amount': str(amount), 'reference': entry.reference, 'source': entry.source,
+                        'external_reference': entry.external_reference, 'reason': description,
+                    },
                 })
-                messages.success(request, f'₦{amount:,.2f} credited to {parent.display_name}\'s School Payment Balance (Manual Adjustment / Test Credit).')
+                messages.success(request, f'{label}: ₦{amount:,.2f} {"credited to" if direction == "credit" else "debited from"} {parent.display_name}.')
                 if parent.user:
                     try:
                         _notify_users(
                             [parent.user],
-                            'School Payment Balance credited',
-                            f'₦{amount:,.2f} was added to your School Payment Balance ({description}).',
+                            'School Payment Balance updated',
+                            f'₦{amount:,.2f} was {"added to" if direction == "credit" else "deducted from"} your School Payment Balance ({label}).',
                             reverse('parent_payments'),
                         )
                     except Exception:
-                        logger.exception('Failed to send manual-credit notification for parent %s.', parent.pk)
+                        logger.exception('Failed to send manual-entry notification for parent %s.', parent.pk)
         return redirect('parent_payment_accounts')
     accounts = ParentPaymentAccount.objects.select_related('parent').order_by('parent__name')
     accounts_list = list(accounts)
     for account in accounts_list:
         account.current_balance = account.balance
+    manual_sources = list(kind_sources.values())
     return render(request, 'portal/parent_payment_accounts.html', {
         'accounts': accounts_list,
         'parents': Parent.objects.order_by('name'),
+        'manual_entries': ParentLedgerEntry.objects.filter(source__in=manual_sources).select_related('account__parent', 'recorded_by').order_by('-created_at')[:50],
     })
 
 
