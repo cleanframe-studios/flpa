@@ -1,4 +1,4 @@
-import datetime
+﻿import datetime
 import io
 import re
 import os
@@ -16,7 +16,7 @@ from django.utils import timezone
 
 from .models import AcademicSession, AcademicTerm, AcademicWeek, AdmissionApplicationBatch, AdmissionCampaign, Applicant, Attendance, AttendanceRegister, AccountProfile, AuditLog, CBTAttempt, CBTExam, CBTQuestion, CBTResponse, ClassRoom, ClassRoomSubject, FeePayment, FeeStructure, FeeStructureItem, Parent, ParentLedgerEntry, ParentPaymentAccount, ResultAccessFee, Student, StudentExamSession, Subject, SubjectResult, StudentFeeAccount, StudentTermRecord, Teacher, TermEnrollment
 from .utils import send_branded_email, send_registration_email
-from .views import create_portal_account, credit_parent_balance, pay_fee_account_balance_from_wallet, pay_result_access_fee_from_wallet, get_or_create_result_access_fee, student_result_access_status, InsufficientBalanceError, ChargeAlreadySettledError, DuplicateReferenceError
+from .views import parent_payable_charges, create_portal_account, credit_parent_balance, pay_fee_account_balance_from_wallet, pay_result_access_fee_from_wallet, get_or_create_result_access_fee, student_result_access_status, InsufficientBalanceError, ChargeAlreadySettledError, DuplicateReferenceError
 
 
 class StudentDirectoryTests(TestCase):
@@ -1014,6 +1014,68 @@ class SchoolPaymentBalanceTests(TestCase):
         self.assertNotContains(response, '\\(')
         self.assertNotContains(response, '$$')
         self.assertNotContains(response, 'ParentPaymentAccount object')
+
+    def test_pay_selected_pays_several_charges_for_different_children_at_once(self):
+        credit_parent_balance(self.parent, Decimal('100000'), source='MANUAL_BANK_TRANSFER')
+        account_a = StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=60000)
+        account_b = StudentFeeAccount.objects.create(student=self.child_b, term=self.term, session=self.session, total_billed=15000)
+
+        response = self.client.post(reverse('parent_pay_selected'), {
+            'charge': [f'fee_account|{account_a.pk}', f'fee_account|{account_b.pk}'],
+            f'amount::fee_account|{account_a.pk}': '60000', f'amount::fee_account|{account_b.pk}': '15000',
+        }, follow=True)
+
+        self.assertContains(response, 'Payment successful')
+        self.assertEqual(ParentPaymentAccount.objects.get(parent=self.parent).balance, Decimal('25000'))
+        self.assertEqual(ParentLedgerEntry.objects.filter(entry_type='DEBIT').count(), 2)
+
+    def test_pay_selected_is_all_or_nothing_when_balance_is_short(self):
+        credit_parent_balance(self.parent, Decimal('10000'), source='MANUAL_BANK_TRANSFER')
+        account_a = StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=8000)
+        account_b = StudentFeeAccount.objects.create(student=self.child_b, term=self.term, session=self.session, total_billed=8000)
+
+        response = self.client.post(reverse('parent_pay_selected'), {
+            'charge': [f'fee_account|{account_a.pk}', f'fee_account|{account_b.pk}'],
+        }, follow=True)
+
+        self.assertContains(response, 'Insufficient School Payment Balance')
+        self.assertEqual(ParentPaymentAccount.objects.get(parent=self.parent).balance, Decimal('10000'))
+        account_a.refresh_from_db()
+        self.assertEqual(account_a.amount_paid, 0)
+
+    def test_result_access_is_offered_only_after_results_are_out_and_fees_cleared(self):
+        account = StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=5000)
+
+        def child_charge_types():
+            return [c['charge_type'] for e in parent_payable_charges(self.parent) if e['child'] == self.child_a for c in e['charges']]
+
+        self.assertNotIn('result_access', child_charge_types())
+        self.term.reports_published = True
+        self.term.save(update_fields=['reports_published'])
+        self.assertNotIn('result_access', child_charge_types())
+        account.amount_paid = 5000
+        account.save()
+        self.assertIn('result_access', child_charge_types())
+
+    def test_fee_items_use_their_own_bank_account_choice(self):
+        structure = FeeStructure.objects.create(classroom=self.classroom, term=self.term, session=self.session)
+        FeeStructureItem.objects.create(fee_structure=structure, description='Excursion', amount=20000, is_compulsory=False)
+        FeeStructureItem.objects.create(fee_structure=structure, description='Christmas', amount=5000, is_compulsory=False, payment_account='Contact School')
+
+        charges = {c['label']: c['category'] for e in parent_payable_charges(self.parent) if e['child'] == self.child_a for c in e['charges']}
+
+        self.assertEqual(charges['Excursion'], 'Other Payments')
+        self.assertEqual(charges['Christmas'], 'Contact School')
+
+    def test_payment_page_has_single_pay_button_and_no_per_charge_buttons(self):
+        StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=60000)
+
+        response = self.client.get(reverse('parent_bursary'))
+
+        self.assertContains(response, 'id="open-pay"')
+        self.assertContains(response, 'Pay to Account')
+        self.assertNotContains(response, 'How would you like to pay?</h2>')
+        self.assertNotContains(response, 'class="pay-btn')
 
     @patch('portal.views._notify_users', side_effect=Exception('notification system down'))
     def test_notification_failure_does_not_reverse_successful_payment(self, mock_notify):

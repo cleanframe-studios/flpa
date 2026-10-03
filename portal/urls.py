@@ -61,6 +61,7 @@ urlpatterns = [
     path('parent/bursary/', views.parent_bursary_view, name='parent_bursary'),
     path('parent/payments/', views.parent_payments_view, name='parent_payments'),
     path('parent/payments/pay/', views.parent_pay_charge_view, name='parent_pay_charge'),
+    path('parent/payments/pay-selected/', views.parent_pay_selected_view, name='parent_pay_selected'),
     path('student/reports/', views.student_report_hub, name='student_report_hub'),
     path('admin/cbt/', views.admin_cbt_view, name='admin_cbt'),
     path('cbt/setup/', views.cbt_setup_view, name='cbt_setup'),

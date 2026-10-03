@@ -438,6 +438,12 @@ class FeeStructureItem(models.Model):
     description = models.CharField(max_length=150)
     amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     is_compulsory = models.BooleanField(default=True)
+    PAYMENT_ACCOUNT_CHOICES = [
+        ('Other Payments', 'Other Payments account'),
+        ('School Fees', 'School Fees account'),
+        ('Contact School', 'Contact school management'),
+    ]
+    payment_account = models.CharField(max_length=20, choices=PAYMENT_ACCOUNT_CHOICES, default='Other Payments')
 
     class Meta:
         ordering = ['-is_compulsory', 'id']

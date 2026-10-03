@@ -6,8 +6,8 @@
   @keyframes comingSoonIn { 0% { opacity: 0; transform: translateY(28px) scale(.92); } 60% { opacity: 1; transform: translateY(-4px) scale(1.02); } 100% { opacity: 1; transform: none; } }
   @keyframes comingSoonPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, .35); } 50% { box-shadow: 0 0 0 8px rgba(124, 58, 237, 0); } }
   [role=dialog] > div, [role=dialog] > form { animation: modalPop .28s ease-out both; }
-  .coming-soon-card { animation: comingSoonIn .7s cubic-bezier(.22, 1, .36, 1) .35s both; }
-  .coming-soon-badge { animation: comingSoonPulse 1.8s ease-in-out 1.1s infinite; }
+  .coming-soon-card { animation: comingSoonIn .7s cubic-bezier(.22, 1, .36, 1) .2s both; }
+  .coming-soon-badge { animation: comingSoonPulse 1.8s ease-in-out 1s infinite; }
   @media (prefers-reduced-motion: reduce) { [role=dialog] > div, [role=dialog] > form, .coming-soon-card, .coming-soon-badge { animation: none; } }
 </style>
 <div class="relative min-h-full overflow-hidden bg-gradient-to-br from-slate-200 via-slate-100 to-emerald-100/60 p-5 sm:p-6 lg:p-8" id="payments-root" data-balance="{{ balance|stringformat:'.2f' }}">
@@ -22,25 +22,22 @@
           <h1 class="mt-3 text-lg font-bold text-emerald-100">School Payment Balance</h1>
           <p class="mt-1 text-4xl font-black tracking-tight sm:text-5xl" id="balance-display">₦{{ balance|floatformat:'2g' }}</p>
         </div>
-        <button type="button" data-open="add-money-modal" class="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-6 py-4 text-sm font-black text-emerald-900 shadow-lg transition hover:bg-emerald-50">
-          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2.2" stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>Add Money
-        </button>
+        <div class="flex gap-3">
+          <button type="button" id="open-pay" class="inline-flex flex-1 items-center justify-center rounded-2xl bg-white px-8 py-4 text-sm font-black text-emerald-900 shadow-lg transition hover:bg-emerald-50 sm:flex-none">Pay</button>
+          <button type="button" data-open="add-money-modal" class="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-white/40 px-6 py-4 text-sm font-black text-white transition hover:bg-white/10 sm:flex-none">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2.2" stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>Add Money
+          </button>
+        </div>
       </div>
       <div class="absolute -right-16 -top-20 h-56 w-56 rounded-full border-[24px] border-emerald-400/10"></div>
       <div class="absolute -bottom-28 right-20 h-48 w-48 rounded-full border-[18px] border-white/5"></div>
     </section>
 
     <section class="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-xl shadow-slate-300/40 backdrop-blur-2xl sm:p-8">
-      <p class="text-xs font-bold uppercase tracking-[0.2em] text-blue-700">Choose what to pay</p>
-      <h2 class="text-xl font-black tracking-tight text-slate-950">How would you like to pay?</h2>
+      <p class="text-xs font-bold uppercase tracking-[0.2em] text-blue-700">Outstanding</p>
+      <h2 class="mt-2 text-xl font-black tracking-tight text-slate-950">Charges</h2>
 
-      <div class="mt-4 grid gap-3 sm:grid-cols-3">
-        <div class="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4"><p class="text-sm font-black text-emerald-900">Pay from Balance</p></div>
-        <button type="button" data-open="add-money-modal" class="rounded-2xl border border-blue-200 bg-blue-50/70 p-4 text-left transition hover:bg-blue-100"><p class="text-sm font-black text-blue-900">Bank Transfer</p></button>
-        <div class="relative overflow-hidden rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-indigo-50 p-4"><p class="text-sm font-black text-violet-900">Online Payment — Coming Soon</p></div>
-      </div>
-
-      <div class="mt-8 space-y-6">
+      <div class="mt-6 space-y-6">
         {% for entry in charges_by_child %}
         <article class="overflow-hidden rounded-2xl border border-white/70 bg-white/60 shadow-sm backdrop-blur-xl">
           <div class="flex items-center gap-3 border-b border-slate-200/70 bg-white/70 px-5 py-4">
@@ -50,32 +47,24 @@
               <p class="text-xs font-semibold text-slate-500">{{ entry.child.current_class.name|default:'No class assigned' }}</p>
             </div>
           </div>
-          <div class="space-y-5 p-4 sm:p-5">
-            {% regroup entry.charges by group_label as groups %}
-            {% for group in groups %}
-            <div>
-              <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">{{ group.grouper }}</p>
-              <div class="mt-2 space-y-2">
-                {% for charge in group.list %}
-                <div class="flex flex-col gap-3 rounded-xl border border-slate-200/80 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p class="text-sm font-bold text-slate-900">{{ charge.label }}</p>
-                    <p class="mt-0.5 text-lg font-black text-slate-950">₦{{ charge.amount|floatformat:'2g' }} <span class="ml-1 rounded-full bg-amber-100 px-2 py-0.5 align-middle text-[10px] font-bold uppercase text-amber-800">Unpaid</span></p>
-                  </div>
-                  <button type="button" class="pay-btn rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700"
-                    data-charge-type="{{ charge.charge_type }}" data-charge-id="{{ charge.charge_id }}" data-amount="{{ charge.amount|stringformat:'.2f' }}"
-                    data-label="{{ charge.label }}" data-student="{{ entry.child.first_name }} {{ entry.child.last_name }}"
-                    data-fixed="{% if charge.charge_type == 'result_access' %}1{% endif %}">Pay from Balance</button>
-                </div>
-                {% endfor %}
+          <div class="space-y-2 p-4 sm:p-5">
+            {% for charge in entry.charges %}
+            <div class="flex items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-white p-4">
+              <div class="min-w-0">
+                <p class="truncate text-sm font-bold text-slate-900">{{ charge.label }}</p>
+                <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">{{ charge.group_label }}</p>
+              </div>
+              <div class="text-right">
+                <p class="text-base font-black text-slate-950">₦{{ charge.amount|floatformat:'2g' }}</p>
+                <span class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-800">Unpaid</span>
               </div>
             </div>
             {% empty %}
-            <p class="flex items-center gap-2 text-sm font-semibold text-emerald-700"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>All charges for {{ entry.child.first_name }} are paid.</p>
+            <p class="flex items-center gap-2 text-sm font-semibold text-emerald-700"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>All paid</p>
             {% endfor %}
             {% if entry.child.fee_accounts_list or entry.child.current_fee_structure or entry.child.fee_book_breakdown.book_items %}
             <details class="rounded-xl border border-slate-200/80 bg-white">
-              <summary class="cursor-pointer list-none p-4 text-sm font-bold text-slate-700">View fee breakdown, statement &amp; book list</summary>
+              <summary class="cursor-pointer list-none p-4 text-sm font-bold text-slate-700">Fee breakdown, statement &amp; book list</summary>
               <div class="space-y-4 border-t border-slate-100 p-4 text-sm">
                 {% if entry.child.fee_accounts_list %}
                 <div>
@@ -136,22 +125,55 @@
     </section>
   </div>
 
-  <div id="pay-modal" class="fixed inset-0 z-[12000] hidden items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
-    <form method="post" action="{% url 'parent_pay_charge' %}" class="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+  <!-- Pay wizard: 1) payment mode, 2) what to pay for, 3) account details when paying to account -->
+  <div id="pay-modal" class="fixed inset-0 z-[12000] hidden items-center justify-center overflow-y-auto bg-slate-950/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
+    <form method="post" action="{% url 'parent_pay_selected' %}" id="pay-form" class="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl">
       {% csrf_token %}
-      <input type="hidden" name="charge_type" id="pay-charge-type">
-      <input type="hidden" name="charge_id" id="pay-charge-id">
-      <div class="flex items-start justify-between"><div><p class="text-xs font-bold uppercase tracking-wider text-emerald-600">Confirm payment</p><h2 id="pay-title" class="mt-1 text-lg font-black text-slate-900"></h2><p id="pay-student" class="text-sm text-slate-500"></p></div><button type="button" data-close class="rounded-xl p-2 text-xl text-slate-400 hover:bg-slate-100">&times;</button></div>
-      <div class="mt-5 grid grid-cols-2 gap-3">
-        <div class="rounded-2xl bg-slate-50 p-4"><p class="text-xs text-slate-500">Charge</p><p id="pay-charge-amount" class="mt-1 font-black text-slate-900"></p></div>
-        <div class="rounded-2xl bg-emerald-50 p-4"><p class="text-xs text-emerald-700">Available balance</p><p id="pay-balance" class="mt-1 font-black text-emerald-900"></p></div>
+      <div class="flex items-start justify-between"><h2 id="pay-heading" class="text-lg font-black text-slate-900">Pay</h2><button type="button" data-close class="rounded-xl p-2 text-xl text-slate-400 hover:bg-slate-100">&times;</button></div>
+
+      <div id="step-mode" class="mt-4 space-y-3">
+        <p class="text-xs font-bold uppercase tracking-wider text-slate-500">How would you like to pay?</p>
+        <button type="button" data-mode="balance" class="flex w-full items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 text-left transition hover:bg-emerald-100"><span class="text-sm font-black text-emerald-900">Pay from Balance</span><span class="text-sm font-bold text-emerald-800">₦{{ balance|floatformat:'2g' }}</span></button>
+        <button type="button" data-mode="online" class="flex w-full items-center justify-between rounded-2xl border border-violet-200 bg-violet-50/70 p-4 text-left transition hover:bg-violet-100"><span class="text-sm font-black text-violet-900">Pay Online</span><span class="rounded-full bg-violet-600 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-white">Coming Soon</span></button>
+        <button type="button" data-mode="account" class="flex w-full items-center justify-between rounded-2xl border border-blue-200 bg-blue-50/70 p-4 text-left transition hover:bg-blue-100"><span class="text-sm font-black text-blue-900">Pay to Account</span><span class="text-xs font-bold text-blue-700">Bank transfer</span></button>
+        <div id="online-note" class="coming-soon-card hidden rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-indigo-50 p-4"><p class="text-sm font-black text-violet-900">Online Payment — Coming Soon</p><p class="mt-1 text-xs text-violet-800">Online payments are currently being set up. Please use Bank Transfer for now.</p></div>
       </div>
-      <label class="mt-5 block text-xs font-bold uppercase tracking-wider text-slate-500">Amount to pay (₦)
-        <input id="pay-amount" name="amount" type="number" step="0.01" min="0.01" required class="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-base font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600">
-      </label>
-      <p id="pay-hint" class="hidden"></p>
-      <div id="pay-insufficient" class="mt-3 hidden rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">Your balance is not enough. <button type="button" id="pay-add-money" class="font-black underline">Add Money</button></div>
-      <div class="mt-5 flex gap-3"><button type="button" data-close class="flex-1 rounded-xl bg-slate-100 px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-200">Cancel</button><button type="submit" id="pay-confirm" class="flex-1 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300">Confirm Payment</button></div>
+
+      <div id="step-select" class="mt-4 hidden">
+        <div class="flex items-center justify-between"><p class="text-xs font-bold uppercase tracking-wider text-slate-500">What are you paying for?</p><label class="flex items-center gap-2 text-xs font-bold text-slate-600"><input type="checkbox" id="select-all" class="h-4 w-4 rounded border-slate-300 text-emerald-600"> Select all</label></div>
+        {% if has_charges %}
+        <div class="mt-3 space-y-4">
+          {% for entry in charges_by_child %}{% if entry.charges %}
+          <div>
+            <p class="text-sm font-black text-slate-900">{{ entry.child.first_name }} {{ entry.child.last_name }}</p>
+            <div class="mt-2 space-y-2">
+              {% for charge in entry.charges %}
+              <div class="charge-row rounded-xl border border-slate-200 p-3" data-category="{{ charge.category }}" data-label="{{ charge.label }}" data-student="{{ entry.child.first_name }}">
+                <label class="flex items-start gap-3">
+                  <input type="checkbox" class="charge-check mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600" name="charge" value="{{ charge.charge_type }}|{{ charge.charge_id }}" data-charge-type="{{ charge.charge_type }}">
+                  <span class="min-w-0 flex-1"><span class="block text-sm font-bold text-slate-900">{{ charge.label }}</span><span class="block text-xs text-slate-500">Up to ₦{{ charge.amount|floatformat:'2g' }}</span></span>
+                </label>
+                <input type="number" step="0.01" min="0.01" max="{{ charge.amount|stringformat:'.2f' }}" value="{{ charge.amount|stringformat:'.2f' }}" name="amount::{{ charge.charge_type }}|{{ charge.charge_id }}" disabled {% if charge.charge_type == 'result_access' %}readonly{% endif %} class="charge-amount mt-2 hidden w-full rounded-lg border border-slate-200 bg-slate-50 p-2 text-sm font-bold">
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}{% endfor %}
+        </div>
+        {% else %}
+        <p class="mt-4 rounded-xl bg-slate-50 p-4 text-center text-sm text-slate-600">Nothing to pay right now.</p>
+        {% endif %}
+        <div id="pay-insufficient" class="mt-3 hidden rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">Your balance is not enough. <button type="button" id="pay-add-money" class="font-black underline">Add Money</button></div>
+        <div class="mt-4 flex items-center justify-between text-sm"><span class="font-bold text-slate-500">Total</span><span id="pay-total" class="text-lg font-black text-slate-900">₦0.00</span></div>
+        <div class="mt-4 flex gap-3"><button type="button" id="back-to-mode" class="flex-1 rounded-xl bg-slate-100 px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-200">Back</button><button type="submit" id="pay-confirm" class="hidden flex-1 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300" disabled>Pay from Balance</button><button type="button" id="show-account" class="hidden flex-1 rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300" disabled>Continue</button></div>
+      </div>
+
+      <div id="step-account" class="mt-4 hidden">
+        <div id="account-details" class="space-y-3"></div>
+        <p class="mt-4 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-900">After making the transfer, send your payment receipt/proof to WhatsApp: {{ whatsapp_number }}</p>
+        <a href="{{ whatsapp_url }}?text=Hello%2C%20I%20have%20made%20a%20bank%20transfer.%20Sending%20my%20receipt." target="_blank" rel="noopener" class="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700">Send proof on WhatsApp</a>
+        <button type="button" id="back-to-select" class="mt-3 w-full rounded-xl bg-slate-100 px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-200">Back</button>
+      </div>
     </form>
   </div>
 
@@ -177,47 +199,124 @@
     </div>
   </div>
 </div>
+{{ bank_json|json_script:"bank-data" }}
 
 <script>
 (function () {
   var root = document.getElementById('payments-root');
   var balance = parseFloat(root.dataset.balance) || 0;
+  var banks = JSON.parse(document.getElementById('bank-data').textContent);
   var money = function (n) { return '₦' + Number(n).toLocaleString('en-NG', {minimumFractionDigits: 2, maximumFractionDigits: 2}); };
   var payModal = document.getElementById('pay-modal');
-  var amountInput = document.getElementById('pay-amount');
+  var steps = {mode: document.getElementById('step-mode'), select: document.getElementById('step-select'), account: document.getElementById('step-account')};
+  var heading = document.getElementById('pay-heading');
   var confirmBtn = document.getElementById('pay-confirm');
+  var accountBtn = document.getElementById('show-account');
   var warn = document.getElementById('pay-insufficient');
-  var chargeAmount = 0;
+  var onlineNote = document.getElementById('online-note');
+  var mode = null;
 
   function show(el) { el.classList.remove('hidden'); el.classList.add('flex'); }
   function hide(el) { el.classList.add('hidden'); el.classList.remove('flex'); }
-  function validate() {
-    var value = parseFloat(amountInput.value) || 0;
-    var tooMuchForBalance = value > balance + 0.0001;
-    var tooMuchForCharge = value > chargeAmount + 0.0001;
-    warn.classList.toggle('hidden', !tooMuchForBalance);
-    confirmBtn.disabled = value <= 0 || tooMuchForBalance || tooMuchForCharge;
-    confirmBtn.textContent = value > 0 ? 'Confirm Payment of ' + money(value) : 'Confirm Payment';
+  function showStep(name) {
+    Object.keys(steps).forEach(function (key) { steps[key].classList.toggle('hidden', key !== name); });
+  }
+  function rows() { return Array.prototype.slice.call(document.querySelectorAll('.charge-row')); }
+  function checked() { return rows().filter(function (row) { return row.querySelector('.charge-check').checked; }); }
+  function rowAmount(row) { return parseFloat(row.querySelector('.charge-amount').value) || 0; }
+
+  function refresh() {
+    var total = 0;
+    rows().forEach(function (row) {
+      var on = row.querySelector('.charge-check').checked;
+      var input = row.querySelector('.charge-amount');
+      input.disabled = !on;
+      input.classList.toggle('hidden', !on);
+      if (on) total += rowAmount(row);
+    });
+    var any = checked().length > 0;
+    var tooMuch = mode === 'balance' && total > balance + 0.0001;
+    document.getElementById('pay-total').textContent = money(total);
+    warn.classList.toggle('hidden', !tooMuch);
+    confirmBtn.disabled = !any || tooMuch || total <= 0;
+    accountBtn.disabled = !any || total <= 0;
+    confirmBtn.textContent = total > 0 ? 'Pay ' + money(total) + ' from Balance' : 'Pay from Balance';
+    document.getElementById('select-all').checked = any && checked().length === rows().length;
   }
 
-  document.querySelectorAll('.pay-btn').forEach(function (btn) {
+  function accountInstructions() {
+    var groups = {};
+    checked().forEach(function (row) {
+      var key = row.dataset.category;
+      groups[key] = groups[key] || {total: 0, labels: []};
+      groups[key].total += rowAmount(row);
+      groups[key].labels.push(row.dataset.student + ' – ' + row.dataset.label);
+    });
+    var html = '';
+    Object.keys(groups).forEach(function (key) {
+      var group = groups[key];
+      var bank = banks[key];
+      var title = key === 'Contact School' ? 'Contact the school' : key;
+      html += '<div class="rounded-2xl border border-blue-100 bg-blue-50/50 p-4 text-sm"><p class="text-xs font-bold uppercase tracking-wider text-blue-700"></p>';
+      html += '<p class="mt-1 text-xs text-slate-600 labels"></p>';
+      html += '<p class="mt-1 font-black text-slate-900">' + money(group.total) + '</p>';
+      if (bank && key !== 'Contact School') {
+        html += '<p class="mt-2 font-black text-slate-900 bank-name"></p><p class="font-mono text-base font-bold text-slate-900 bank-number"></p><p class="text-xs text-slate-600 bank-holder"></p>';
+      } else {
+        html += '<p class="mt-2 text-sm font-bold text-amber-800">Please contact school management to get the account for this payment.</p>';
+      }
+      html += '</div>';
+      var holder = document.createElement('div');
+      holder.innerHTML = html;
+      holder.querySelector('p.text-xs.font-bold').textContent = title;
+      holder.querySelector('.labels').textContent = group.labels.join(', ');
+      if (bank && key !== 'Contact School') {
+        holder.querySelector('.bank-name').textContent = bank.bank_name;
+        holder.querySelector('.bank-number').textContent = bank.account_number;
+        holder.querySelector('.bank-holder').textContent = bank.account_name;
+      }
+      groups[key].node = holder.firstChild;
+    });
+    var container = document.getElementById('account-details');
+    container.innerHTML = '';
+    Object.keys(groups).forEach(function (key) { container.appendChild(groups[key].node); });
+  }
+
+  function openPay() {
+    mode = null;
+    heading.textContent = 'Pay';
+    onlineNote.classList.add('hidden');
+    showStep('mode');
+    show(payModal);
+  }
+
+  document.getElementById('open-pay').addEventListener('click', openPay);
+  document.querySelectorAll('[data-mode]').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      chargeAmount = parseFloat(btn.dataset.amount);
-      document.getElementById('pay-charge-type').value = btn.dataset.chargeType;
-      document.getElementById('pay-charge-id').value = btn.dataset.chargeId;
-      document.getElementById('pay-title').textContent = btn.dataset.label;
-      document.getElementById('pay-student').textContent = btn.dataset.student;
-      document.getElementById('pay-charge-amount').textContent = money(chargeAmount);
-      document.getElementById('pay-balance').textContent = money(balance);
-      var fixed = btn.dataset.fixed === '1';
-      amountInput.value = fixed ? chargeAmount.toFixed(2) : chargeAmount.toFixed(2);
-      amountInput.readOnly = fixed;
-      document.getElementById('pay-hint').textContent = fixed ? 'This charge is paid in full, once per term.' : 'You can pay the full amount or part of it.';
-      validate();
-      show(payModal);
+      if (btn.dataset.mode === 'online') {
+        onlineNote.classList.remove('hidden');
+        onlineNote.style.animation = 'none';
+        void onlineNote.offsetWidth;
+        onlineNote.style.animation = '';
+        return;
+      }
+      mode = btn.dataset.mode;
+      heading.textContent = mode === 'balance' ? 'Pay from Balance' : 'Pay to Account';
+      confirmBtn.classList.toggle('hidden', mode !== 'balance');
+      accountBtn.classList.toggle('hidden', mode !== 'account');
+      showStep('select');
+      refresh();
     });
   });
-  amountInput.addEventListener('input', validate);
+  document.querySelectorAll('.charge-check, .charge-amount').forEach(function (el) { el.addEventListener('input', refresh); el.addEventListener('change', refresh); });
+  document.getElementById('select-all').addEventListener('change', function () {
+    var on = this.checked;
+    rows().forEach(function (row) { row.querySelector('.charge-check').checked = on; });
+    refresh();
+  });
+  document.getElementById('back-to-mode').addEventListener('click', function () { heading.textContent = 'Pay'; showStep('mode'); });
+  accountBtn.addEventListener('click', function () { accountInstructions(); showStep('account'); });
+  document.getElementById('back-to-select').addEventListener('click', function () { showStep('select'); });
   document.getElementById('pay-add-money').addEventListener('click', function () { hide(payModal); show(document.getElementById('add-money-modal')); });
   document.querySelectorAll('[data-open]').forEach(function (btn) {
     btn.addEventListener('click', function () { show(document.getElementById(btn.dataset.open)); });

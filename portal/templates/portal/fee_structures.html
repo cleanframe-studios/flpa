@@ -90,7 +90,7 @@
             </div>
             <div class="flex items-center gap-3">
               <span class="font-bold text-slate-900">₦{{ item.amount|floatformat:2 }}</span>
-              <button type="button" onclick="openEditItemModal('{{ item.pk }}','{{ item.description|escapejs }}','{{ item.amount }}',{{ item.is_compulsory|yesno:'true,false' }})" class="rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-600 hover:text-white">Edit</button>
+              <button type="button" onclick="openEditItemModal('{{ item.pk }}','{{ item.description|escapejs }}','{{ item.amount }}',{{ item.is_compulsory|yesno:'true,false' }},'{{ item.payment_account }}')" class="rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-600 hover:text-white">Edit</button>
               <button type="button" onclick="openDeleteItemModal('{{ item.pk }}','{{ item.description|escapejs }}')" class="rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-600 hover:text-white">Delete</button>
             </div>
           </div>
@@ -142,8 +142,26 @@ function openFeeModal(id) { const modal = document.getElementById(id); modal.cla
 function closeFeeModal(id) { const modal = document.getElementById(id); modal.classList.add('hidden'); modal.classList.remove('flex'); }
 function openDeleteStructureModal(id, classroom, term) { document.getElementById('delete-fee-id').value = id; document.getElementById('delete-fee-details').textContent = classroom + ' · ' + term; openFeeModal('delete-fee-modal'); }
 function openDeleteItemModal(id, description) { document.getElementById('delete-item-id').value = id; document.getElementById('delete-item-details').textContent = description; openFeeModal('delete-item-modal'); }
-function openEditItemModal(id, description, amount, isCompulsory) {
+function ensurePaymentAccountSelect() {
+  let select = document.getElementById('edit-item-payment-account');
+  if (select) return select;
+  const form = document.getElementById('edit-item-id').closest('form');
+  const label = document.createElement('label');
+  label.className = 'mt-3 block text-xs font-bold uppercase tracking-wider text-slate-500';
+  label.textContent = 'Bank account shown to parents';
+  select = document.createElement('select');
+  select.id = 'edit-item-payment-account';
+  select.name = 'payment_account';
+  select.className = 'mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm';
+  select.innerHTML = '<option value="Other Payments">Other Payments account</option><option value="School Fees">School Fees account</option><option value="Contact School">Contact school management</option>';
+  label.appendChild(select);
+  const submit = form.querySelector('button[type=submit]');
+  form.insertBefore(label, submit ? (submit.parentElement === form ? submit : submit.parentElement) : null);
+  return select;
+}
+function openEditItemModal(id, description, amount, isCompulsory, paymentAccount) {
   document.getElementById('edit-item-id').value = id;
+  ensurePaymentAccountSelect().value = paymentAccount || 'Other Payments';
   document.getElementById('edit-item-description').value = description;
   document.getElementById('edit-item-amount').value = amount;
   const toggle = document.getElementById('edit-item-compulsory-toggle');

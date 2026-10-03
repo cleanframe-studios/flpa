@@ -2052,6 +2052,11 @@ def parent_bursary_view(request):
         'whatsapp_number': '07063747789',
         'whatsapp_url': 'https://wa.me/2347063747789',
         'bank_accounts_list': list(bank_accounts.values()),
+        'bank_json': {
+            category: {'bank_name': account.bank_name, 'account_number': account.account_number, 'account_name': account.account_name}
+            for category, account in bank_accounts.items()
+        },
+        'has_charges': any(entry['charges'] for entry in charges_by_child),
         'ledger_entries': payment_account.ledger_entries.select_related('student').order_by('-created_at')[:100],
     })
 
@@ -2061,45 +2066,37 @@ def parent_payments_view(request):
     return parent_bursary_view(request)
 
 
-@login_required(login_url='login')
-@require_POST
-def parent_pay_charge_view(request):
-    parent = getattr(request.user, 'parent_record', None)
-    if not parent:
-        return redirect('dashboard')
-    charge_type = request.POST.get('charge_type')
-    charge_id = request.POST.get('charge_id', '')
-    try:
-        if charge_type == 'fee_account':
-            account = get_object_or_404(StudentFeeAccount.objects.select_related('student', 'term', 'session'), pk=charge_id, student__parent=parent)
-            amount = Decimal(request.POST.get('amount') or account.balance)
-            student = account.student
-            description = f'School fees payment for {student.first_name} {student.last_name}'
-            entry = pay_fee_account_balance_from_wallet(parent, request.user, account.pk, amount)
-        elif charge_type == 'fee_item':
-            account_pk, _, item_pk = charge_id.partition(':')
-            account = get_object_or_404(StudentFeeAccount.objects.select_related('student'), pk=account_pk, student__parent=parent)
-            item = get_object_or_404(FeeStructureItem, pk=item_pk)
-            amount = Decimal(request.POST.get('amount') or fee_item_balance(account, item))
-            student = account.student
-            description = f'{item.description} payment for {student.first_name} {student.last_name}'
-            entry = pay_fee_item_from_wallet(parent, request.user, account.pk, item.pk, amount)
-        elif charge_type == 'result_access':
-            fee = get_object_or_404(ResultAccessFee.objects.select_related('student', 'term', 'session'), pk=charge_id, student__parent=parent)
-            amount = fee.amount
-            student = fee.student
-            description = f'Result access payment for {student.first_name} {student.last_name} ({fee.term.term_name})'
-            entry = pay_result_access_fee_from_wallet(parent, request.user, fee.pk)
-        else:
-            messages.error(request, 'Unrecognized charge type.')
-            return redirect('parent_payments')
-    except (InsufficientBalanceError, ChargeAlreadySettledError, DuplicateReferenceError, ValueError, InvalidOperation) as error:
-        messages.error(request, str(error) or 'Unable to process this payment.')
-        return redirect('parent_payments')
+def _apply_parent_charge(parent, user, charge_type, charge_id, raw_amount):
+    """Pay one charge from the parent's balance. Returns (ledger entry, amount, student, description)."""
+    if charge_type == 'fee_account':
+        account = get_object_or_404(StudentFeeAccount.objects.select_related('student', 'term', 'session'), pk=charge_id, student__parent=parent)
+        amount = Decimal(raw_amount or account.balance)
+        student = account.student
+        description = f'School fees payment for {student.first_name} {student.last_name}'
+        entry = pay_fee_account_balance_from_wallet(parent, user, account.pk, amount)
+    elif charge_type == 'fee_item':
+        account_pk, _, item_pk = str(charge_id).partition(':')
+        account = get_object_or_404(StudentFeeAccount.objects.select_related('student'), pk=account_pk, student__parent=parent)
+        item = get_object_or_404(FeeStructureItem, pk=item_pk)
+        amount = Decimal(raw_amount or fee_item_balance(account, item))
+        student = account.student
+        description = f'{item.description} payment for {student.first_name} {student.last_name}'
+        entry = pay_fee_item_from_wallet(parent, user, account.pk, item.pk, amount)
+    elif charge_type == 'result_access':
+        fee = get_object_or_404(ResultAccessFee.objects.select_related('student', 'term', 'session'), pk=charge_id, student__parent=parent)
+        amount = fee.amount
+        student = fee.student
+        description = f'Result access payment for {student.first_name} {student.last_name} ({fee.term.term_name})'
+        entry = pay_result_access_fee_from_wallet(parent, user, fee.pk)
+    else:
+        raise ValueError('Unrecognized charge type.')
+    return entry, amount, student, description
+
+
+def _record_parent_payment(request, parent, charge_type, entry, amount, student, description):
     log_security_action(request, 'PARENT_BALANCE_DEBITED', f'{student} - {description}', {
-        'after': {'amount': str(amount), 'charge_type': charge_type},
+        'after': {'amount': str(amount), 'charge_type': charge_type, 'reference': entry.reference},
     })
-    messages.success(request, f'Payment successful: ₦{amount:,.2f} paid. {description}. Receipt {entry.reference}.')
     try:
         _notify_users(
             [request.user],
@@ -2109,6 +2106,54 @@ def parent_pay_charge_view(request):
         )
     except Exception:
         logger.exception('Failed to send payment-applied notification for parent %s.', parent.pk)
+
+
+@login_required(login_url='login')
+@require_POST
+def parent_pay_charge_view(request):
+    parent = getattr(request.user, 'parent_record', None)
+    if not parent:
+        return redirect('dashboard')
+    charge_type = request.POST.get('charge_type')
+    try:
+        entry, amount, student, description = _apply_parent_charge(
+            parent, request.user, charge_type, request.POST.get('charge_id', ''), request.POST.get('amount'),
+        )
+    except (InsufficientBalanceError, ChargeAlreadySettledError, DuplicateReferenceError, ValueError, InvalidOperation) as error:
+        messages.error(request, str(error) or 'Unable to process this payment.')
+        return redirect('parent_payments')
+    messages.success(request, f'Payment successful: ₦{amount:,.2f} paid. {description}. Receipt {entry.reference}.')
+    _record_parent_payment(request, parent, charge_type, entry, amount, student, description)
+    return redirect('parent_payments')
+
+
+@login_required(login_url='login')
+@require_POST
+def parent_pay_selected_view(request):
+    """One general Pay action: pay every selected charge from the balance, all-or-nothing."""
+    parent = getattr(request.user, 'parent_record', None)
+    if not parent:
+        return redirect('dashboard')
+    selected = request.POST.getlist('charge')
+    if not selected:
+        messages.error(request, 'Select at least one charge to pay.')
+        return redirect('parent_payments')
+    applied = []
+    try:
+        with transaction.atomic():
+            for value in selected:
+                charge_type, _, charge_id = value.partition('|')
+                applied.append((charge_type,) + _apply_parent_charge(
+                    parent, request.user, charge_type, charge_id, request.POST.get(f'amount::{value}'),
+                ))
+    except (InsufficientBalanceError, ChargeAlreadySettledError, DuplicateReferenceError, ValueError, InvalidOperation) as error:
+        messages.error(request, str(error) or 'Unable to process this payment. Nothing was deducted.')
+        return redirect('parent_payments')
+    total = sum((item[2] for item in applied), Decimal('0'))
+    references = ', '.join(item[1].reference for item in applied)
+    messages.success(request, f'Payment successful: ₦{total:,.2f} paid for {len(applied)} item(s). Receipt {references}.')
+    for charge_type, entry, amount, student, description in applied:
+        _record_parent_payment(request, parent, charge_type, entry, amount, student, description)
     return redirect('parent_payments')
 
 
@@ -2424,6 +2469,12 @@ def pay_result_access_fee_from_wallet(parent, user, result_access_fee_pk):
     return entry
 
 
+def results_published_for(student, term):
+    classroom = historical_classroom(student, term)
+    class_published = bool(classroom and ClassResultStatus.objects.filter(classroom=classroom, term=term, is_published=True).exists())
+    return bool(term.reports_published or class_published)
+
+
 def parent_payable_charges(parent):
     """Build the list of outstanding charges a parent can pay from their School Payment Balance, grouped by child."""
     active_term = AcademicTerm.objects.select_related('session').filter(is_active=True).first()
@@ -2459,10 +2510,10 @@ def parent_payable_charges(parent):
                         'charge_id': f'{current_account.pk}:{item.pk}',
                         'label': item.description,
                         'amount': balance,
-                        'category': 'Other Payments',
+                        'category': item.payment_account,
                         'group_label': 'Other Charges',
                     })
-        if active_term:
+        if active_term and results_published_for(child, active_term) and student_outstanding_balance(child, active_term) <= 0:
             result_fee = get_or_create_result_access_fee(child, active_term)
             if result_fee and not result_fee.is_paid:
                 child_charges.append({
@@ -3481,6 +3532,8 @@ def manage_fee_structures(request):
                 item.description = request.POST.get('description', '').strip() or item.description
                 item.amount = amount
                 item.is_compulsory = request.POST.get('is_compulsory') == '1'
+                if request.POST.get('payment_account') in dict(FeeStructureItem.PAYMENT_ACCOUNT_CHOICES):
+                    item.payment_account = request.POST['payment_account']
                 item.save()
                 messages.success(request, 'Fee item updated successfully.')
             return redirect('manage_fee_structures')
