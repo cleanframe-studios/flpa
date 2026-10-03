@@ -1565,6 +1565,12 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    function moveUnreadBadge(fromTab, toTab) {
+        const badge = fromTab && fromTab.querySelector('span.bg-red-600');
+        if (!badge || !toTab) return;
+        toTab.classList.add('relative');
+        toTab.appendChild(badge);
+    }
     function setTabIcon(tab, path) {
         const icon = tab && tab.querySelector('svg');
         if (!icon) return;
@@ -1619,6 +1625,7 @@ document.addEventListener('DOMContentLoaded', function () {
         setTabIcon(studentMessagesTab, 'M5 4h14v16H5zM8 8h8M8 12h5M8 16h8');
     }
     if (studentProfileTab) {
+        moveUnreadBadge(studentMessagesTab, studentProfileTab);
         studentProfileTab.href = "{% url 'inbox' %}";
         studentProfileTab.setAttribute('aria-current', window.location.pathname === "{% url 'inbox' %}" ? 'page' : '');
         studentProfileTab.classList.toggle('is-active', window.location.pathname === "{% url 'inbox' %}");
@@ -1646,6 +1653,7 @@ document.addEventListener('DOMContentLoaded', function () {
         setTabIcon(parentMessagesTab, 'M5 4h14v16H5zM8 8h8M8 12h5M8 16h8');
     }
     if (parentProfileTab) {
+        moveUnreadBadge(parentMessagesTab, parentProfileTab);
         parentProfileTab.href = "{% url 'inbox' %}";
         parentProfileTab.setAttribute('aria-current', window.location.pathname === "{% url 'inbox' %}" ? 'page' : '');
         parentProfileTab.classList.toggle('is-active', window.location.pathname === "{% url 'inbox' %}");
