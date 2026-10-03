@@ -975,7 +975,7 @@ class SchoolPaymentBalanceTests(TestCase):
             'amount': '100000', 'description': 'Verified', 'external_reference': 'FLOW-1',
         })
 
-        page = self.client.get(reverse('parent_payments'))
+        page = self.client.get(reverse('parent_bursary'))
         self.assertContains(page, '₦100,000.00')
         self.assertContains(page, 'Pay from Balance')
         self.assertContains(page, 'data-charge-type="fee_account"')

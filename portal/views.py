@@ -2020,8 +2020,12 @@ def parent_bursary_view(request):
     if not parent:
         return redirect('dashboard')
     active_term = AcademicTerm.objects.select_related('session').filter(is_active=True).first()
-    children = list(parent.children.select_related('current_class').all())
-    for child in children:
+    payment_account = get_or_create_payment_account(parent)
+    bank_accounts = {account.category: account for account in SchoolBankAccount.objects.filter(is_active=True)}
+    charges_by_child = parent_payable_charges(parent)
+    children = []
+    for entry in charges_by_child:
+        child = entry['child']
         child.fee_accounts_list = list(child.fee_accounts.select_related('term', 'session').prefetch_related('payments').order_by('-term__start_date'))
         child.outstanding_balance = student_outstanding_balance(child, active_term)
         child.is_cleared = child.outstanding_balance <= 0
@@ -2034,28 +2038,12 @@ def parent_bursary_view(request):
         for account in child.fee_accounts_list:
             account.is_current_term = bool(active_term and account.term_id == active_term.pk)
             account.is_rollover_debt = bool(not account.is_current_term and account.balance > 0)
-    return render(request, 'portal/parent_bursary.html', {
-        'children': children,
-        'active_term': active_term,
-        'payment_channels': [
-            ('School Fees', 'Zenith Bank', '1223688239', 'Future Leaders Private Academy'),
-            ('Books / Uniform', 'Providus Bank', '6507146199', 'Funmilayo Fasina'),
-        ],
-    })
-
-
-@login_required(login_url='login')
-def parent_payments_view(request):
-    parent = getattr(request.user, 'parent_record', None)
-    if not parent:
-        return redirect('dashboard')
-    payment_account = get_or_create_payment_account(parent)
-    bank_accounts = {account.category: account for account in SchoolBankAccount.objects.filter(is_active=True)}
-    charges_by_child = parent_payable_charges(parent)
-    for entry in charges_by_child:
+        children.append(child)
         for charge in entry['charges']:
             charge['bank_account'] = bank_accounts.get(charge['category'])
     return render(request, 'portal/parent_payments.html', {
+        'children': children,
+        'active_term': active_term,
         'payment_account': payment_account,
         'balance': payment_account.balance,
         'charges_by_child': charges_by_child,
@@ -2066,6 +2054,11 @@ def parent_payments_view(request):
         'bank_accounts_list': list(bank_accounts.values()),
         'ledger_entries': payment_account.ledger_entries.select_related('student').order_by('-created_at')[:100],
     })
+
+
+@login_required(login_url='login')
+def parent_payments_view(request):
+    return parent_bursary_view(request)
 
 
 @login_required(login_url='login')
