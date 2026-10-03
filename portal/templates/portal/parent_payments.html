@@ -5,6 +5,10 @@
   @keyframes modalPop { from { opacity: 0; transform: translateY(16px) scale(.97); } to { opacity: 1; transform: none; } }
   @keyframes comingSoonIn { 0% { opacity: 0; transform: translateY(28px) scale(.92); } 60% { opacity: 1; transform: translateY(-4px) scale(1.02); } 100% { opacity: 1; transform: none; } }
   @keyframes comingSoonPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, .35); } 50% { box-shadow: 0 0 0 8px rgba(124, 58, 237, 0); } }
+  @keyframes modalOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(20px) scale(.96); } }
+  @keyframes backdropOut { from { opacity: 1; } to { opacity: 0; } }
+  [role=dialog].is-closing { animation: backdropOut .22s ease-in both; }
+  [role=dialog].is-closing > div, [role=dialog].is-closing > form { animation: modalOut .22s ease-in both; }
   [role=dialog] > div, [role=dialog] > form { animation: modalPop .28s ease-out both; }
   .coming-soon-card { animation: comingSoonIn .7s cubic-bezier(.22, 1, .36, 1) .2s both; }
   .coming-soon-badge { animation: comingSoonPulse 1.8s ease-in-out 1s infinite; }
@@ -63,40 +67,7 @@
             <p class="flex items-center gap-2 text-sm font-semibold text-emerald-700"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>All paid</p>
             {% endfor %}
             {% if entry.child.fee_accounts_list or entry.child.current_fee_structure or entry.child.fee_book_breakdown.book_items %}
-            <details class="rounded-xl border border-slate-200/80 bg-white">
-              <summary class="cursor-pointer list-none p-4 text-sm font-bold text-slate-700">Fee breakdown, statement &amp; book list</summary>
-              <div class="space-y-4 border-t border-slate-100 p-4 text-sm">
-                {% if entry.child.fee_accounts_list %}
-                <div>
-                  <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Fee statement</p>
-                  {% for account in entry.child.fee_accounts_list %}
-                  <div class="mt-2 grid grid-cols-2 gap-2 rounded-xl bg-slate-50 p-3 sm:grid-cols-4">
-                    <div class="col-span-2 sm:col-span-1"><p class="font-bold text-slate-800">{{ account.term.term_name }}</p><p class="text-xs text-slate-500">{{ account.session.name }}</p></div>
-                    <div><p class="text-xs text-slate-500">Billed</p><p class="font-bold">₦{{ account.total_billed|floatformat:'2g' }}</p></div>
-                    <div><p class="text-xs text-slate-500">Paid</p><p class="font-bold text-emerald-700">₦{{ account.amount_paid|floatformat:'2g' }}</p></div>
-                    <div><p class="text-xs text-slate-500">Balance</p><p class="font-bold {% if account.balance > 0 %}text-amber-700{% else %}text-emerald-700{% endif %}">₦{{ account.balance|floatformat:'2g' }}</p></div>
-                  </div>
-                  {% endfor %}
-                </div>
-                {% endif %}
-                {% if entry.child.current_fee_structure %}
-                <div>
-                  <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Current term fees</p>
-                  {% for item in entry.child.current_fee_structure.items.all %}
-                  <div class="mt-1 flex items-center justify-between gap-3"><span class="text-slate-700">{{ item.description }}{% if item.is_compulsory %} <span class="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700">Compulsory</span>{% else %} <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">Optional</span>{% endif %}</span><span class="font-bold">₦{{ item.amount|floatformat:'2g' }}</span></div>
-                  {% endfor %}
-                </div>
-                {% endif %}
-                {% if entry.child.fee_book_breakdown.book_items %}
-                <div>
-                  <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Book list · ₦{{ entry.child.fee_book_breakdown.total_books|floatformat:'2g' }}</p>
-                  {% for book in entry.child.fee_book_breakdown.book_items %}
-                  <div class="mt-1 flex items-center justify-between gap-3"><span class="text-slate-700">{{ book.title }}</span><span class="font-bold">₦{{ book.price|floatformat:'2g' }}</span></div>
-                  {% endfor %}
-                </div>
-                {% endif %}
-              </div>
-            </details>
+            <button type="button" data-open="child-modal-{{ entry.child.pk }}" class="w-full rounded-xl border border-slate-200 bg-white p-4 text-left text-sm font-bold text-slate-700 transition hover:bg-slate-50">View fee breakdown, statement &amp; book list</button>
             {% endif %}
           </div>
         </article>
@@ -124,6 +95,46 @@
       </div>
     </section>
   </div>
+
+  <!-- Fee breakdown pop-outs, one per child, kept outside the cards so they sit on top of the page -->
+  {% for entry in charges_by_child %}{% if entry.child.fee_accounts_list or entry.child.current_fee_structure or entry.child.fee_book_breakdown.book_items %}
+  <div id="child-modal-{{ entry.child.pk }}" class="fixed inset-0 z-[12000] hidden items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
+    <div class="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl">
+      <div class="flex items-start justify-between"><div><p class="text-xs font-bold uppercase tracking-wider text-emerald-600">Fee breakdown</p><h2 class="mt-1 text-lg font-black text-slate-900">{{ entry.child.first_name }} {{ entry.child.last_name }}</h2></div><button type="button" data-close class="rounded-xl p-2 text-xl text-slate-400 hover:bg-slate-100">&times;</button></div>
+      <div class="mt-4 space-y-5 text-sm">
+        {% if entry.child.fee_accounts_list %}
+        <div>
+          <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Fee statement</p>
+          {% for account in entry.child.fee_accounts_list %}
+          <div class="mt-2 grid grid-cols-2 gap-2 rounded-xl bg-slate-50 p-3">
+            <div class="col-span-2"><p class="font-bold text-slate-800">{{ account.term.term_name }} <span class="text-xs font-semibold text-slate-500">{{ account.session.name }}</span></p></div>
+            <div><p class="text-xs text-slate-500">Billed</p><p class="font-bold">₦{{ account.total_billed|floatformat:'2g' }}</p></div>
+            <div><p class="text-xs text-slate-500">Paid</p><p class="font-bold text-emerald-700">₦{{ account.amount_paid|floatformat:'2g' }}</p></div>
+            <div class="col-span-2"><p class="text-xs text-slate-500">Balance</p><p class="font-bold {% if account.balance > 0 %}text-amber-700{% else %}text-emerald-700{% endif %}">₦{{ account.balance|floatformat:'2g' }}</p></div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% if entry.child.current_fee_structure %}
+        <div>
+          <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Current term fees</p>
+          {% for item in entry.child.current_fee_structure.items.all %}
+          <div class="mt-1 flex items-center justify-between gap-3"><span class="text-slate-700">{{ item.description }}{% if item.is_compulsory %} <span class="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700">Compulsory</span>{% else %} <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">Optional</span>{% endif %}</span><span class="font-bold">₦{{ item.amount|floatformat:'2g' }}</span></div>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% if entry.child.fee_book_breakdown.book_items %}
+        <div>
+          <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Book list · ₦{{ entry.child.fee_book_breakdown.total_books|floatformat:'2g' }}</p>
+          {% for book in entry.child.fee_book_breakdown.book_items %}
+          <div class="mt-1 flex items-center justify-between gap-3"><span class="text-slate-700">{{ book.title }}</span><span class="font-bold">₦{{ book.price|floatformat:'2g' }}</span></div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endif %}{% endfor %}
 
   <!-- Pay wizard: 1) payment mode, 2) what to pay for, 3) account details when paying to account -->
   <div id="pay-modal" class="fixed inset-0 z-[12000] hidden items-center justify-center overflow-y-auto bg-slate-950/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
@@ -217,7 +228,11 @@
   var mode = null;
 
   function show(el) { el.classList.remove('hidden'); el.classList.add('flex'); }
-  function hide(el) { el.classList.add('hidden'); el.classList.remove('flex'); }
+  function hide(el) {
+    if (el.classList.contains('hidden') || el.classList.contains('is-closing')) return;
+    el.classList.add('is-closing');
+    setTimeout(function () { el.classList.remove('is-closing', 'flex'); el.classList.add('hidden'); }, 220);
+  }
   function showStep(name) {
     Object.keys(steps).forEach(function (key) { steps[key].classList.toggle('hidden', key !== name); });
   }
