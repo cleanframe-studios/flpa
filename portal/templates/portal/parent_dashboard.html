@@ -1,4 +1,4 @@
-{% extends 'portal/base.html' %}
+﻿{% extends 'portal/base.html' %}
 {% block page_title %}Parent Dashboard{% endblock %}
 {% block content %}
 <style>
@@ -9,7 +9,7 @@
   .glass-dashboard > div > *:nth-child(4) { animation-delay: .18s; }
   .glass-dashboard > div > header { border-radius: 1.75rem !important; padding: 1.5rem !important; }
   .glass-dashboard > div > header h1 { font-size: 1.35rem; letter-spacing: -.01em; }
-  .glass-dashboard section:not(#priority-banner) { border-radius: 1.75rem !important; padding: 1.25rem !important; }
+  .glass-dashboard section { border-radius: 1.75rem !important; padding: 1.25rem !important; }
   .glass-dashboard article { border-radius: 1.4rem !important; }
   .glass-dashboard article .grid > div { border-radius: 1rem !important; }
   .glass-dashboard section a.rounded-xl { border-radius: 999px !important; }
@@ -26,8 +26,7 @@
 </style>
 <div class="glass-dashboard min-h-full bg-slate-100 p-6 lg:p-8"><div class="mx-auto w-full max-w-7xl space-y-6">
   <header class="flex flex-col justify-between gap-5 rounded-3xl bg-gradient-to-r from-blue-950 via-blue-900 to-slate-900 p-8 text-white shadow-lg sm:flex-row sm:items-start"><div><p class="text-xs font-bold uppercase tracking-[0.2em] text-blue-200">Parent Dashboard</p><h1 class="mt-2 text-2xl font-black">{{ parent.display_name }}</h1><p class="mt-1 text-sm text-blue-100">{{ parent.parent_id }}</p></div>{% if portal_profile_picture_url %}<img src="{{ portal_profile_picture_url }}" alt="{{ parent.display_name }} profile picture" class="h-16 w-16 rounded-full border-2 border-white/40 object-cover">{% endif %}</header>
-  <section id="priority-banner" class="relative rounded-2xl border border-amber-200 bg-amber-50 p-5 pr-12 shadow-sm"><button type="button" onclick="document.getElementById('priority-banner').remove()" class="absolute right-4 top-4 text-xl text-amber-600" aria-label="Dismiss priority message">&times;</button><p class="text-xs font-bold uppercase tracking-wider text-amber-800">Priority message</p><p class="mt-1 text-sm leading-6 text-amber-900">Please review your children's fee status and settle any outstanding balance before report cards are released.</p></section>
-  <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><div class="flex flex-wrap items-center justify-between gap-3"><div><h2 class="text-lg font-bold text-slate-900">Linked Children</h2><p class="mt-1 text-sm text-slate-500">Academic and financial overview{% if active_term %} for {{ active_term.term_name }}{% endif %}.</p></div><div class="flex flex-wrap gap-2"><a href="{% url 'parent_child_application' %}" class="rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-700">Apply for Another Child</a><a href="{% url 'parent_bursary' %}" class="rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-bold text-white hover:bg-slate-700">Bursary &amp; Payments</a></div></div><div class="mt-5 space-y-5">
+  <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><div class="flex flex-wrap items-center justify-between gap-3"><div><h2 class="text-lg font-bold text-slate-900">Linked Children</h2><p class="mt-1 text-sm text-slate-500">Academic and financial overview{% if active_term %} for {{ active_term.term_name }}{% endif %}.</p></div></div><div class="mt-5 space-y-5">
     {% for child in children %}
     <article class="overflow-hidden rounded-2xl border border-white/70 bg-white/60 p-4 shadow-sm backdrop-blur-xl">
       <a href="{% url 'student_profile' child.pk %}" class="flex items-center gap-3">
