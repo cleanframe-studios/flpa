@@ -27,6 +27,20 @@
   .account-mode .pick-amount-edit { display: none !important; }
   .account-mode .pick { border-radius: 1rem; }
   .account-mode .pick:active { transform: scale(.985); }
+  @keyframes stepOutFwd { to { opacity: 0; transform: translateX(-26px); } }
+  @keyframes stepOutBack { to { opacity: 0; transform: translateX(26px); } }
+  @keyframes stepInFwd { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: none; } }
+  @keyframes stepInBack { from { opacity: 0; transform: translateX(-30px); } to { opacity: 1; transform: none; } }
+  @keyframes pickIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  .step-out-fwd { animation: stepOutFwd .17s ease-in both; }
+  .step-out-back { animation: stepOutBack .17s ease-in both; }
+  .step-in-fwd { animation: stepInFwd .32s cubic-bezier(.22, 1, .36, 1) both; }
+  .step-in-back { animation: stepInBack .32s cubic-bezier(.22, 1, .36, 1) both; }
+  .pick { animation: pickIn .38s cubic-bezier(.22, 1, .36, 1) both; animation-delay: calc(var(--i, 0) * 45ms); }
+  .pick.is-selected .pick-amount-edit { animation: pickIn .28s ease both; }
+  #account-details > div { animation: stepInFwd .4s cubic-bezier(.22, 1, .36, 1) .08s both; }
+  #whatsapp-note, #whatsapp-link { animation: pickIn .4s ease .2s both; }
+  @media (prefers-reduced-motion: reduce) { .step-out-fwd, .step-out-back, .step-in-fwd, .step-in-back, .pick, #account-details > div, #whatsapp-note, #whatsapp-link { animation: none; } }
   @keyframes modalOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(20px) scale(.96); } }
   @keyframes backdropOut { from { opacity: 1; } to { opacity: 0; } }
   [role=dialog].is-closing { animation: backdropOut .22s ease-in both; }
@@ -246,8 +260,28 @@
     el.classList.add('is-closing');
     setTimeout(function () { el.classList.remove('is-closing', 'flex'); el.classList.add('hidden'); }, 220);
   }
-  function showStep(name) { Object.keys(steps).forEach(function (key) { steps[key].classList.toggle('hidden', key !== name); }); }
+  var order = {mode: 0, select: 1, account: 2};
+  var current = 'mode';
+  function showStep(name, instant) {
+    var prev = current;
+    current = name;
+    if (instant || prev === name) {
+      Object.keys(steps).forEach(function (key) { steps[key].classList.toggle('hidden', key !== name); });
+      return;
+    }
+    var dir = order[name] > order[prev] ? 'fwd' : 'back';
+    var from = steps[prev], to = steps[name];
+    from.classList.add('step-out-' + dir);
+    setTimeout(function () {
+      from.classList.add('hidden');
+      from.classList.remove('step-out-fwd', 'step-out-back');
+      to.classList.remove('hidden');
+      to.classList.add('step-in-' + dir);
+      setTimeout(function () { to.classList.remove('step-in-fwd', 'step-in-back'); }, 340);
+    }, 170);
+  }
   function rows() { return Array.prototype.slice.call(document.querySelectorAll('.charge-row')); }
+  rows().forEach(function (row, index) { row.style.setProperty('--i', index); });
   function checked() { return rows().filter(function (row) { return row.querySelector('.charge-check').checked; }); }
   function rowAmount(row) { return parseFloat(row.querySelector('.charge-amount').value) || 0; }
   function replay(el) { el.classList.remove('hidden'); el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; }
@@ -298,7 +332,7 @@
     mode = null;
     heading.textContent = 'Pay';
     onlineNote.classList.add('hidden');
-    showStep('mode');
+    showStep('mode', true);
     show(payModal);
   });
 
