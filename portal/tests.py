@@ -908,7 +908,7 @@ class SchoolPaymentBalanceTests(TestCase):
             'amount': '100000', 'description': 'Verified from receipt', 'external_reference': 'BANK-REF-1',
         })
 
-        self.assertRedirects(response, reverse('parent_payment_accounts'))
+        self.assertRedirects(response, f"{reverse('parent_payment_accounts')}?parent={self.parent.pk}")
         entry = ParentLedgerEntry.objects.get(external_reference='BANK-REF-1')
         self.assertEqual(entry.source, 'MANUAL_BANK_TRANSFER')
         self.assertEqual(entry.recorded_by, staff)
@@ -962,10 +962,58 @@ class SchoolPaymentBalanceTests(TestCase):
         self.assertContains(response, '6507146199')
         self.assertContains(response, '07063747789')
         self.assertContains(response, 'https://wa.me/2347063747789')
-        self.assertContains(response, 'Pay Online — Coming Soon')
+        self.assertContains(response, 'Online Payment — Coming Soon')
         self.assertContains(response, 'Online payments are currently being set up. Please use Bank Transfer for now.')
-        self.assertContains(response, 'Pay from School Balance')
+        self.assertContains(response, 'Pay from Balance')
         self.assertNotContains(response, 'paystack')
+
+    def test_complete_parent_payment_flow_through_the_ui(self):
+        _, staff_client = self._staff_client()
+        account = StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=80000)
+        staff_client.post(reverse('parent_payment_accounts'), {
+            'parent_id': self.parent.pk, 'kind': 'bank_transfer', 'direction': 'credit',
+            'amount': '100000', 'description': 'Verified', 'external_reference': 'FLOW-1',
+        })
+
+        page = self.client.get(reverse('parent_payments'))
+        self.assertContains(page, '₦100,000.00')
+        self.assertContains(page, 'Pay from Balance')
+        self.assertContains(page, 'data-charge-type="fee_account"')
+        self.assertContains(page, 'Ada Lovelace')
+
+        response = self.client.post(reverse('parent_pay_charge'), {'charge_type': 'fee_account', 'charge_id': account.pk, 'amount': '80000'}, follow=True)
+
+        self.assertContains(response, 'Payment successful')
+        self.assertContains(response, '₦20,000.00')
+        account.refresh_from_db()
+        self.assertEqual(account.balance, 0)
+        self.assertTrue(account.is_cleared)
+        debit = ParentLedgerEntry.objects.get(entry_type='DEBIT')
+        self.assertContains(response, debit.reference)
+        self.assertNotContains(response, 'data-charge-type="fee_account"')
+
+    def test_insufficient_balance_payment_is_rejected_with_message(self):
+        account = StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=80000)
+        credit_parent_balance(self.parent, Decimal('1000'), source='MANUAL_BANK_TRANSFER')
+
+        response = self.client.post(reverse('parent_pay_charge'), {'charge_type': 'fee_account', 'charge_id': account.pk, 'amount': '80000'}, follow=True)
+
+        self.assertContains(response, 'Insufficient School Payment Balance')
+        self.assertEqual(ParentPaymentAccount.objects.get(parent=self.parent).balance, Decimal('1000'))
+
+    def test_bursary_page_shows_plain_currency_and_real_action_buttons(self):
+        _, staff_client = self._staff_client()
+        credit_parent_balance(self.parent, Decimal('100000'), source='MANUAL_BANK_TRANSFER')
+
+        response = staff_client.get(reverse('parent_payment_accounts'), {'parent': self.parent.pk})
+
+        self.assertContains(response, '₦100,000.00')
+        self.assertContains(response, 'Add Credit')
+        self.assertContains(response, 'Make Adjustment')
+        self.assertContains(response, 'Grace Hopper')
+        self.assertNotContains(response, '\\(')
+        self.assertNotContains(response, '$$')
+        self.assertNotContains(response, 'ParentPaymentAccount object')
 
     @patch('portal.views._notify_users', side_effect=Exception('notification system down'))
     def test_notification_failure_does_not_reverse_successful_payment(self, mock_notify):

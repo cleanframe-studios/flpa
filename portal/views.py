@@ -2063,6 +2063,7 @@ def parent_payments_view(request):
         'online_payments_enabled': getattr(settings, 'ONLINE_PAYMENTS_ENABLED', False),
         'whatsapp_number': '07063747789',
         'whatsapp_url': 'https://wa.me/2347063747789',
+        'bank_accounts_list': list(bank_accounts.values()),
         'ledger_entries': payment_account.ledger_entries.select_related('student').order_by('-created_at')[:100],
     })
 
@@ -2081,7 +2082,7 @@ def parent_pay_charge_view(request):
             amount = Decimal(request.POST.get('amount') or account.balance)
             student = account.student
             description = f'School fees payment for {student.first_name} {student.last_name}'
-            pay_fee_account_balance_from_wallet(parent, request.user, account.pk, amount)
+            entry = pay_fee_account_balance_from_wallet(parent, request.user, account.pk, amount)
         elif charge_type == 'fee_item':
             account_pk, _, item_pk = charge_id.partition(':')
             account = get_object_or_404(StudentFeeAccount.objects.select_related('student'), pk=account_pk, student__parent=parent)
@@ -2089,13 +2090,13 @@ def parent_pay_charge_view(request):
             amount = Decimal(request.POST.get('amount') or fee_item_balance(account, item))
             student = account.student
             description = f'{item.description} payment for {student.first_name} {student.last_name}'
-            pay_fee_item_from_wallet(parent, request.user, account.pk, item.pk, amount)
+            entry = pay_fee_item_from_wallet(parent, request.user, account.pk, item.pk, amount)
         elif charge_type == 'result_access':
             fee = get_object_or_404(ResultAccessFee.objects.select_related('student', 'term', 'session'), pk=charge_id, student__parent=parent)
             amount = fee.amount
             student = fee.student
             description = f'Result access payment for {student.first_name} {student.last_name} ({fee.term.term_name})'
-            pay_result_access_fee_from_wallet(parent, request.user, fee.pk)
+            entry = pay_result_access_fee_from_wallet(parent, request.user, fee.pk)
         else:
             messages.error(request, 'Unrecognized charge type.')
             return redirect('parent_payments')
@@ -2105,7 +2106,7 @@ def parent_pay_charge_view(request):
     log_security_action(request, 'PARENT_BALANCE_DEBITED', f'{student} - {description}', {
         'after': {'amount': str(amount), 'charge_type': charge_type},
     })
-    messages.success(request, f'₦{amount:,.2f} applied successfully. {description}.')
+    messages.success(request, f'Payment successful: ₦{amount:,.2f} paid. {description}. Receipt {entry.reference}.')
     try:
         _notify_users(
             [request.user],
@@ -2447,6 +2448,7 @@ def parent_payable_charges(parent):
                 'label': f'School Fees - {account.term.term_name} {account.session.name}',
                 'amount': account.balance,
                 'category': 'School Fees',
+                'group_label': 'School Fees',
             })
         current_account = None
         fee_structure = None
@@ -2465,6 +2467,7 @@ def parent_payable_charges(parent):
                         'label': item.description,
                         'amount': balance,
                         'category': 'Other Payments',
+                        'group_label': 'Other Charges',
                     })
         if active_term:
             result_fee = get_or_create_result_access_fee(child, active_term)
@@ -2475,6 +2478,7 @@ def parent_payable_charges(parent):
                     'label': f'Result Access - {active_term.term_name} {active_term.session.name}',
                     'amount': result_fee.amount,
                     'category': 'Other Payments',
+                    'group_label': 'Result Access',
                 })
         charges_by_child.append({'child': child, 'charges': child_charges})
     return charges_by_child
@@ -3938,16 +3942,34 @@ def parent_payment_accounts_view(request):
                         )
                     except Exception:
                         logger.exception('Failed to send manual-entry notification for parent %s.', parent.pk)
-        return redirect('parent_payment_accounts')
-    accounts = ParentPaymentAccount.objects.select_related('parent').order_by('parent__name')
-    accounts_list = list(accounts)
-    for account in accounts_list:
-        account.current_balance = account.balance
+        return redirect(f"{reverse('parent_payment_accounts')}?parent={parent.pk}")
+    search = request.GET.get('q', '').strip()
+    parent_matches = Parent.objects.order_by('name')
+    if search:
+        parent_matches = parent_matches.filter(
+            Q(name__icontains=search) | Q(first_name__icontains=search) | Q(last_name__icontains=search)
+            | Q(parent_id__icontains=search) | Q(phone_number__icontains=search)
+        )
+    parent_rows = []
+    for match in parent_matches[:24]:
+        match_account = ParentPaymentAccount.objects.filter(parent=match).first()
+        parent_rows.append({'parent': match, 'balance': match_account.balance if match_account else Decimal('0')})
+    selected_parent = Parent.objects.filter(pk=request.GET.get('parent')).first() if request.GET.get('parent') else None
+    selected = None
+    if selected_parent:
+        selected_account = get_or_create_payment_account(selected_parent)
+        selected = {
+            'parent': selected_parent,
+            'balance': selected_account.balance,
+            'children': list(selected_parent.children.values_list('first_name', flat=True)),
+            'entries': selected_account.ledger_entries.select_related('recorded_by', 'student').order_by('-created_at')[:10],
+        }
     manual_sources = list(kind_sources.values())
     return render(request, 'portal/parent_payment_accounts.html', {
-        'accounts': accounts_list,
-        'parents': Parent.objects.order_by('name'),
-        'manual_entries': ParentLedgerEntry.objects.filter(source__in=manual_sources).select_related('account__parent', 'recorded_by').order_by('-created_at')[:50],
+        'search': search,
+        'parent_rows': parent_rows,
+        'selected': selected,
+        'manual_entries': ParentLedgerEntry.objects.filter(source__in=manual_sources).select_related('account__parent', 'recorded_by').order_by('-created_at')[:20],
     })
 
 

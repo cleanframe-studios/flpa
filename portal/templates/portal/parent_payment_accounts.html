@@ -1,84 +1,145 @@
 {% extends 'portal/base.html' %}
-{% block page_title %}Parent Payment Accounts{% endblock %}
+{% block page_title %}Parent Payment Balances{% endblock %}
 {% block content %}
-<div class="min-h-full bg-slate-100 p-6 lg:p-8">
-  <div class="mx-auto max-w-6xl space-y-6">
-    <header class="rounded-3xl bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-900 p-8 text-white shadow-lg">
-      <p class="text-xs font-bold uppercase tracking-[0.2em] text-emerald-200">Finance Operations</p>
-      <h1 class="mt-2 text-2xl font-black">Parent School Payment Balances</h1>
-      <p class="mt-1 text-sm text-emerald-100">Credit verified bank transfers and post adjustments or corrections. Manual entries never pay a charge automatically.</p>
+<div class="relative min-h-full overflow-hidden bg-gradient-to-br from-slate-200 via-slate-100 to-emerald-100/60 p-5 sm:p-6 lg:p-8">
+  <div class="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-emerald-300/25 blur-3xl"></div>
+  <div class="relative mx-auto max-w-6xl space-y-6">
+
+    <header class="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-950 p-7 text-white shadow-xl shadow-emerald-950/10 sm:p-9">
+      <p class="text-xs font-bold uppercase tracking-[0.24em] text-emerald-200">Finance Operations</p>
+      <h1 class="mt-3 text-3xl font-black tracking-tight">Parent Payment Balances</h1>
+      <p class="mt-2 max-w-xl text-sm text-emerald-100">Find a parent, credit a verified bank transfer, or post an adjustment. Entries are permanent and never pay a charge automatically.</p>
     </header>
 
-    <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 class="text-lg font-bold text-slate-900">Manual balance entry</h2>
-      <form method="post" class="mt-4 grid gap-3 sm:grid-cols-4">
-        {% csrf_token %}
-        <label class="block sm:col-span-2"><span class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Parent</span>
-          <select name="parent_id" required class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
-            {% for parent in parents %}<option value="{{ parent.pk }}">{{ parent.display_name }} ({{ parent.parent_id }})</option>{% endfor %}
-          </select>
-        </label>
-        <label class="block"><span class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Entry type</span>
-          <select name="kind" required class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
-            <option value="bank_transfer">Manual Bank Transfer Credit</option>
-            <option value="adjustment">Manual Adjustment</option>
-            <option value="correction">Correction</option>
-          </select>
-        </label>
-        <label class="block"><span class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Direction</span>
-          <select name="direction" required class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
-            <option value="credit">Credit (add)</option>
-            <option value="debit">Debit (deduct)</option>
-          </select>
-        </label>
-        <label class="block"><span class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Amount</span>
-          <input type="number" name="amount" min="0.01" step="0.01" required class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
-        </label>
-        <label class="block sm:col-span-2"><span class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Reason / description</span>
-          <input type="text" name="description" required class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
-        </label>
-        <label class="block"><span class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Bank/payment reference (optional)</span>
-          <input type="text" name="external_reference" class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
-        </label>
-        <button type="submit" class="self-end rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700 sm:col-span-4">Record Entry</button>
-      </form>
-    </section>
+    <div class="grid gap-6 lg:grid-cols-5">
+      <section class="rounded-[2rem] border border-white/80 bg-white/90 p-5 shadow-xl shadow-slate-300/40 backdrop-blur-2xl lg:col-span-2">
+        <form method="get" class="flex gap-2">
+          <input type="search" name="q" value="{{ search }}" placeholder="Search name, ID or phone" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600">
+          <button type="submit" class="rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white hover:bg-blue-700">Search</button>
+        </form>
+        <div class="mt-4 max-h-[32rem] space-y-2 overflow-y-auto">
+          {% for row in parent_rows %}
+          <a href="?parent={{ row.parent.pk }}{% if search %}&amp;q={{ search|urlencode }}{% endif %}" class="flex items-center justify-between gap-3 rounded-xl border p-3 transition hover:bg-emerald-50 {% if selected and selected.parent.pk == row.parent.pk %}border-emerald-400 bg-emerald-50{% else %}border-slate-200 bg-white{% endif %}">
+            <div class="min-w-0"><p class="truncate text-sm font-bold text-slate-900">{{ row.parent.display_name }}</p><p class="text-xs text-slate-500">{{ row.parent.parent_id }}</p></div>
+            <p class="whitespace-nowrap text-sm font-black text-emerald-700">₦{{ row.balance|floatformat:'2g' }}</p>
+          </a>
+          {% empty %}
+          <p class="p-6 text-center text-sm text-slate-500">No parents found.</p>
+          {% endfor %}
+        </div>
+      </section>
 
-    <section class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-      <div class="overflow-x-auto">
-        <table class="w-full min-w-[700px] text-left text-sm">
-          <thead class="bg-slate-50 text-xs uppercase tracking-wider text-slate-500"><tr><th class="p-4">Parent</th><th class="p-4">Status</th><th class="p-4">Balance</th></tr></thead>
-          <tbody class="divide-y divide-slate-100">
-            {% for account in accounts %}
-            <tr><td class="p-4 font-bold text-slate-800">{{ account.parent.display_name }} ({{ account.parent.parent_id }})</td><td class="p-4 text-slate-600">{{ account.status }}</td><td class="p-4 font-black text-emerald-700">₦{{ account.current_balance|floatformat:'2g' }}</td></tr>
-            {% empty %}<tr><td colspan="3" class="p-12 text-center text-sm text-slate-500">No parent payment accounts yet.</td></tr>{% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </section>
+      <section class="space-y-6 lg:col-span-3">
+        {% if selected %}
+        <div class="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-xl shadow-slate-300/40 backdrop-blur-2xl sm:p-8">
+          <p class="text-xs font-bold uppercase tracking-[0.2em] text-blue-700">Parent</p>
+          <h2 class="mt-1 text-2xl font-black text-slate-950">{{ selected.parent.display_name }}</h2>
+          <p class="text-xs text-slate-500">{{ selected.parent.parent_id }}{% if selected.children %} · {{ selected.children|join:', ' }}{% endif %}</p>
+          <p class="mt-6 text-xs font-bold uppercase tracking-wider text-slate-500">Available Balance</p>
+          <p class="mt-1 text-5xl font-black tracking-tight text-emerald-700">₦{{ selected.balance|floatformat:'2g' }}</p>
+          <div class="mt-6 flex flex-col gap-3 sm:flex-row">
+            <button type="button" data-open="credit-modal" class="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-7 py-4 text-base font-black text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2.4" stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>Add Credit</button>
+            <button type="button" data-open="adjust-modal" class="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-7 py-4 text-base font-bold text-slate-800 transition hover:bg-slate-50">Make Adjustment</button>
+          </div>
+        </div>
 
-    <section class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-      <h2 class="p-6 pb-0 text-lg font-bold text-slate-900">Manual entry audit trail</h2>
-      <div class="overflow-x-auto">
-        <table class="w-full min-w-[900px] text-left text-sm">
-          <thead class="bg-slate-50 text-xs uppercase tracking-wider text-slate-500"><tr><th class="p-4">When</th><th class="p-4">Parent</th><th class="p-4">Type</th><th class="p-4">Amount</th><th class="p-4">Description</th><th class="p-4">Bank ref</th><th class="p-4">Recorded by</th><th class="p-4">Ref</th></tr></thead>
-          <tbody class="divide-y divide-slate-100">
-            {% for entry in manual_entries %}
-            <tr>
-              <td class="p-4 text-slate-600">{{ entry.created_at|date:'d M Y H:i' }}</td>
-              <td class="p-4 font-semibold text-slate-800">{{ entry.account.parent.display_name }}</td>
-              <td class="p-4 text-slate-600">{{ entry.get_source_display }}</td>
-              <td class="p-4 font-bold {% if entry.entry_type == 'CREDIT' %}text-emerald-700{% else %}text-amber-700{% endif %}">{% if entry.entry_type == 'CREDIT' %}+{% else %}-{% endif %}₦{{ entry.amount|floatformat:'2g' }}</td>
-              <td class="p-4 text-slate-600">{{ entry.description }}</td>
-              <td class="p-4 font-mono text-xs text-slate-500">{{ entry.external_reference|default:'-' }}</td>
-              <td class="p-4 text-slate-600">{{ entry.recorded_by.get_full_name|default:entry.recorded_by.username }}</td>
-              <td class="p-4 font-mono text-xs text-slate-400">{{ entry.reference }}</td>
-            </tr>
-            {% empty %}<tr><td colspan="8" class="p-8 text-center text-sm text-slate-500">No manual entries yet.</td></tr>{% endfor %}
-          </tbody>
-        </table>
+        <div class="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-xl shadow-slate-300/40 backdrop-blur-2xl sm:p-8">
+          <h3 class="text-lg font-black text-slate-950">Recent transactions</h3>
+          <div class="mt-4 divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200/80 bg-white">
+            {% for entry in selected.entries %}
+            <div class="flex items-center justify-between gap-3 p-4">
+              <div class="min-w-0">
+                <p class="truncate text-sm font-bold text-slate-900">{{ entry.description|default:entry.get_source_display }}</p>
+                <p class="mt-0.5 text-xs text-slate-500">{{ entry.created_at|date:'d M Y, H:i' }} · {% if entry.recorded_by %}{{ entry.recorded_by.get_full_name|default:entry.recorded_by.username }}{% else %}System{% endif %}{% if entry.external_reference %} · Bank ref {{ entry.external_reference }}{% endif %}</p>
+              </div>
+              <p class="whitespace-nowrap text-sm font-black {% if entry.entry_type == 'CREDIT' %}text-emerald-700{% else %}text-amber-700{% endif %}">{% if entry.entry_type == 'CREDIT' %}+{% else %}-{% endif %}₦{{ entry.amount|floatformat:'2g' }}</p>
+            </div>
+            {% empty %}<p class="p-8 text-center text-sm text-slate-500">No transactions yet.</p>{% endfor %}
+          </div>
+        </div>
+        {% else %}
+        <div class="rounded-[2rem] border border-dashed border-slate-300 bg-white/70 p-12 text-center">
+          <p class="text-lg font-black text-slate-800">Select a parent</p>
+          <p class="mt-1 text-sm text-slate-500">Choose a parent from the list to see their balance and manage it.</p>
+        </div>
+        {% endif %}
+      </section>
+    </div>
+
+    <section class="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-xl shadow-slate-300/40 backdrop-blur-2xl sm:p-8">
+      <h3 class="text-lg font-black text-slate-950">Latest manual entries (all parents)</h3>
+      <div class="mt-4 divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200/80 bg-white">
+        {% for entry in manual_entries %}
+        <div class="flex items-center justify-between gap-3 p-4">
+          <div class="min-w-0">
+            <p class="truncate text-sm font-bold text-slate-900">{{ entry.account.parent.display_name }} · {{ entry.get_source_display }}</p>
+            <p class="mt-0.5 truncate text-xs text-slate-500">{{ entry.created_at|date:'d M Y, H:i' }} · by {% if entry.recorded_by %}{{ entry.recorded_by.get_full_name|default:entry.recorded_by.username }}{% else %}System{% endif %} · {{ entry.description }}{% if entry.external_reference %} · Bank ref {{ entry.external_reference }}{% endif %}</p>
+          </div>
+          <p class="whitespace-nowrap text-sm font-black {% if entry.entry_type == 'CREDIT' %}text-emerald-700{% else %}text-amber-700{% endif %}">{% if entry.entry_type == 'CREDIT' %}+{% else %}-{% endif %}₦{{ entry.amount|floatformat:'2g' }}</p>
+        </div>
+        {% empty %}<p class="p-8 text-center text-sm text-slate-500">No manual entries yet.</p>{% endfor %}
       </div>
     </section>
   </div>
+
+  {% if selected %}
+  <div id="credit-modal" class="fixed inset-0 z-[12000] hidden items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
+    <form method="post" class="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+      {% csrf_token %}
+      <input type="hidden" name="parent_id" value="{{ selected.parent.pk }}">
+      <input type="hidden" name="direction" value="credit">
+      <div class="flex items-start justify-between"><div><p class="text-xs font-bold uppercase tracking-wider text-emerald-600">Add Credit</p><h2 class="mt-1 text-lg font-black text-slate-900">{{ selected.parent.display_name }}</h2></div><button type="button" data-close class="rounded-xl p-2 text-xl text-slate-400 hover:bg-slate-100">&times;</button></div>
+      <label class="mt-4 block text-xs font-bold uppercase tracking-wider text-slate-500">Entry type
+        <select name="kind" class="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm"><option value="bank_transfer">Manual Bank Transfer Credit</option><option value="adjustment">Manual Adjustment</option><option value="correction">Correction</option></select>
+      </label>
+      <label class="mt-3 block text-xs font-bold uppercase tracking-wider text-slate-500">Amount (₦)
+        <input type="number" name="amount" min="0.01" step="0.01" required class="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-base font-bold">
+      </label>
+      <label class="mt-3 block text-xs font-bold uppercase tracking-wider text-slate-500">Bank/payment reference (optional)
+        <input type="text" name="external_reference" class="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+      </label>
+      <label class="mt-3 block text-xs font-bold uppercase tracking-wider text-slate-500">Reason
+        <input type="text" name="description" required placeholder="e.g. Verified from parent's receipt" class="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+      </label>
+      <button type="submit" class="mt-5 w-full rounded-xl bg-emerald-600 px-5 py-3 text-sm font-black text-white hover:bg-emerald-700">Add Credit</button>
+    </form>
+  </div>
+
+  <div id="adjust-modal" class="fixed inset-0 z-[12000] hidden items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
+    <form method="post" class="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+      {% csrf_token %}
+      <input type="hidden" name="parent_id" value="{{ selected.parent.pk }}">
+      <div class="flex items-start justify-between"><div><p class="text-xs font-bold uppercase tracking-wider text-amber-600">Make Adjustment</p><h2 class="mt-1 text-lg font-black text-slate-900">{{ selected.parent.display_name }}</h2></div><button type="button" data-close class="rounded-xl p-2 text-xl text-slate-400 hover:bg-slate-100">&times;</button></div>
+      <div class="mt-4 grid grid-cols-2 gap-3">
+        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500">Type
+          <select name="kind" class="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm"><option value="adjustment">Manual Adjustment</option><option value="correction">Correction</option></select>
+        </label>
+        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500">Direction
+          <select name="direction" class="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm"><option value="debit">Debit (deduct)</option><option value="credit">Credit (add)</option></select>
+        </label>
+      </div>
+      <label class="mt-3 block text-xs font-bold uppercase tracking-wider text-slate-500">Amount (₦)
+        <input type="number" name="amount" min="0.01" step="0.01" required class="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-base font-bold">
+      </label>
+      <label class="mt-3 block text-xs font-bold uppercase tracking-wider text-slate-500">Reference (optional)
+        <input type="text" name="external_reference" class="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+      </label>
+      <label class="mt-3 block text-xs font-bold uppercase tracking-wider text-slate-500">Reason
+        <input type="text" name="description" required class="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+      </label>
+      <button type="submit" class="mt-5 w-full rounded-xl bg-slate-900 px-5 py-3 text-sm font-black text-white hover:bg-slate-700">Submit Adjustment</button>
+    </form>
+  </div>
+  {% endif %}
 </div>
+
+<script>
+(function () {
+  function show(el) { el.classList.remove('hidden'); el.classList.add('flex'); }
+  function hide(el) { el.classList.add('hidden'); el.classList.remove('flex'); }
+  document.querySelectorAll('[data-open]').forEach(function (btn) { btn.addEventListener('click', function () { show(document.getElementById(btn.dataset.open)); }); });
+  document.querySelectorAll('[data-close]').forEach(function (btn) { btn.addEventListener('click', function () { hide(btn.closest('[role=dialog]')); }); });
+  document.querySelectorAll('[role=dialog]').forEach(function (modal) { modal.addEventListener('click', function (e) { if (e.target === modal) hide(modal); }); });
+})();
+</script>
 {% endblock %}
