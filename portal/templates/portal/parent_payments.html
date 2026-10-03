@@ -143,8 +143,7 @@
       <div class="flex items-start justify-between"><h2 id="pay-heading" class="text-lg font-black text-slate-900">Pay</h2><button type="button" data-close class="rounded-xl p-2 text-xl text-slate-400 hover:bg-slate-100">&times;</button></div>
 
       <div id="step-mode" class="mt-4 space-y-3">
-        <p class="text-xs font-bold uppercase tracking-wider text-slate-500">How would you like to pay?</p>
-        <button type="button" data-mode="balance" class="flex w-full items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 text-left transition hover:bg-emerald-100"><span class="text-sm font-black text-emerald-900">Pay from Balance</span><span class="text-sm font-bold text-emerald-800">₦{{ balance|floatformat:'2g' }}</span></button>
+                <button type="button" data-mode="balance" class="flex w-full items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 text-left transition hover:bg-emerald-100"><span class="text-sm font-black text-emerald-900">Pay from Balance</span><span class="text-sm font-bold text-emerald-800">₦{{ balance|floatformat:'2g' }}</span></button>
         <button type="button" data-mode="online" class="flex w-full items-center justify-between rounded-2xl border border-violet-200 bg-violet-50/70 p-4 text-left transition hover:bg-violet-100"><span class="text-sm font-black text-violet-900">Pay Online</span><span class="rounded-full bg-violet-600 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-white">Coming Soon</span></button>
         <button type="button" data-mode="account" class="flex w-full items-center justify-between rounded-2xl border border-blue-200 bg-blue-50/70 p-4 text-left transition hover:bg-blue-100"><span class="text-sm font-black text-blue-900">Pay to Account</span><span class="text-xs font-bold text-blue-700">Bank transfer</span></button>
         <div id="online-note" class="coming-soon-card hidden rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-indigo-50 p-4"><p class="text-sm font-black text-violet-900">Online Payment — Coming Soon</p><p class="mt-1 text-xs text-violet-800">Online payments are currently being set up. Please use Bank Transfer for now.</p></div>
@@ -174,7 +173,7 @@
         {% else %}
         <p class="mt-4 rounded-xl bg-slate-50 p-4 text-center text-sm text-slate-600">Nothing to pay right now.</p>
         {% endif %}
-        <div id="pay-insufficient" class="mt-3 hidden rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">Your balance is not enough. <button type="button" id="pay-add-money" class="font-black underline">Add Money</button></div>
+        <div id="pay-insufficient" class="mt-3 hidden rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">Your balance is not enough. <button type="button" id="pay-add-money" class="font-black underline">Pay to Account instead</button></div>
         <div class="mt-4 flex items-center justify-between text-sm"><span class="font-bold text-slate-500">Total</span><span id="pay-total" class="text-lg font-black text-slate-900">₦0.00</span></div>
         <div class="mt-4 flex gap-3"><button type="button" id="back-to-mode" class="flex-1 rounded-xl bg-slate-100 px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-200">Back</button><button type="submit" id="pay-confirm" class="hidden flex-1 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300" disabled>Pay from Balance</button><button type="button" id="show-account" class="hidden flex-1 rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300" disabled>Continue</button></div>
       </div>
@@ -189,24 +188,9 @@
   </div>
 
   <div id="add-money-modal" class="fixed inset-0 z-[12000] hidden items-center justify-center overflow-y-auto bg-slate-950/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
-    <div class="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl">
-      <div class="flex items-start justify-between"><div><p class="text-xs font-bold uppercase tracking-wider text-emerald-600">Add Money</p><h2 class="mt-1 text-lg font-black text-slate-900">Bank Transfer</h2></div><button type="button" data-close class="rounded-xl p-2 text-xl text-slate-400 hover:bg-slate-100">&times;</button></div>
-      <p class="mt-3 text-sm text-slate-600">Transfer to the account for what you're paying. The bursary credits your balance once confirmed.</p>
-      <div class="mt-4 space-y-3">
-        {% for account in bank_accounts_list %}
-        <div class="rounded-2xl border border-blue-100 bg-blue-50/50 p-4 text-sm">
-          <p class="text-xs font-bold uppercase tracking-wider text-blue-700">{{ account.category }}</p>
-          <p class="mt-1 font-black text-slate-900">{{ account.bank_name }}</p>
-          <p class="font-mono text-base font-bold text-slate-900">{{ account.account_number }}</p>
-          <p class="text-xs text-slate-600">{{ account.account_name }}</p>
-        </div>
-        {% empty %}
-        <p class="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Bank details are not set up yet. Please contact the school bursary.</p>
-        {% endfor %}
-      </div>
-      <p class="mt-4 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-900">After making the transfer, send your payment receipt/proof to WhatsApp: {{ whatsapp_number }}</p>
-      <a href="{{ whatsapp_url }}?text=Hello%2C%20I%20have%20made%20a%20bank%20transfer.%20Sending%20my%20receipt." target="_blank" rel="noopener" class="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700">Send proof on WhatsApp</a>
-      <div class="coming-soon-card mt-3 rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-indigo-50 p-4"><div class="flex items-center justify-between gap-2"><p class="text-sm font-black text-violet-900">Online Payment — Coming Soon</p><span class="coming-soon-badge rounded-full bg-violet-600 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-white">Soon</span></div><p class="mt-1 text-xs text-violet-800">Online payments are currently being set up. Please use Bank Transfer for now.</p></div>
+    <div class="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl">
+      <div class="flex items-start justify-between"><h2 class="text-lg font-black text-slate-900">Add Money</h2><button type="button" data-close class="rounded-xl p-2 text-xl text-slate-400 hover:bg-slate-100">&times;</button></div>
+      <div class="coming-soon-card mt-4 rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-indigo-50 p-5"><div class="flex items-center justify-between gap-2"><p class="text-base font-black text-violet-900">Coming Soon</p><span class="coming-soon-badge rounded-full bg-violet-600 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-white">Soon</span></div><p class="mt-1 text-xs text-violet-800">Online payments are currently being set up.</p></div>
     </div>
   </div>
 </div>
@@ -332,7 +316,7 @@
   document.getElementById('back-to-mode').addEventListener('click', function () { heading.textContent = 'Pay'; showStep('mode'); });
   accountBtn.addEventListener('click', function () { accountInstructions(); showStep('account'); });
   document.getElementById('back-to-select').addEventListener('click', function () { showStep('select'); });
-  document.getElementById('pay-add-money').addEventListener('click', function () { hide(payModal); show(document.getElementById('add-money-modal')); });
+  document.getElementById('pay-add-money').addEventListener('click', function () { document.querySelector('[data-mode=account]').click(); });
   document.querySelectorAll('[data-open]').forEach(function (btn) {
     btn.addEventListener('click', function () { show(document.getElementById(btn.dataset.open)); });
   });
