@@ -368,7 +368,11 @@
             copyButton.addEventListener('click', function () {
                 copyText('Username / ID: ' + entry.username + '\nPassword: ' + entry.password + '\nPortal Link: ' + entry.portal_url, copyButton);
             });
-            card.append(title, details, copyButton);
+            card.append(title, details);
+            var note = document.createElement('p');
+            note.className = 'mt-3 text-xs leading-5 text-slate-300';
+            note.textContent = 'Your initial password is your last name in lowercase. Change it after you sign in.';
+            card.append(note, copyButton);
             cards.appendChild(card);
         });
         acceptanceSuccessView.classList.add('hidden', 'opacity-0');

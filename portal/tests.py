@@ -787,6 +787,53 @@ class StudentRegistrationParentToggleTests(TestCase):
         self.assertFalse(Student.objects.filter(first_name='Ada', last_name='Lovelace').exists())
 
 
+class ParentInitialPasswordLoginTests(TestCase):
+    def setUp(self):
+        self.parent = Parent.objects.create(
+            first_name='Emmanuel', last_name='Fasina', phone_number='08031234567', sex='Male',
+            marital_status='Married', address='Address', state='Lagos', lga='Ikeja',
+        )
+        create_portal_account(self.parent, 'parent', self.parent.last_name)
+        self.parent.refresh_from_db()
+
+    def _login(self, identifier, password):
+        return self.client.post(reverse('login'), {'username': identifier, 'password': password})
+
+    def test_phone_with_lowercase_surname_succeeds(self):
+        self.assertRedirects(self._login('08031234567', 'fasina'), reverse('parent_dashboard'), fetch_redirect_response=False)
+
+    def test_phone_with_capitalised_surname_succeeds_while_password_is_initial(self):
+        self.assertRedirects(self._login('08031234567', 'Fasina'), reverse('parent_dashboard'), fetch_redirect_response=False)
+
+    def test_parent_id_login_still_works_in_both_cases(self):
+        self.assertRedirects(self._login(self.parent.parent_id, 'fasina'), reverse('parent_dashboard'), fetch_redirect_response=False)
+        self.client.logout()
+        self.assertRedirects(self._login(self.parent.parent_id, 'Fasina'), reverse('parent_dashboard'), fetch_redirect_response=False)
+
+    def test_wrong_password_still_fails(self):
+        self.assertEqual(self._login('08031234567', 'wrongname').status_code, 200)
+        self.assertNotIn('_auth_user_id', self.client.session)
+        self.assertEqual(self._login(self.parent.parent_id, 'Fasinaa').status_code, 200)
+        self.assertNotIn('_auth_user_id', self.client.session)
+
+    def test_custom_mixed_case_password_stays_case_sensitive(self):
+        self.parent.user.set_password('MyCustomPass9')
+        self.parent.user.save()
+
+        self.assertEqual(self._login('08031234567', 'mycustompass9').status_code, 200)
+        self.assertNotIn('_auth_user_id', self.client.session)
+        self.assertRedirects(self._login('08031234567', 'MyCustomPass9'), reverse('parent_dashboard'), fetch_redirect_response=False)
+
+    def test_changed_password_no_longer_accepts_the_surname_in_any_case(self):
+        self.parent.user.set_password('MyCustomPass9')
+        self.parent.user.save()
+
+        for password in ('fasina', 'Fasina'):
+            self.client.logout()
+            self.assertEqual(self._login('08031234567', password).status_code, 200)
+            self.assertNotIn('_auth_user_id', self.client.session)
+
+
 class SchoolPaymentBalanceTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(username='balance-parent', password='pass')
