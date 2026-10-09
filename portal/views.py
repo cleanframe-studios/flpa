@@ -93,14 +93,25 @@ def create_portal_account(record, role, password_seed):
     identifier = getattr(record, 'student_id', None) or getattr(record, 'staff_id', None) or getattr(record, 'parent_id', None)
     if not identifier:
         return
-    user, _ = User.objects.get_or_create(username=identifier)
-    user.set_password((password_seed or identifier).strip().lower())
+    user_id = getattr(record, 'user_id', None)
+    user = User.objects.filter(pk=user_id).first() if user_id else None
+    created = False
+    if user is None:
+        user, created = User.objects.get_or_create(username=identifier)
+    if created:
+        user.set_password((password_seed or identifier).strip().lower())
     record_email = getattr(record, 'email', None)
-    if record_email:
+    update_fields = []
+    if created:
+        update_fields.append('password')
+    if record_email and user.email != record_email:
         user.email = record_email
-    user.save(update_fields=['password', 'email'])
-    record.user = user
-    record.save(update_fields=['user'])
+        update_fields.append('email')
+    if update_fields:
+        user.save(update_fields=update_fields)
+    if getattr(record, 'user_id', None) != user.pk:
+        record.user = user
+        record.save(update_fields=['user'])
     AccountProfile.objects.update_or_create(user=user, defaults={'role': role})
 
 @login_required(login_url='login')
@@ -754,7 +765,7 @@ def provision_admission_accounts(applicant, parent_choice=None):
     if not parent:
         parent = Parent.objects.create(
             first_name=name_parts[0],
-            last_name=name_parts[1] if len(name_parts) > 1 else applicant.last_name,
+            last_name=name_parts[1] if len(name_parts) > 1 else '',
             phone_number=guardian_phone,
             sex=guardian['sex'],
             email=guardian_email,
@@ -810,7 +821,7 @@ def provision_batch_admission_accounts(batch, parent=None):
         name_parts = batch.parent_name.split(maxsplit=1)
         parent = Parent.objects.create(
             first_name=name_parts[0],
-            last_name=name_parts[1] if len(name_parts) > 1 else 'Parent',
+            last_name=name_parts[1] if len(name_parts) > 1 else '',
             phone_number=batch.parent_phone,
             sex='Male',
             email=batch.parent_email,

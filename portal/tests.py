@@ -6,7 +6,7 @@ import tempfile
 from decimal import Decimal
 from unittest.mock import patch
 
-from django.contrib.auth import get_user_model
+from django.contrib.auth import authenticate, get_user_model
 from django.core.management import call_command
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
@@ -16,7 +16,7 @@ from django.utils import timezone
 
 from .models import AcademicSession, AcademicTerm, AcademicWeek, AdmissionApplicationBatch, AdmissionCampaign, Applicant, Attendance, AttendanceRegister, AccountProfile, AuditLog, CBTAttempt, CBTExam, CBTQuestion, CBTResponse, ClassRoom, ClassRoomSubject, FeePayment, FeeStructure, FeeStructureItem, Parent, ParentLedgerEntry, ParentPaymentAccount, ResultAccessFee, Student, StudentExamSession, Subject, SubjectResult, StudentFeeAccount, StudentTermRecord, Teacher, TermEnrollment
 from .utils import send_branded_email, send_registration_email
-from .views import parent_payable_charges, create_portal_account, credit_parent_balance, pay_fee_account_balance_from_wallet, pay_result_access_fee_from_wallet, get_or_create_result_access_fee, student_result_access_status, InsufficientBalanceError, ChargeAlreadySettledError, DuplicateReferenceError
+from .views import parent_payable_charges, create_portal_account, provision_admission_accounts, provision_batch_admission_accounts, credit_parent_balance, pay_fee_account_balance_from_wallet, pay_result_access_fee_from_wallet, get_or_create_result_access_fee, student_result_access_status, InsufficientBalanceError, ChargeAlreadySettledError, DuplicateReferenceError
 
 
 class StudentDirectoryTests(TestCase):
@@ -461,6 +461,9 @@ class AdmissionApprovalWorkflowTests(TestCase):
         self.assertEqual(student.parent, parent)
         self.assertEqual(parent.first_name, 'Grace')
         self.assertEqual(parent.last_name, 'Lovelace')
+        self.assertTrue(parent.user.check_password('lovelace'))
+        self.assertIsNotNone(authenticate(username=parent.phone_number, password='lovelace'))
+        self.assertIsNotNone(authenticate(username=parent.parent_id, password='lovelace'))
         self.assertEqual(applicant.student_id, student.student_id)
         self.assertEqual(applicant.parent_id, parent.parent_id)
         self.assertRegex(parent.parent_id, r'^FLA/PAR/2026/\d{3}$')
@@ -582,6 +585,20 @@ class AdmissionApprovalWorkflowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(Parent.objects.filter(pk=parent.pk).exists())
 
+    def test_single_name_admission_parent_uses_first_name_as_initial_password(self):
+        self.applicant.admission_status = 'Approved'
+        self.applicant.parent_name = 'Grace'
+        self.applicant.father_name = 'Grace'
+        self.applicant.father_phone = '08087654321'
+        self.applicant.father_address = 'One Main Street'
+        self.applicant.save()
+
+        student, parent = provision_admission_accounts(self.applicant, 'father')
+
+        self.assertIsNotNone(student)
+        self.assertEqual(parent.last_name, '')
+        self.assertTrue(parent.user.check_password('grace'))
+
 
 class ParentChildApplicationTests(TestCase):
     def setUp(self):
@@ -695,6 +712,23 @@ class PublicBatchApplicationTests(TestCase):
         parent = Parent.objects.get(phone_number='08012345678')
         self.assertEqual(Student.objects.filter(parent=parent).count(), 2)
         self.assertEqual(Parent.objects.filter(phone_number='08012345678').count(), 1)
+        self.assertTrue(parent.user.check_password('lovelace'))
+
+    def test_batch_one_word_parent_name_uses_first_name_as_password_seed(self):
+        batch = AdmissionApplicationBatch.objects.create(
+            campaign=self.campaign, parent_name='Grace', parent_phone='08087654321',
+        )
+        Applicant.objects.create(
+            campaign=self.campaign, application_batch=batch, first_name='Ada', last_name='Student',
+            sex='Female', date_of_birth=datetime.date(2018, 4, 12), intended_class=self.classroom,
+        )
+
+        parent, students = provision_batch_admission_accounts(batch)
+
+        self.assertEqual(len(students), 1)
+        self.assertEqual(parent.first_name, 'Grace')
+        self.assertEqual(parent.last_name, '')
+        self.assertTrue(parent.user.check_password('grace'))
 
 
 class StudentRegistrationParentToggleTests(TestCase):
@@ -782,6 +816,20 @@ class StudentRegistrationParentToggleTests(TestCase):
         student = Student.objects.get(first_name='Ada', last_name='Lovelace')
         parent = Parent.objects.get(phone_number='08012345678')
         self.assertEqual(student.parent, parent)
+        self.assertTrue(parent.user.check_password('lovelace'))
+
+    def test_parents_manager_uses_new_parent_surname_as_initial_password(self):
+        response = self.client.post(reverse('parents'), {
+            'action': 'create_parent', 'first_name': 'Grace', 'last_name': 'Hopper',
+            'phone_number': '08012345678', 'sex': 'Female', 'marital_status': 'Married',
+            'address': 'Address', 'state': 'Lagos', 'lga': 'Ikeja',
+        })
+
+        self.assertRedirects(response, reverse('parents'))
+        parent = Parent.objects.get(phone_number='08012345678')
+        self.assertTrue(parent.user.check_password('hopper'))
+        self.assertIsNotNone(authenticate(username=parent.phone_number, password='hopper'))
+        self.assertIsNotNone(authenticate(username=parent.parent_id, password='hopper'))
 
     def test_create_new_parent_radio_creates_and_links_parent(self):
         response = self.client.post(reverse('students'), self.student_data(
@@ -817,6 +865,61 @@ class StudentRegistrationParentToggleTests(TestCase):
         self.assertRedirects(response, reverse('students'))
         self.assertFalse(Student.objects.filter(first_name='Ada', last_name='Lovelace').exists())
 
+
+class ParentAccountProvisioningTests(TestCase):
+    def setUp(self):
+        self.parent = Parent.objects.create(
+            first_name='Grace', last_name='Hopper', phone_number='08034561234', sex='Female',
+            marital_status='Married', address='Address', state='Lagos', lga='Ikeja',
+        )
+
+    def test_shared_helper_sets_new_parent_surname_password_and_both_login_ids(self):
+        create_portal_account(self.parent, 'parent', self.parent.last_name)
+        self.parent.refresh_from_db()
+
+        self.assertTrue(self.parent.user.check_password('hopper'))
+        self.assertIsNotNone(authenticate(username=self.parent.phone_number, password='hopper'))
+        self.assertIsNotNone(authenticate(username=self.parent.parent_id, password='hopper'))
+
+    def test_reprovisioning_linked_parent_does_not_reset_custom_password(self):
+        create_portal_account(self.parent, 'parent', self.parent.last_name)
+        self.parent.user.set_password('KeepThisMixedCase9')
+        self.parent.user.save(update_fields=['password'])
+
+        create_portal_account(self.parent, 'parent', 'changed seed')
+        self.parent.user.refresh_from_db()
+
+        self.assertTrue(self.parent.user.check_password('KeepThisMixedCase9'))
+        self.assertFalse(self.parent.user.check_password('hopper'))
+        self.assertIsNotNone(authenticate(username=self.parent.parent_id, password='KeepThisMixedCase9'))
+
+    def test_reprovisioning_existing_username_without_link_does_not_reset_password(self):
+        user = get_user_model().objects.create_user(username=self.parent.parent_id, password='ExistingCustom9')
+
+        create_portal_account(self.parent, 'parent', self.parent.last_name)
+        self.parent.refresh_from_db()
+
+        self.assertEqual(self.parent.user, user)
+        self.assertTrue(user.check_password('ExistingCustom9'))
+        self.assertFalse(user.check_password('hopper'))
+
+    def test_backfill_uses_first_name_for_parent_without_surname(self):
+        self.parent.last_name = ''
+        self.parent.save(update_fields=['last_name'])
+        call_command('backfill_accounts', stdout=io.StringIO())
+        self.parent.refresh_from_db()
+
+        self.assertTrue(self.parent.user.check_password('grace'))
+
+    def test_backfill_does_not_reset_an_existing_username_password(self):
+        user = get_user_model().objects.create_user(username=self.parent.parent_id, password='BackfillCustom9')
+
+        call_command('backfill_accounts', stdout=io.StringIO())
+        self.parent.refresh_from_db()
+
+        self.assertEqual(self.parent.user, user)
+        self.assertTrue(user.check_password('BackfillCustom9'))
+        self.assertFalse(user.check_password('hopper'))
 
 class SchoolPaymentBalanceTests(TestCase):
     def setUp(self):

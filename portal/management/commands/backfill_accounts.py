@@ -28,10 +28,14 @@ class Command(BaseCommand):
                 user = record.user
                 if user is None:
                     user, created = user_model.objects.get_or_create(username=username)
-                    password = (getattr(record, 'last_name', '') or username).strip().lower()
-                    user.set_password(password)
-                    user.save(update_fields=['password'])
                     if created:
+                        password = (
+                            getattr(record, 'last_name', '')
+                            or getattr(record, 'first_name', '')
+                            or username
+                        ).strip().lower()
+                        user.set_password(password)
+                        user.save(update_fields=['password'])
                         created_accounts += 1
                     record.user = user
                     record.save(update_fields=['user'])
