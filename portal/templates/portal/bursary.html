@@ -9,11 +9,6 @@
       <p class="mt-1 text-sm text-emerald-100">Review and reconcile student fee accounts across all academic terms.</p>
     </header>
 
-    <a href="{% url 'parent_payment_accounts' %}" class="flex items-center justify-between gap-4 rounded-3xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm transition hover:bg-emerald-100">
-      <div><p class="text-xs font-bold uppercase tracking-[0.2em] text-emerald-700">Parent School Payment Balances</p><p class="mt-1 text-lg font-black text-slate-900">Credit a verified bank transfer or make an adjustment</p><p class="mt-1 text-sm text-slate-600">Search a parent, see their balance and add credit.</p></div>
-      <span class="whitespace-nowrap rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white">Open &rarr;</span>
-    </a>
-
     <script>window.resultTermsMap = {{ terms_json|default:'{}'|safe }};</script>
     <form method="get" class="grid gap-3 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:grid-cols-4">
       {% include 'portal/result_filter_combobox.html' with field_name='session' label='Session' selected_value=selected_session selected_label=selected_session_obj.name options=sessions %}

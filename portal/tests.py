@@ -1,4 +1,4 @@
-import datetime
+﻿import datetime
 import io
 import re
 import os
@@ -834,13 +834,23 @@ class SchoolPaymentBalanceTests(TestCase):
         self.child_b = Student.objects.create(first_name='Augusta', last_name='Lovelace', sex='Female', date_of_birth='2016-01-01', state_of_origin='Lagos', lga_of_origin='Ikeja', program='Primary (PRY)', current_class=self.classroom, parent=self.parent)
 
     def test_creating_parent_payment_account_and_crediting(self):
-        entry = credit_parent_balance(self.parent, Decimal('100000'), source='MANUAL_ADJUSTMENT', description='Test credit')
+        entry = credit_parent_balance(self.parent, Decimal('100000'), source='PAYSTACK_DVA', description='Test credit')
         account = ParentPaymentAccount.objects.get(parent=self.parent)
         self.assertEqual(account.balance, Decimal('100000'))
         self.assertEqual(entry.entry_type, 'CREDIT')
 
+    def test_manual_school_account_transfer_cannot_credit_balance(self):
+        with self.assertRaisesMessage(ValueError, 'only from a verified Paystack DVA deposit'):
+            credit_parent_balance(self.parent, Decimal('100000'), source='MANUAL_BANK_TRANSFER')
+        self.assertFalse(ParentPaymentAccount.objects.filter(parent=self.parent).exists())
+
+    def test_manual_school_bank_transfer_cannot_fund_parent_balance(self):
+        with self.assertRaisesMessage(ValueError, 'only from a verified Paystack DVA deposit'):
+            credit_parent_balance(self.parent, Decimal('100000'), source='MANUAL_BANK_TRANSFER')
+        self.assertFalse(ParentPaymentAccount.objects.filter(parent=self.parent).exists())
+
     def test_paying_one_child_charge_reduces_balance_correctly(self):
-        credit_parent_balance(self.parent, Decimal('100000'), source='MANUAL_ADJUSTMENT')
+        credit_parent_balance(self.parent, Decimal('100000'), source='PAYSTACK_DVA')
         account = StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=60000)
         pay_fee_account_balance_from_wallet(self.parent, self.user, account.pk, Decimal('50000'))
         payment_account = ParentPaymentAccount.objects.get(parent=self.parent)
@@ -849,7 +859,7 @@ class SchoolPaymentBalanceTests(TestCase):
         self.assertEqual(account.amount_paid, Decimal('50000'))
 
     def test_paying_charge_for_another_child_uses_shared_balance(self):
-        credit_parent_balance(self.parent, Decimal('100000'), source='MANUAL_ADJUSTMENT')
+        credit_parent_balance(self.parent, Decimal('100000'), source='PAYSTACK_DVA')
         account_a = StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=60000)
         account_b = StudentFeeAccount.objects.create(student=self.child_b, term=self.term, session=self.session, total_billed=15000)
         pay_fee_account_balance_from_wallet(self.parent, self.user, account_a.pk, Decimal('60000'))
@@ -858,7 +868,7 @@ class SchoolPaymentBalanceTests(TestCase):
         self.assertEqual(payment_account.balance, Decimal('25000'))
 
     def test_insufficient_balance_raises_and_does_not_debit(self):
-        credit_parent_balance(self.parent, Decimal('10000'), source='MANUAL_ADJUSTMENT')
+        credit_parent_balance(self.parent, Decimal('10000'), source='PAYSTACK_DVA')
         account = StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=60000)
         with self.assertRaises(InsufficientBalanceError):
             pay_fee_account_balance_from_wallet(self.parent, self.user, account.pk, Decimal('50000'))
@@ -868,16 +878,16 @@ class SchoolPaymentBalanceTests(TestCase):
         self.assertEqual(account.amount_paid, Decimal('0'))
 
     def test_duplicate_charge_payment_is_rejected(self):
-        credit_parent_balance(self.parent, Decimal('100000'), source='MANUAL_ADJUSTMENT')
+        credit_parent_balance(self.parent, Decimal('100000'), source='PAYSTACK_DVA')
         account = StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=60000)
         pay_fee_account_balance_from_wallet(self.parent, self.user, account.pk, Decimal('60000'))
         with self.assertRaises(ChargeAlreadySettledError):
             pay_fee_account_balance_from_wallet(self.parent, self.user, account.pk, Decimal('60000'))
 
     def test_duplicate_credit_reference_is_rejected(self):
-        credit_parent_balance(self.parent, Decimal('5000'), source='MANUAL_ADJUSTMENT', reference='FIXED-REF-1')
+        credit_parent_balance(self.parent, Decimal('5000'), source='PAYSTACK_DVA', reference='FIXED-REF-1')
         with self.assertRaises(DuplicateReferenceError):
-            credit_parent_balance(self.parent, Decimal('5000'), source='MANUAL_ADJUSTMENT', reference='FIXED-REF-1')
+            credit_parent_balance(self.parent, Decimal('5000'), source='PAYSTACK_DVA', reference='FIXED-REF-1')
         payment_account = ParentPaymentAccount.objects.get(parent=self.parent)
         self.assertEqual(payment_account.balance, Decimal('5000'))
 
@@ -896,7 +906,7 @@ class SchoolPaymentBalanceTests(TestCase):
 
     def test_result_unlocked_after_access_fee_paid(self):
         StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=5000, amount_paid=5000)
-        credit_parent_balance(self.parent, Decimal('200'), source='MANUAL_ADJUSTMENT')
+        credit_parent_balance(self.parent, Decimal('200'), source='PAYSTACK_DVA')
         fee = get_or_create_result_access_fee(self.child_a, self.term)
         pay_result_access_fee_from_wallet(self.parent, self.user, fee.pk)
         status = student_result_access_status(self.child_a, self.term)
@@ -905,7 +915,7 @@ class SchoolPaymentBalanceTests(TestCase):
     def test_first_term_payment_does_not_unlock_second_term(self):
         second_term = AcademicTerm.objects.create(session=self.session, term_name='Second Term')
         StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=5000, amount_paid=5000)
-        credit_parent_balance(self.parent, Decimal('200'), source='MANUAL_ADJUSTMENT')
+        credit_parent_balance(self.parent, Decimal('200'), source='PAYSTACK_DVA')
         fee = get_or_create_result_access_fee(self.child_a, self.term)
         pay_result_access_fee_from_wallet(self.parent, self.user, fee.pk)
         second_term_status = student_result_access_status(self.child_a, second_term)
@@ -913,7 +923,7 @@ class SchoolPaymentBalanceTests(TestCase):
         self.assertFalse(second_term_status['result_access_fee'].is_paid)
 
     def test_parent_with_multiple_children_shares_one_balance(self):
-        credit_parent_balance(self.parent, Decimal('100000'), source='MANUAL_ADJUSTMENT')
+        credit_parent_balance(self.parent, Decimal('100000'), source='PAYSTACK_DVA')
         account_a = StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=60000)
         account_b = StudentFeeAccount.objects.create(student=self.child_b, term=self.term, session=self.session, total_billed=15000)
         pay_fee_account_balance_from_wallet(self.parent, self.user, account_a.pk, Decimal('60000'))
@@ -922,63 +932,14 @@ class SchoolPaymentBalanceTests(TestCase):
         self.assertEqual(payment_account.balance, Decimal('25000'))
         self.assertEqual(payment_account.ledger_entries.filter(entry_type='DEBIT').count(), 2)
 
-    def _staff_client(self):
-        from django.test import Client
-        staff = get_user_model().objects.create_user(username='manual-bursar', password='pass', is_staff=True)
-        AccountProfile.objects.create(user=staff, role='bursar')
-        client = Client()
-        client.force_login(staff)
-        return staff, client
-
-    def test_bursar_manual_bank_transfer_credit_is_ledgered_audited_and_not_auto_allocated(self):
-        staff, client = self._staff_client()
-        account = StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=60000)
-
-        response = client.post(reverse('parent_payment_accounts'), {
-            'parent_id': self.parent.pk, 'kind': 'bank_transfer', 'direction': 'credit',
-            'amount': '100000', 'description': 'Verified from receipt', 'external_reference': 'BANK-REF-1',
-        })
-
-        self.assertRedirects(response, f"{reverse('parent_payment_accounts')}?parent={self.parent.pk}")
-        entry = ParentLedgerEntry.objects.get(external_reference='BANK-REF-1')
-        self.assertEqual(entry.source, 'MANUAL_BANK_TRANSFER')
-        self.assertEqual(entry.recorded_by, staff)
-        self.assertIn('Manual Bank Transfer Credit', entry.description)
-        self.assertEqual(ParentPaymentAccount.objects.get(parent=self.parent).balance, Decimal('100000'))
-        account.refresh_from_db()
-        self.assertEqual(account.amount_paid, 0)
-        audit = AuditLog.objects.get(action_type='PARENT_BALANCE_CREDITED')
-        self.assertEqual(audit.user, staff)
-        self.assertEqual(audit.changes_json['after']['external_reference'], 'BANK-REF-1')
-
-    def test_duplicate_bank_reference_is_not_credited_twice(self):
-        _, client = self._staff_client()
-        data = {'parent_id': self.parent.pk, 'kind': 'bank_transfer', 'direction': 'credit', 'amount': '5000', 'description': 'x', 'external_reference': 'DUP-1'}
-        client.post(reverse('parent_payment_accounts'), data)
-        client.post(reverse('parent_payment_accounts'), data)
-        self.assertEqual(ParentPaymentAccount.objects.get(parent=self.parent).balance, Decimal('5000'))
-
-    def test_manual_debit_is_audited_and_cannot_go_negative(self):
-        staff, client = self._staff_client()
-        credit_parent_balance(self.parent, Decimal('1000'), source='MANUAL_ADJUSTMENT')
-        base = {'parent_id': self.parent.pk, 'kind': 'correction', 'direction': 'debit', 'description': 'Wrong parent credited'}
-        client.post(reverse('parent_payment_accounts'), {**base, 'amount': '5000'})
-        self.assertEqual(ParentPaymentAccount.objects.get(parent=self.parent).balance, Decimal('1000'))
-        client.post(reverse('parent_payment_accounts'), {**base, 'amount': '400'})
-        self.assertEqual(ParentPaymentAccount.objects.get(parent=self.parent).balance, Decimal('600'))
-        self.assertTrue(AuditLog.objects.filter(action_type='PARENT_BALANCE_DEBITED', user=staff).exists())
-        self.assertTrue(ParentLedgerEntry.objects.filter(source='MANUAL_CORRECTION', entry_type='DEBIT').exists())
-
-    def test_manual_entry_requires_reason(self):
-        _, client = self._staff_client()
-        client.post(reverse('parent_payment_accounts'), {'parent_id': self.parent.pk, 'kind': 'adjustment', 'direction': 'credit', 'amount': '100', 'description': ''})
-        self.assertFalse(ParentLedgerEntry.objects.exists())
-
     def test_parent_sees_balance_spends_part_and_balance_updates(self):
-        credit_parent_balance(self.parent, Decimal('100000'), source='MANUAL_BANK_TRANSFER')
+        credit_parent_balance(self.parent, Decimal('100000'), source='PAYSTACK_DVA')
         account = StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=60000)
         self.assertContains(self.client.get(reverse('parent_payments')), '100,000.00')
-        self.client.post(reverse('parent_pay_charge'), {'charge_type': 'fee_account', 'charge_id': account.pk, 'amount': '30000'})
+        self.client.post(reverse('parent_pay_selected'), {
+            'charge': [f'fee_account|{account.pk}'],
+            f'amount::fee_account|{account.pk}': '30000',
+        })
         self.assertEqual(ParentPaymentAccount.objects.get(parent=self.parent).balance, Decimal('70000'))
         self.assertContains(self.client.get(reverse('parent_payments')), '70,000.00')
 
@@ -993,61 +954,25 @@ class SchoolPaymentBalanceTests(TestCase):
         self.assertContains(response, '6507146199')
         self.assertContains(response, '07063747789')
         self.assertContains(response, 'https://wa.me/2347063747789')
-        self.assertContains(response, 'Online Payment — Coming Soon')
-        self.assertContains(response, 'Online payments are currently being set up. Please use Bank Transfer for now.')
+        self.assertContains(response, 'Paystack funding — Coming Soon')
+        self.assertContains(response, 'Dedicated Paystack account funding is not active yet.')
         self.assertContains(response, 'Pay from Balance')
         self.assertNotContains(response, 'paystack')
 
-    def test_complete_parent_payment_flow_through_the_ui(self):
-        _, staff_client = self._staff_client()
-        account = StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=80000)
-        staff_client.post(reverse('parent_payment_accounts'), {
-            'parent_id': self.parent.pk, 'kind': 'bank_transfer', 'direction': 'credit',
-            'amount': '100000', 'description': 'Verified', 'external_reference': 'FLOW-1',
-        })
-
-        page = self.client.get(reverse('parent_bursary'))
-        self.assertContains(page, '₦100,000.00')
-        self.assertContains(page, 'Pay from Balance')
-        self.assertContains(page, 'data-charge-type="fee_account"')
-        self.assertContains(page, 'Ada Lovelace')
-
-        response = self.client.post(reverse('parent_pay_charge'), {'charge_type': 'fee_account', 'charge_id': account.pk, 'amount': '80000'}, follow=True)
-
-        self.assertContains(response, 'Payment successful')
-        self.assertContains(response, '₦20,000.00')
-        account.refresh_from_db()
-        self.assertEqual(account.balance, 0)
-        self.assertTrue(account.is_cleared)
-        debit = ParentLedgerEntry.objects.get(entry_type='DEBIT')
-        self.assertContains(response, debit.reference)
-        self.assertNotContains(response, 'data-charge-type="fee_account"')
-
     def test_insufficient_balance_payment_is_rejected_with_message(self):
         account = StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=80000)
-        credit_parent_balance(self.parent, Decimal('1000'), source='MANUAL_BANK_TRANSFER')
+        credit_parent_balance(self.parent, Decimal('1000'), source='PAYSTACK_DVA')
 
-        response = self.client.post(reverse('parent_pay_charge'), {'charge_type': 'fee_account', 'charge_id': account.pk, 'amount': '80000'}, follow=True)
+        response = self.client.post(reverse('parent_pay_selected'), {
+            'charge': [f'fee_account|{account.pk}'],
+            f'amount::fee_account|{account.pk}': '80000',
+        }, follow=True)
 
         self.assertContains(response, 'Insufficient School Payment Balance')
         self.assertEqual(ParentPaymentAccount.objects.get(parent=self.parent).balance, Decimal('1000'))
 
-    def test_bursary_page_shows_plain_currency_and_real_action_buttons(self):
-        _, staff_client = self._staff_client()
-        credit_parent_balance(self.parent, Decimal('100000'), source='MANUAL_BANK_TRANSFER')
-
-        response = staff_client.get(reverse('parent_payment_accounts'), {'parent': self.parent.pk})
-
-        self.assertContains(response, '₦100,000.00')
-        self.assertContains(response, 'Add Credit')
-        self.assertContains(response, 'Make Adjustment')
-        self.assertContains(response, 'Grace Hopper')
-        self.assertNotContains(response, '\\(')
-        self.assertNotContains(response, '$$')
-        self.assertNotContains(response, 'ParentPaymentAccount object')
-
     def test_pay_selected_pays_several_charges_for_different_children_at_once(self):
-        credit_parent_balance(self.parent, Decimal('100000'), source='MANUAL_BANK_TRANSFER')
+        credit_parent_balance(self.parent, Decimal('100000'), source='PAYSTACK_DVA')
         account_a = StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=60000)
         account_b = StudentFeeAccount.objects.create(student=self.child_b, term=self.term, session=self.session, total_billed=15000)
 
@@ -1061,7 +986,7 @@ class SchoolPaymentBalanceTests(TestCase):
         self.assertEqual(ParentLedgerEntry.objects.filter(entry_type='DEBIT').count(), 2)
 
     def test_pay_selected_is_all_or_nothing_when_balance_is_short(self):
-        credit_parent_balance(self.parent, Decimal('10000'), source='MANUAL_BANK_TRANSFER')
+        credit_parent_balance(self.parent, Decimal('10000'), source='PAYSTACK_DVA')
         account_a = StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=8000)
         account_b = StudentFeeAccount.objects.create(student=self.child_b, term=self.term, session=self.session, total_billed=8000)
 
@@ -1110,11 +1035,12 @@ class SchoolPaymentBalanceTests(TestCase):
 
     @patch('portal.views._notify_users', side_effect=Exception('notification system down'))
     def test_notification_failure_does_not_reverse_successful_payment(self, mock_notify):
-        credit_parent_balance(self.parent, Decimal('100000'), source='MANUAL_ADJUSTMENT')
+        credit_parent_balance(self.parent, Decimal('100000'), source='PAYSTACK_DVA')
         account = StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=60000)
 
-        response = self.client.post(reverse('parent_pay_charge'), {
-            'charge_type': 'fee_account', 'charge_id': account.pk, 'amount': '60000',
+        response = self.client.post(reverse('parent_pay_selected'), {
+            'charge': [f'fee_account|{account.pk}'],
+            f'amount::fee_account|{account.pk}': '60000',
         })
 
         self.assertRedirects(response, reverse('parent_payments'))
