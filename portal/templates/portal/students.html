@@ -251,7 +251,8 @@
                 </label>
             </div>
 
-            <div class="border-t border-slate-100 pt-5">
+            <div id="parent-link-section" class="border-t border-slate-100 pt-5">
+                <div id="parent-link-error-summary" class="mb-4 hidden rounded-xl border border-rose-300 bg-rose-50 p-3 text-sm font-semibold text-rose-800" role="alert"></div>
                 <div class="mb-4 rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
                     <p class="text-xs font-black uppercase tracking-wider text-blue-800">Parent linking</p>
                     <div class="mt-3 flex flex-wrap gap-4 text-xs font-semibold text-blue-900">
@@ -648,4 +649,76 @@
 <script>
 document.querySelectorAll('#student-print-modal, #student-modal').forEach(modal => document.body.appendChild(modal));
 </script>
+{{ parent_link_form_state|json_script:"parent-link-form-state" }}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const stateNode = document.getElementById('parent-link-form-state');
+    const state = stateNode ? JSON.parse(stateNode.textContent || 'null') : null;
+    if (!state) return;
+
+    const modal = document.getElementById('student-modal');
+    const mode = state.parent_mode || 'new';
+    const modeRadio = document.querySelector('input[name="parent_mode"][value="' + mode + '"]');
+    if (modeRadio) {
+        modeRadio.checked = true;
+        modeRadio.dispatchEvent(new Event('change', {bubbles: true}));
+    }
+
+    Object.keys(state.values || {}).forEach(function (name) {
+        const field = document.querySelector('#student-modal [name="' + name + '"]');
+        if (!field || !state.values[name]) return;
+        field.value = state.values[name];
+        if (name === 'parent_state') field.dispatchEvent(new Event('change', {bubbles: true}));
+    });
+
+    const existingId = state.existing_parent;
+    if (existingId) {
+        const hidden = document.getElementById('existing_parent');
+        const display = document.getElementById('existing_parent_search');
+        const option = document.querySelector('#existing-parent-fields .option-item[data-value="' + existingId + '"]');
+        if (hidden) hidden.value = existingId;
+        if (display && option) display.value = option.textContent.trim();
+    }
+
+    setTimeout(function () {
+        if (state.values && state.values.parent_lga) {
+            const lga = document.querySelector('#student-modal [name="parent_lga"]');
+            if (lga) lga.value = state.values.parent_lga;
+        }
+    }, 0);
+
+    const summary = document.getElementById('parent-link-error-summary');
+    summary.textContent = state.summary || 'Please correct the highlighted parent details.';
+    summary.classList.remove('hidden');
+    const section = document.getElementById('parent-link-section');
+    section.classList.add('rounded-2xl', 'border', 'border-rose-300', 'bg-rose-50/40', 'p-3');
+
+    let firstInvalid = null;
+    Object.keys(state.errors || {}).forEach(function (name) {
+        const message = state.errors[name];
+        let field = document.querySelector('#student-modal [name="' + name + '"]');
+        let anchor = field;
+        if (name === 'existing_parent') {
+            anchor = document.querySelector('#existing-parent-fields .select-box');
+            field = document.getElementById('existing_parent_search');
+        } else if (field && field.closest('.custom-select')) {
+            anchor = field.closest('.custom-select').querySelector('.select-box');
+        }
+        if (!anchor) return;
+        anchor.classList.add('parent-field-invalid');
+        const feedback = document.createElement('p');
+        feedback.className = 'parent-field-error mt-1 text-xs font-semibold text-rose-700';
+        feedback.textContent = message;
+        const parent = name === 'existing_parent' ? anchor.parentElement : (field.closest('label') || anchor.parentElement);
+        parent.appendChild(feedback);
+        if (!firstInvalid) firstInvalid = field || anchor;
+    });
+
+    modal.classList.remove('hidden');
+    if (firstInvalid) setTimeout(function () { firstInvalid.focus(); firstInvalid.scrollIntoView({block: 'center', behavior: 'smooth'}); }, 80);
+});
+</script>
+<style>
+    .parent-field-invalid { border-color: #e11d48 !important; background-color: #fff1f2 !important; box-shadow: 0 0 0 3px rgba(225, 29, 72, .12) !important; }
+</style>
 {% endblock %}

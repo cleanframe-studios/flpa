@@ -5487,6 +5487,21 @@ def students_view(request):
         parent_form = StudentParentForm(parent_form_data)
         parent_mode = parent_form.cleaned_data.get('parent_mode') if parent_form.is_valid() else parent_form_data.get('parent_mode', '')
 
+        def retain_parent_link_form(errors, summary='Please correct the highlighted parent details.'):
+            fields = (
+                'parent_first_name', 'parent_last_name', 'parent_phone_number', 'parent_email',
+                'parent_sex', 'parent_marital_status', 'parent_address', 'parent_state', 'parent_lga',
+            )
+            request.session['student_parent_link_form_state'] = {
+                'parent_mode': parent_mode,
+                'values': {field: request.POST.get(field, '') for field in fields},
+                'existing_parent': request.POST.get('existing_parent', ''),
+                'errors': errors,
+                'summary': summary,
+            }
+            messages.error(request, summary)
+            return redirect('students')
+
         # Handle class selection - auto-assign immediately
         current_class_obj = None
         if class_id:
@@ -5528,8 +5543,10 @@ def students_view(request):
         parent = None
         if parent_mode == 'existing':
             if not parent_form.is_valid():
-                messages.error(request, 'Please select an existing parent.')
-                return redirect('students')
+                return retain_parent_link_form(
+                    {'existing_parent': 'Select an existing parent from the list.'},
+                    'Select the existing parent you want to link.',
+                )
             parent = parent_form.cleaned_data['existing_parent']
         elif parent_mode == 'new' or link_parent:
             parent_required_fields = {
@@ -5544,8 +5561,12 @@ def students_view(request):
             }
             missing_parent_fields = [label for field, label in parent_required_fields.items() if not request.POST.get(field, '').strip()]
             if missing_parent_fields:
-                messages.error(request, f"Please complete the new parent's {', '.join(missing_parent_fields)}.")
-                return redirect('students')
+                missing_fields = [field for field in parent_required_fields if not request.POST.get(field, '').strip()]
+                errors = {field: 'This field is required.' for field in missing_fields}
+                return retain_parent_link_form(
+                    errors,
+                    f"Complete the highlighted details for the new parent: {', '.join(missing_parent_fields)}.",
+                )
         try:
             with transaction.atomic():
                 if parent_mode == 'new' or link_parent:
@@ -5582,7 +5603,13 @@ def students_view(request):
                 )
                 create_portal_account(student, 'student', student.last_name)
         except (IntegrityError, ValidationError, OSError, ValueError):
-            messages.error(request, 'The student, parent, or uploaded file could not be saved. Please check the details and try again.')
+            parent_phone = normalize_phone_number(request.POST.get('parent_phone_number', ''))
+            if parent_mode == 'new' and parent_phone and Parent.objects.filter(phone_number=parent_phone).exists():
+                return retain_parent_link_form(
+                    {'parent_phone_number': 'This phone number is already linked to a parent. Select that parent instead.'},
+                    'That phone number already belongs to a parent. Select the existing parent or use a different number.',
+                )
+            messages.error(request, 'The student or parent details could not be saved. Check the highlighted fields and try again.')
             return redirect('students')
 
         if current_class_obj:
@@ -5645,6 +5672,7 @@ def students_view(request):
         })) if teacher else '[]',
         'student_counts': student_counts,
         'parent_registration_form': StudentParentForm(),
+        'parent_link_form_state': request.session.pop('student_parent_link_form_state', None),
     }
     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
         return render(request, 'portal/partials/student_directory_results.html', context)

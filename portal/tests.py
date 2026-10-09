@@ -733,11 +733,42 @@ class StudentRegistrationParentToggleTests(TestCase):
     def test_enabled_parent_link_requires_all_parent_fields(self):
         response = self.client.post(reverse('students'), self.student_data(
             link_parent='on', parent_first_name='Grace',
-        ))
+        ), follow=True)
 
-        self.assertRedirects(response, reverse('students'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'parent-link-error-summary')
+        self.assertContains(response, 'parent_phone_number')
+        self.assertEqual(response.context['parent_link_form_state']['values']['parent_first_name'], 'Grace')
+        self.assertIn('Complete the highlighted details', response.context['parent_link_form_state']['summary'])
+        self.assertEqual(response.context['parent_link_form_state']['errors']['parent_last_name'], 'This field is required.')
         self.assertFalse(Student.objects.filter(first_name='Ada', last_name='Lovelace').exists())
         self.assertFalse(Parent.objects.exists())
+
+    def test_duplicate_parent_phone_highlights_phone_and_preserves_values(self):
+        existing_parent = Parent.objects.create(
+            first_name='Grace', last_name='Lovelace', phone_number='08012345678', sex='Female',
+            marital_status='Married', address='One Main Street', state='Lagos', lga='Ikeja',
+        )
+
+        response = self.client.post(reverse('students'), self.student_data(
+            parent_mode='new', parent_first_name='New', parent_last_name='Guardian',
+            parent_phone_number=existing_parent.phone_number, parent_sex='Female',
+            parent_marital_status='Married', parent_address='New Street',
+            parent_state='Lagos', parent_lga='Ikeja',
+        ), follow=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'This phone number is already linked to a parent.')
+        self.assertEqual(response.context['parent_link_form_state']['errors']['parent_phone_number'], 'This phone number is already linked to a parent. Select that parent instead.')
+        self.assertEqual(response.context['parent_link_form_state']['values']['parent_first_name'], 'New')
+        self.assertFalse(Student.objects.filter(first_name='Ada', last_name='Lovelace').exists())
+
+    def test_existing_parent_missing_selection_reopens_and_highlights_selector(self):
+        response = self.client.post(reverse('students'), self.student_data(parent_mode='existing'), follow=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Select the existing parent you want to link.')
+        self.assertEqual(response.context['parent_link_form_state']['errors']['existing_parent'], 'Select an existing parent from the list.')
 
     def test_enabled_parent_link_creates_and_links_parent(self):
         response = self.client.post(reverse('students'), self.student_data(
