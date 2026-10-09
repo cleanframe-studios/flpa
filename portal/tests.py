@@ -1126,6 +1126,26 @@ class SchoolPaymentBalanceTests(TestCase):
         self.assertEqual(charges['Excursion'], 'Other Payments')
         self.assertEqual(charges['Christmas'], 'Contact School')
 
+    def test_excursion_amount_is_rounded_in_storage_backend_and_parent_ui(self):
+        structure = FeeStructure.objects.create(classroom=self.classroom, term=self.term, session=self.session)
+        item = FeeStructureItem.objects.create(
+            fee_structure=structure, description='Excursion', amount=Decimal('19999.84'), is_compulsory=False,
+        )
+        item.refresh_from_db()
+
+        self.assertEqual(item.amount, Decimal('20000.00'))
+        charges = {
+            charge['label']: charge['amount']
+            for entry in parent_payable_charges(self.parent)
+            if entry['child'] == self.child_a
+            for charge in entry['charges']
+        }
+        self.assertEqual(charges['Excursion'], Decimal('20000.00'))
+
+        response = self.client.get(reverse('parent_payments'))
+        self.assertContains(response, '₦20,000')
+        self.assertNotContains(response, '₦19,999.84')
+
     def test_payment_page_has_single_pay_button_and_no_per_charge_buttons(self):
         StudentFeeAccount.objects.create(student=self.child_a, term=self.term, session=self.session, total_billed=60000)
 

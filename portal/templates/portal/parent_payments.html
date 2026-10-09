@@ -95,7 +95,7 @@
                 <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">{{ charge.group_label }}</p>
               </div>
               <div class="text-right">
-                <p class="text-base font-black text-slate-950">₦{{ charge.amount|floatformat:'2g' }}</p>
+                <p class="text-base font-black text-slate-950">₦{{ charge.amount|floatformat:'0g' }}</p>
                 <span class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-800">Unpaid</span>
               </div>
             </div>
@@ -155,7 +155,7 @@
         <div>
           <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Current term fees</p>
           {% for item in entry.child.current_fee_structure.items.all %}
-          <div class="mt-1 flex items-center justify-between gap-3"><span class="text-slate-700">{{ item.description }}{% if item.is_compulsory %} <span class="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700">Compulsory</span>{% else %} <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">Optional</span>{% endif %}</span><span class="font-bold">₦{{ item.amount|floatformat:'2g' }}</span></div>
+          <div class="mt-1 flex items-center justify-between gap-3"><span class="text-slate-700">{{ item.description }}{% if item.is_compulsory %} <span class="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700">Compulsory</span>{% else %} <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">Optional</span>{% endif %}</span><span class="font-bold">₦{{ item.amount|floatformat:'0g' }}</span></div>
           {% endfor %}
         </div>
         {% endif %}
@@ -197,12 +197,12 @@
                 <label class="pick-main">
                   <input type="checkbox" class="charge-check" name="charge" value="{{ charge.charge_type }}|{{ charge.charge_id }}" data-charge-type="{{ charge.charge_type }}">
                   <span class="tick"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 10.5l3.2 3.2L15 6.8"/></svg></span>
-                  <span class="pick-text"><span class="pick-label">{{ charge.label }}</span><span class="pick-amount">₦{{ charge.amount|floatformat:'2g' }}</span></span>
+                  <span class="pick-text"><span class="pick-label">{{ charge.label }}</span><span class="pick-amount">₦{{ charge.amount|floatformat:'0g' }}</span></span>
                   <svg class="pick-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5l5 5-5 5"/></svg>
                 </label>
                 <div class="pick-amount-edit">
                   <span>Amount</span>
-                  <input type="number" step="0.01" min="0.01" max="{{ charge.amount|stringformat:'.2f' }}" value="{{ charge.amount|stringformat:'.2f' }}" name="amount::{{ charge.charge_type }}|{{ charge.charge_id }}" disabled {% if charge.charge_type == 'result_access' %}readonly{% endif %} class="charge-amount">
+                  <input type="number" step="{% if charge.is_excursion %}1{% else %}0.01{% endif %}" min="0.01" max="{% if charge.is_excursion %}{{ charge.amount|floatformat:0 }}{% else %}{{ charge.amount|stringformat:'.2f' }}{% endif %}" value="{% if charge.is_excursion %}{{ charge.amount|floatformat:0 }}{% else %}{{ charge.amount|stringformat:'.2f' }}{% endif %}" name="amount::{{ charge.charge_type }}|{{ charge.charge_id }}" disabled {% if charge.charge_type == 'result_access' %}readonly{% endif %} class="charge-amount">
                 </div>
               </div>
               {% endfor %}
@@ -244,7 +244,7 @@
   var root = document.getElementById('payments-root');
   var balance = parseFloat(root.dataset.balance) || 0;
   var banks = JSON.parse(document.getElementById('bank-data').textContent);
-  var money = function (n) { return '₦' + Number(n).toLocaleString('en-NG', {minimumFractionDigits: 2, maximumFractionDigits: 2}); };
+  var money = function (n) { return '₦' + Number(n).toLocaleString('en-NG', {maximumFractionDigits: 0}); };
   var payModal = document.getElementById('pay-modal');
   var steps = {mode: document.getElementById('step-mode'), select: document.getElementById('step-select'), account: document.getElementById('step-account')};
   var heading = document.getElementById('pay-heading');

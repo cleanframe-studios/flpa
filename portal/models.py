@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from django.db import IntegrityError, models, transaction
 from django.db.models import F, Sum
 from django.utils import timezone
@@ -447,6 +447,20 @@ class FeeStructureItem(models.Model):
 
     class Meta:
         ordering = ['-is_compulsory', 'id']
+
+    @property
+    def is_excursion(self):
+        return 'excursion' in self.description.casefold()
+
+    def save(self, *args, **kwargs):
+        if self.is_excursion:
+            amount = Decimal(self.amount)
+            rounded_amount = amount.quantize(Decimal('1'), rounding=ROUND_HALF_UP)
+            if rounded_amount != amount:
+                self.amount = rounded_amount
+                if kwargs.get('update_fields') is not None:
+                    kwargs['update_fields'] = set(kwargs['update_fields']) | {'amount'}
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.fee_structure} - {self.description} (₦{self.amount})"

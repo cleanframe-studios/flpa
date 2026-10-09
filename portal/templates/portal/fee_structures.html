@@ -76,8 +76,8 @@
             <p class="mt-1 text-xs text-slate-500">{{ structure.term.term_name }} · {{ structure.session.name }}</p>
           </div>
           <div class="flex flex-wrap items-center gap-2">
-            <span class="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800">Compulsory: ₦{{ structure.compulsory_total|floatformat:2 }}</span>
-            <span class="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-800">Optional: ₦{{ structure.optional_total|floatformat:2 }}</span>
+            <span class="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800">Compulsory: ₦{{ structure.compulsory_total|floatformat:0 }}</span>
+            <span class="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-800">Optional: ₦{{ structure.optional_total|floatformat:0 }}</span>
             <button type="button" onclick="openDeleteStructureModal('{{ structure.pk }}','{{ structure.classroom.name|escapejs }}','{{ structure.term.term_name|escapejs }}')" class="rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-600 hover:text-white">Delete Structure</button>
           </div>
         </div>
@@ -89,7 +89,7 @@
               <p class="font-semibold text-slate-800">{{ item.description }}</p>
             </div>
             <div class="flex items-center gap-3">
-              <span class="font-bold text-slate-900">₦{{ item.amount|floatformat:2 }}</span>
+              <span class="font-bold text-slate-900">₦{{ item.amount|floatformat:0 }}</span>
               <button type="button" onclick="openEditItemModal('{{ item.pk }}','{{ item.description|escapejs }}','{{ item.amount }}',{{ item.is_compulsory|yesno:'true,false' }},'{{ item.payment_account }}')" class="rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-600 hover:text-white">Edit</button>
               <button type="button" onclick="openDeleteItemModal('{{ item.pk }}','{{ item.description|escapejs }}')" class="rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-600 hover:text-white">Delete</button>
             </div>

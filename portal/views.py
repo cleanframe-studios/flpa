@@ -2478,6 +2478,7 @@ def parent_payable_charges(parent):
                         'amount': balance,
                         'category': item.payment_account,
                         'group_label': 'Other Charges',
+                        'is_excursion': item.is_excursion,
                     })
         if active_term and results_published_for(child, active_term) and student_outstanding_balance(child, active_term) <= 0:
             result_fee = get_or_create_result_access_fee(child, active_term)
