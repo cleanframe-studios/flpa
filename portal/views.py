@@ -5346,7 +5346,7 @@ def parents_view(request):
                     messages.success(request, f'{parent.display_name} was added and linked to their existing staff login account.')
                 else:
                     create_portal_account(parent, 'parent', parent.last_name)
-                    messages.success(request, f'{parent.display_name} was added to the Parents Manager. Login: Parent ID ({parent.parent_id}) or phone number; initial password is the last name in lowercase.')
+                    messages.success(request, f'{parent.display_name} was added to the Parents Manager.')
             except (IntegrityError, ValidationError):
                 messages.error(request, 'This phone number is already registered or the parent data conflicts with an existing record.')
                 parent_context.update({'parent_form': request.POST, 'open_parent_modal': True})
