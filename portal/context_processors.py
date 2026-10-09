@@ -40,8 +40,10 @@ def notifications(request):
         message__timestamp__gte=request.user.date_joined,
     ).select_related('message', 'message__sender')
     alerts = Notification.objects.filter(recipient=request.user, created_at__gte=request.user.date_joined)
+    unread_inbox_count = recipients.filter(is_read=False).count()
     return {
-        'unread_message_count': recipients.filter(is_read=False).count(),
+        'unread_message_count': unread_inbox_count,
+        'unread_inbox_count': unread_inbox_count,
         'recent_notifications': recipients.order_by('-message__timestamp')[:6],
         'unread_notification_count': alerts.filter(is_read=False).count(),
         'recent_alerts': alerts[:6],

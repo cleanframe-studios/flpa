@@ -1304,10 +1304,16 @@ def _primary_login_classrooms():
     return ClassRoom.objects.filter(section='Primary', level_number__gte=4).order_by('level_number', 'name')
 
 
+def _user_notification_email(user):
+    parent = getattr(user, 'parent_record', None)
+    return (getattr(parent, 'email', '') or user.email or '').strip()
+
+
 def _send_message(sender, subject, body, priority, recipient_users):
     from .utils import send_push_notification_to_user
     
     recipient_users = list(recipient_users)
+    sender_name = (sender.get_full_name() or sender.username) if sender else 'Future Leaders Private Academy'
     message = Message.objects.create(sender=sender, subject=subject, body=body, priority=priority)
     MessageRecipient.objects.bulk_create([
         MessageRecipient(message=message, recipient_user=user) for user in recipient_users
@@ -1332,14 +1338,16 @@ def _send_message(sender, subject, body, priority, recipient_users):
         except Exception as e:
             logger.error(f'Failed to send push for message {message.id} to {user.username}: {str(e)}')
             print(f'Push failed: {e}', flush=True)
-        if user.email:
+        recipient_email = _user_notification_email(user)
+        if recipient_email:
+            parent = getattr(user, 'parent_record', None)
             send_branded_email(
-                recipient=user.email,
+                recipient=recipient_email,
                 subject=subject,
                 heading='New school portal message',
-                greeting=user.get_full_name() or user.username,
+                greeting=(getattr(parent, 'display_name', '') if parent else '') or user.get_full_name() or user.username,
                 paragraphs=[body[:4000]],
-                details={'From': sender.get_full_name() or sender.username, 'Priority': priority},
+                details={'From': sender_name, 'Priority': priority},
                 action_url=f'{settings.PORTAL_BASE_URL.rstrip("/")}{reverse("inbox")}',
                 action_label='Open your inbox',
             )
@@ -1372,9 +1380,10 @@ def _notify_users(recipient_users, title, message, link=''):
             logger.error(f'Failed to send push notification to {user.username}: {str(e)}')
             print(f'Push failed: {e}', flush=True)
             print(f'Push failed: {e}')
-        if user.email:
+        recipient_email = _user_notification_email(user)
+        if recipient_email:
             send_branded_email(
-                recipient=user.email,
+            recipient=recipient_email,
                 subject=title,
                 heading=title,
                 greeting=user.get_full_name() or user.username,
@@ -1520,7 +1529,6 @@ def result_messaging_view(request):
 def inbox_view(request):
     if request.method == 'GET':
         MessageRecipient.objects.filter(recipient_user=request.user, is_read=False).update(is_read=True)
-        Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
     if request.method == 'POST':
         action = request.POST.get('action')
         if action == 'mark_read':

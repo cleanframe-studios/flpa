@@ -14,7 +14,7 @@ from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import AcademicSession, AcademicTerm, AcademicWeek, AdmissionApplicationBatch, AdmissionCampaign, Applicant, Attendance, AttendanceRegister, AccountProfile, AuditLog, CBTAttempt, CBTExam, CBTQuestion, CBTResponse, ClassRoom, ClassRoomSubject, FeePayment, FeeStructure, FeeStructureItem, Parent, ParentLedgerEntry, ParentPaymentAccount, ResultAccessFee, Student, StudentExamSession, Subject, SubjectResult, StudentFeeAccount, StudentTermRecord, Teacher, TermEnrollment
+from .models import AcademicSession, AcademicTerm, AcademicWeek, AdmissionApplicationBatch, AdmissionCampaign, Applicant, Attendance, AttendanceRegister, AccountProfile, AuditLog, CBTAttempt, CBTExam, CBTQuestion, CBTResponse, ClassRoom, ClassRoomSubject, FeePayment, FeeStructure, FeeStructureItem, MessageRecipient, Notification, Parent, ParentLedgerEntry, ParentPaymentAccount, ResultAccessFee, Student, StudentExamSession, Subject, SubjectResult, StudentFeeAccount, StudentTermRecord, Teacher, TermEnrollment
 from .utils import send_branded_email, send_registration_email
 from .views import parent_payable_charges, create_portal_account, provision_admission_accounts, provision_batch_admission_accounts, credit_parent_balance, pay_fee_account_balance_from_wallet, pay_result_access_fee_from_wallet, get_or_create_result_access_fee, student_result_access_status, InsufficientBalanceError, ChargeAlreadySettledError, DuplicateReferenceError
 
@@ -260,8 +260,9 @@ class ResendEmailTests(TestCase):
         self.assertIn('NGN 90,000.00', post.call_args.kwargs['json']['html'])
 
     @patch.dict(os.environ, {'RESEND_API_KEY': 'test-resend-key'})
+    @patch('portal.utils.send_push_notification_to_user')
     @patch('portal.views.send_branded_email')
-    def test_internal_message_email_is_additive_and_skips_no_email_users(self, send_email):
+    def test_internal_message_sends_push_and_email_and_skips_no_email_users(self, send_email, send_push):
         sender = get_user_model().objects.create_user(username='message-sender')
         recipient = get_user_model().objects.create_user(username='message-recipient', email='parent@example.com')
         no_email = get_user_model().objects.create_user(username='message-no-email')
@@ -271,6 +272,8 @@ class ResendEmailTests(TestCase):
 
         self.assertEqual(send_email.call_count, 1)
         self.assertEqual(send_email.call_args.kwargs['recipient'], 'parent@example.com')
+        self.assertEqual(send_push.call_count, 2)
+        self.assertEqual(MessageRecipient.objects.filter(recipient_user__in=[recipient, no_email]).count(), 2)
 
     @patch.dict(os.environ, {'RESEND_API_KEY': 'test-resend-key'})
     @patch('portal.utils.requests.post', side_effect=__import__('requests').RequestException('offline'))
@@ -324,8 +327,9 @@ class ResendEmailTests(TestCase):
         self.assertEqual(email_details['Remaining Tuition balance'], 'NGN 3,500.00')
 
     @patch.dict(os.environ, {'RESEND_API_KEY': 'test-resend-key'})
-    @patch('portal.management.commands.send_weekly_fee_reminders.send_branded_email')
-    def test_weekly_fee_reminder_skips_duplicates_within_seven_days(self, send_email):
+    @patch('portal.utils.send_push_notification_to_user')
+    @patch('portal.views.send_branded_email')
+    def test_weekly_fee_reminder_creates_inbox_message_email_and_skips_duplicates(self, send_email, send_push):
         self._make_bursary_setup()
         from django.core.management import call_command
         from portal.models import StudentFeeAccount
@@ -343,6 +347,11 @@ class ResendEmailTests(TestCase):
         call_command('send_weekly_fee_reminders', stdout=io.StringIO())
 
         self.assertEqual(send_email.call_count, 1)
+        self.assertEqual(send_push.call_count, 1)
+        recipient = MessageRecipient.objects.get(recipient_user=student.parent.user)
+        self.assertEqual(recipient.message.subject, 'Weekly outstanding fee reminder')
+        self.assertIn('FeeTest Student', recipient.message.body)
+        self.assertIn('NGN 3,000.00', recipient.message.body)
 
     def _make_bursary_setup(self):
         session = AcademicSession.objects.create(name='2026/2027', is_active=True)
@@ -935,6 +944,37 @@ class SchoolPaymentBalanceTests(TestCase):
         self.classroom = ClassRoom.objects.create(name='Primary 4', section='Primary', level_number=4)
         self.child_a = Student.objects.create(first_name='Ada', last_name='Lovelace', sex='Female', date_of_birth='2015-01-01', state_of_origin='Lagos', lga_of_origin='Ikeja', program='Primary (PRY)', current_class=self.classroom, parent=self.parent)
         self.child_b = Student.objects.create(first_name='Augusta', last_name='Lovelace', sex='Female', date_of_birth='2016-01-01', state_of_origin='Lagos', lga_of_origin='Ikeja', program='Primary (PRY)', current_class=self.classroom, parent=self.parent)
+
+    @patch('portal.views.send_branded_email')
+    @patch('portal.utils.send_push_notification_to_user')
+    def test_invoice_alert_does_not_appear_as_an_unread_inbox_message(self, send_push, send_email):
+        from portal.views import generate_invoices_for_classroom
+
+        classroom = ClassRoom.objects.create(name='Primary 5', section='Primary', level_number=5)
+        student = Student.objects.create(
+            first_name='Invoice', last_name='Student', sex='Female', date_of_birth='2016-01-01',
+            state_of_origin='Lagos', lga_of_origin='Ikeja', program='Primary (PRY)',
+            current_class=classroom, parent=self.parent, status='Student',
+        )
+        structure = FeeStructure.objects.create(classroom=classroom, term=self.term, session=self.session)
+        FeeStructureItem.objects.bulk_create([
+            FeeStructureItem(fee_structure=structure, description='Tuition', amount=Decimal('40000'), is_compulsory=True),
+        ])
+        self.parent.email = 'parent@example.com'
+        self.parent.save(update_fields=['email'])
+
+        result = generate_invoices_for_classroom(self.term, self.session, classroom)
+        response = self.client.get(reverse('inbox'))
+
+        self.assertEqual(result['created'], 1)
+        self.assertEqual(MessageRecipient.objects.filter(recipient_user=self.user).count(), 0)
+        self.assertEqual(response.context['unread_inbox_count'], 0)
+        self.assertEqual(response.context['unread_notification_count'], 1)
+        self.assertFalse(Notification.objects.get(recipient=self.user).is_read)
+        self.assertContains(response, 'Your inbox is empty.')
+        send_email.assert_called_once()
+        self.assertEqual(send_email.call_args.kwargs['recipient'], 'parent@example.com')
+        send_push.assert_called_once()
 
     def test_creating_parent_payment_account_and_crediting(self):
         entry = credit_parent_balance(self.parent, Decimal('100000'), source='PAYSTACK_DVA', description='Test credit')
