@@ -1306,7 +1306,13 @@ def _primary_login_classrooms():
 
 def _user_notification_email(user):
     parent = getattr(user, 'parent_record', None)
-    return (getattr(parent, 'email', '') or user.email or '').strip()
+    teacher = getattr(user, 'teacher_record', None)
+    return (
+        getattr(parent, 'email', '')
+        or getattr(teacher, 'email', '')
+        or user.email
+        or ''
+    ).strip()
 
 
 def _send_message(sender, subject, body, priority, recipient_users):

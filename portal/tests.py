@@ -276,6 +276,28 @@ class ResendEmailTests(TestCase):
         self.assertEqual(MessageRecipient.objects.filter(recipient_user__in=[recipient, no_email]).count(), 2)
 
     @patch.dict(os.environ, {'RESEND_API_KEY': 'test-resend-key'})
+    @patch('portal.utils.send_push_notification_to_user')
+    @patch('portal.views.send_branded_email')
+    def test_internal_message_uses_teacher_profile_email_when_user_email_is_blank(self, send_email, send_push):
+        sender = get_user_model().objects.create_user(username='message-sender-2')
+        staff_user = get_user_model().objects.create_user(username='staff-user-no-login-email', email='')
+        Teacher.objects.create(
+            first_name='Tayo',
+            last_name='Teacher',
+            phone_number='08070001122',
+            email='teacher-record@example.com',
+            user=staff_user,
+        )
+        AccountProfile.objects.create(user=staff_user, role='teacher')
+
+        from portal.views import _send_message
+        _send_message(sender, 'Staff update', 'Please attend briefing.', 'Important', [staff_user])
+
+        self.assertEqual(send_email.call_count, 1)
+        self.assertEqual(send_email.call_args.kwargs['recipient'], 'teacher-record@example.com')
+        self.assertEqual(send_push.call_count, 1)
+
+    @patch.dict(os.environ, {'RESEND_API_KEY': 'test-resend-key'})
     @patch('portal.utils.requests.post', side_effect=__import__('requests').RequestException('offline'))
     def test_fee_payment_is_saved_when_receipt_email_fails(self, _post):
         self._make_bursary_setup()
