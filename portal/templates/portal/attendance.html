@@ -26,8 +26,8 @@
             </button>
         </div>
 
-        <div id="attendance-filter-modal" class="fixed inset-0 z-[12000] hidden items-center justify-center overflow-y-auto bg-slate-950/55 p-4 pb-28 backdrop-blur-md" role="dialog" aria-modal="true" aria-labelledby="attendance-filter-title">
-            <div class="w-full max-w-lg rounded-3xl border border-white/70 bg-white/75 p-5 text-slate-900 shadow-2xl shadow-slate-950/30 backdrop-blur-2xl sm:p-7">
+        <div id="attendance-filter-modal" class="attendance-modal fixed inset-0 z-[12000] hidden items-center justify-center overflow-y-auto bg-slate-950/55 p-4 pb-28 backdrop-blur-md" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="attendance-filter-title">
+            <div class="attendance-modal-panel w-full max-w-lg rounded-3xl border border-white/70 bg-white/75 p-5 text-slate-900 shadow-2xl shadow-slate-950/30 backdrop-blur-2xl sm:p-7">
                 <div class="mb-5 flex items-start justify-between gap-4">
                     <div><p class="text-[10px] font-black uppercase tracking-[0.2em] text-blue-700">Weekly register</p><h2 id="attendance-filter-title" class="mt-1 text-xl font-black">Choose attendance filters</h2><p class="mt-1 text-sm text-slate-600">Your current school week is selected automatically.</p></div>
                     <button type="button" onclick="closeAttendanceFilters()" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white bg-white/80 text-xl shadow-sm" aria-label="Close filters">&times;</button>
@@ -77,9 +77,9 @@
 </div>
 
 {% if request.user.is_superuser %}
-<div id="clearAttendanceModal" class="fixed inset-0 z-[11000] hidden h-screen w-screen items-center justify-center overflow-y-auto bg-slate-950/60 p-4 pb-28 backdrop-blur-md">
-    <div class="max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-3xl border border-white/10 bg-slate-900/95 p-6 text-white shadow-2xl">
-        <h2 class="text-lg font-black">Clear Attendance Register?</h2>
+<div id="clearAttendanceModal" class="attendance-modal fixed inset-0 z-[11000] hidden h-screen w-screen items-center justify-center overflow-y-auto bg-slate-950/60 p-4 pb-28 backdrop-blur-md" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="clear-attendance-title">
+    <div class="attendance-modal-panel max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-3xl border border-white/10 bg-slate-900/95 p-6 text-white shadow-2xl">
+        <h2 id="clear-attendance-title" class="text-lg font-black">Clear Attendance Register?</h2>
         <p class="mt-2 text-sm leading-6 text-slate-300">This permanently deletes both morning and afternoon attendance records for this class and date.</p>
         <form method="post" action="{% url 'clear_attendance' %}" class="mt-6 flex justify-end gap-3">
             {% csrf_token %}
@@ -93,6 +93,20 @@
     </div>
 </div>
 {% endif %}
+
+<div id="unsavedAttendanceModal" class="attendance-modal fixed inset-0 z-[13000] hidden items-center justify-center bg-slate-950/65 p-4 pb-28 backdrop-blur-md" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="unsaved-attendance-title" aria-describedby="unsaved-attendance-copy">
+    <div class="attendance-modal-panel w-full max-w-md rounded-3xl border border-white/15 bg-slate-900/95 p-6 text-white shadow-2xl shadow-slate-950/40">
+        <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-300/20 bg-amber-400/10 text-amber-300" aria-hidden="true">
+            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 9v4m0 4h.01M10.3 3.9 2.7 17.1A2 2 0 0 0 4.4 20h15.2a2 2 0 0 0 1.7-2.9L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+        </div>
+        <h2 id="unsaved-attendance-title" class="text-lg font-black">Unsaved attendance changes</h2>
+        <p id="unsaved-attendance-copy" class="mt-2 text-sm leading-6 text-slate-300">You have changes that have not been saved. Leave this register and discard them?</p>
+        <div class="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <button type="button" data-unsaved-cancel class="rounded-xl border border-slate-600 px-4 py-3 text-sm font-bold text-slate-200 transition hover:bg-slate-800">Keep editing</button>
+            <button type="button" data-unsaved-confirm class="rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-3 text-sm font-bold text-slate-950 shadow-lg transition hover:brightness-110">Discard changes</button>
+        </div>
+    </div>
+</div>
 
 <style>
     #attendance-register-region { position: relative; min-height: 6rem; transition: opacity 180ms ease; }
@@ -127,36 +141,72 @@
         font-weight: 800;
         backdrop-filter: blur(18px);
     }
-    .attendance-student-sticky { box-shadow: 6px 0 10px -10px rgba(15,23,42,.45); }
+    .attendance-week-scroll { position: relative; isolation: isolate; }
+    .attendance-student-sticky { position: sticky; background-clip: padding-box; box-shadow: 6px 0 10px -10px rgba(15,23,42,.45); }
+    .attendance-week-scroll tbody .attendance-student-sticky { background-color: #fff; }
+    .attendance-week-scroll tbody tr:hover .attendance-student-sticky { background-color: #eff6ff; }
+    .attendance-modal { opacity: 0; transition: opacity 220ms ease; }
+    .attendance-modal[data-open="true"] { opacity: 1; }
+    .attendance-modal-panel { opacity: 0; transform: translateY(12px) scale(.96); transition: opacity 220ms ease, transform 220ms cubic-bezier(.2,.8,.2,1); }
+    .attendance-modal[data-open="true"] .attendance-modal-panel { opacity: 1; transform: translateY(0) scale(1); }
     .attendance-toggle[disabled] label { cursor: not-allowed; opacity: .45; }
     @keyframes attendance-spin { to { transform: rotate(360deg); } }
     #attendance-register-region[aria-busy="true"] > * { opacity: .3; }
     @media (prefers-reduced-motion: reduce) {
-        #attendance-register-region { transition: none; }
+        #attendance-register-region, .attendance-modal, .attendance-modal-panel { transition: none; }
         #attendance-register-region[aria-busy="true"]::before { animation: none; }
     }
 </style>
 <script>
-function openAttendanceFilters() {
-    const modal = document.getElementById('attendance-filter-modal');
+function openAttendanceModal(modal, focusSelector) {
     if (!modal) return;
+    window.clearTimeout(modal.closeTimer);
     modal.classList.remove('hidden');
     modal.classList.add('flex');
-    modal.querySelector('select')?.focus();
+    modal.setAttribute('aria-hidden', 'false');
+    requestAnimationFrame(() => modal.dataset.open = 'true');
+    if (focusSelector) window.setTimeout(() => modal.querySelector(focusSelector)?.focus(), 50);
+}
+function closeAttendanceModal(modal) {
+    if (!modal) return;
+    delete modal.dataset.open;
+    modal.setAttribute('aria-hidden', 'true');
+    modal.closeTimer = window.setTimeout(() => {
+        if (modal.getAttribute('aria-hidden') === 'true') {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+    }, 230);
+}
+let unsavedAttendanceConfirmation;
+function resolveUnsavedAttendance(discardChanges) {
+    const modal = document.getElementById('unsavedAttendanceModal');
+    closeAttendanceModal(modal);
+    if (unsavedAttendanceConfirmation) {
+        unsavedAttendanceConfirmation(discardChanges);
+        unsavedAttendanceConfirmation = null;
+    }
+}
+document.querySelector('[data-unsaved-cancel]')?.addEventListener('click', () => resolveUnsavedAttendance(false));
+document.querySelector('[data-unsaved-confirm]')?.addEventListener('click', () => resolveUnsavedAttendance(true));
+function openAttendanceFilters() {
+    const modal = document.getElementById('attendance-filter-modal');
+    openAttendanceModal(modal, 'select');
 }
 function closeAttendanceFilters() {
     const modal = document.getElementById('attendance-filter-modal');
-    if (!modal) return;
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
+    closeAttendanceModal(modal);
     document.querySelector('[onclick="openAttendanceFilters()"]')?.focus();
 }
 document.getElementById('attendance-filter-modal')?.addEventListener('click', event => {
     if (event.target.id === 'attendance-filter-modal') closeAttendanceFilters();
 });
 document.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && document.getElementById('attendance-filter-modal')?.classList.contains('flex')) {
-        closeAttendanceFilters();
+    if (event.key === 'Escape') {
+        document.querySelectorAll('.attendance-modal[data-open="true"]').forEach(modal => {
+            if (modal.id === 'unsavedAttendanceModal') resolveUnsavedAttendance(false);
+            else closeAttendanceModal(modal);
+        });
     }
 });
 
@@ -170,18 +220,29 @@ function openClearAttendanceModal() {
         modal.querySelector('[name="week"]').value = register.dataset.week;
         modal.querySelector('[name="day"]').value = register.dataset.day;
     }
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    openAttendanceModal(modal);
 }
 function closeClearAttendanceModal() {
     const modal = document.getElementById('clearAttendanceModal');
-    if (!modal) return;
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
+    closeAttendanceModal(modal);
 }
 
 document.getElementById('clearAttendanceModal')?.addEventListener('click', event => {
     if (event.target.id === 'clearAttendanceModal') closeClearAttendanceModal();
+});
+document.querySelector('#clearAttendanceModal form')?.addEventListener('submit', event => {
+    const form = event.currentTarget;
+    if (form.dataset.animatedSubmit === 'true') {
+        delete form.dataset.animatedSubmit;
+        return;
+    }
+    event.preventDefault();
+    form.dataset.animatedSubmit = 'true';
+    closeClearAttendanceModal();
+    window.setTimeout(() => form.requestSubmit(), 230);
+});
+document.getElementById('unsavedAttendanceModal')?.addEventListener('click', event => {
+    if (event.target.id === 'unsavedAttendanceModal') resolveUnsavedAttendance(false);
 });
 
 (function () {
@@ -210,8 +271,12 @@ document.getElementById('clearAttendanceModal')?.addEventListener('click', event
     }
 
     function confirmDiscardAttendanceChanges() {
-        if (!attendanceDirty) return true;
-        return window.confirm('You have attendance changes that are not saved. Leave this register without saving?');
+        if (!attendanceDirty) return Promise.resolve(true);
+        const modal = document.getElementById('unsavedAttendanceModal');
+        openAttendanceModal(modal, '[data-unsaved-cancel]');
+        return new Promise(resolve => {
+            unsavedAttendanceConfirmation = resolve;
+        });
     }
 
     function rebuildWeeksAndDays() {
@@ -276,9 +341,9 @@ document.getElementById('clearAttendanceModal')?.addEventListener('click', event
         }
     }
 
-    filterForm.addEventListener('submit', event => {
+    filterForm.addEventListener('submit', async event => {
         event.preventDefault();
-        if (!confirmDiscardAttendanceChanges()) return;
+        if (!await confirmDiscardAttendanceChanges()) return;
         const url = updateAttendanceUrl();
         loadRegister(url);
     });
@@ -296,20 +361,12 @@ document.getElementById('clearAttendanceModal')?.addEventListener('click', event
     });
     termSelect.addEventListener('change', rebuildWeeksAndDays);
 
-    region.addEventListener('click', event => {
+    region.addEventListener('click', async event => {
         const periodButton = event.target.closest('[data-attendance-period]');
         if (periodButton) {
-            if (!confirmDiscardAttendanceChanges()) return;
+            if (!await confirmDiscardAttendanceChanges()) return;
             filterForm.elements.period.value = periodButton.dataset.attendancePeriod;
             loadRegister(updateAttendanceUrl());
-            return;
-        }
-        const markAllButton = event.target.closest('[data-mark-all]');
-        if (markAllButton) {
-            region.querySelectorAll(`input[type="radio"][value="${markAllButton.dataset.markAll}"]`).forEach(input => {
-                if (!input.disabled) input.checked = true;
-            });
-            markAttendanceDirty();
         }
     });
 

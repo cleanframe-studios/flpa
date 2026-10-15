@@ -33,17 +33,13 @@
                 </span>
                 {% if can_edit_saved_attendance %}<span class="rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-bold text-indigo-700">Admin editing enabled</span>{% endif %}
             </div>
-            <div class="flex gap-2">
-                <button type="button" data-mark-all="Present" class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] font-bold text-emerald-800 transition hover:bg-emerald-100">Editable days · All present</button>
-                <button type="button" data-mark-all="Absent" class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-bold text-rose-800 transition hover:bg-rose-100">Editable days · All absent</button>
-            </div>
         </div>
 
         <div class="attendance-week-scroll overflow-x-auto rounded-2xl border border-slate-200 bg-white">
             <table class="w-full min-w-[730px] border-separate border-spacing-0 text-left">
                 <thead>
                     <tr class="bg-slate-50">
-                        <th scope="col" class="attendance-student-sticky sticky left-0 z-20 min-w-[210px] border-b border-slate-200 bg-slate-50 px-3 py-3 text-[10px] font-black uppercase tracking-wider text-slate-500 sm:min-w-[260px] sm:px-4">Student</th>
+                        <th scope="col" class="attendance-student-sticky sticky left-0 z-30 min-w-[210px] border-b border-slate-200 bg-slate-50 px-3 py-3 text-[10px] font-black uppercase tracking-wider text-slate-500 sm:min-w-[260px] sm:px-4">Student</th>
                         {% for day in attendance_days %}
                         <th scope="col" class="min-w-[96px] border-b border-slate-200 px-2 py-3 text-center {% if day.is_future or day.is_holiday %}bg-slate-100/80{% endif %}">
                             <span class="block text-[11px] font-black text-slate-800">{{ day.label }}</span>
@@ -56,7 +52,7 @@
                 <tbody class="divide-y divide-slate-100">
                     {% for student in students %}
                     <tr class="group hover:bg-blue-50/30">
-                        <th scope="row" class="attendance-student-sticky sticky left-0 z-10 border-b border-slate-100 bg-white px-3 py-3 text-left group-hover:bg-blue-50/60 sm:px-4">
+                        <th scope="row" class="attendance-student-sticky sticky left-0 z-20 border-b border-slate-100 bg-white px-3 py-3 text-left group-hover:bg-blue-50 sm:px-4">
                             <span class="block truncate text-xs font-bold text-slate-900 sm:text-sm">{{ student.last_name }} {{ student.first_name }} {{ student.other_name|default:'' }}</span>
                             <span class="mt-0.5 block truncate text-[10px] font-medium text-slate-500">{{ student.student_id }}</span>
                         </th>
@@ -76,7 +72,7 @@
                                 <fieldset class="attendance-toggle mx-auto inline-flex rounded-xl border border-slate-200 bg-slate-50 p-0.5" aria-label="{{ student.first_name }} {{ student.last_name }}, {{ day.label }}" {% if not day.can_mark %}disabled{% endif %}>
                                     <legend class="sr-only">{{ student.first_name }} {{ student.last_name }} on {{ day.label }}</legend>
                                     <label class="cursor-pointer">
-                                        <input type="radio" name="status_{{ student.pk }}_{{ day.index }}" value="Present" {% if student_day.status == 'Present' %}checked{% endif %} class="peer sr-only" {% if not day.can_mark %}disabled{% endif %}>
+                                        <input type="radio" name="status_{{ student.pk }}_{{ day.index }}" value="Present" {% if student_day.status == 'Present' or not student_day.status %}checked{% endif %} class="peer sr-only" {% if not day.can_mark %}disabled{% endif %}>
                                         <span class="flex h-7 min-w-8 items-center justify-center rounded-lg px-2 text-[10px] font-black text-slate-500 transition peer-checked:bg-emerald-600 peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-emerald-500">P</span>
                                     </label>
                                     <label class="cursor-pointer">

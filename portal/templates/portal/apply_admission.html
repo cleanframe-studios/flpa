@@ -596,14 +596,27 @@
   const accountNumber = document.getElementById('bank-account-number').textContent.trim();
   if (copyAccountNumberButton) copyAccountNumberButton.addEventListener('click', function () {
     const originalText = copyAccountNumberButton.textContent;
-    const copied = function () {
+    const showCopied = function () {
       copyAccountNumberButton.textContent = 'Copied!';
       setTimeout(function () { copyAccountNumberButton.textContent = originalText; }, 1600);
     };
+    const fallbackCopy = function () {
+      const fallbackInput = document.createElement('textarea');
+      fallbackInput.value = accountNumber;
+      fallbackInput.setAttribute('readonly', '');
+      fallbackInput.style.position = 'fixed';
+      fallbackInput.style.opacity = '0';
+      document.body.appendChild(fallbackInput);
+      fallbackInput.select();
+      const copied = document.execCommand('copy');
+      fallbackInput.remove();
+      if (copied) showCopied();
+      else window.showToast('Could not copy the account number. Please select it and copy manually.', 'warning');
+    };
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(accountNumber).then(copied).catch(function () { window.prompt('Copy account number:', accountNumber); });
+      navigator.clipboard.writeText(accountNumber).then(showCopied).catch(fallbackCopy);
     } else {
-      window.prompt('Copy account number:', accountNumber);
+      fallbackCopy();
     }
   });
 

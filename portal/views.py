@@ -1543,14 +1543,19 @@ def result_messaging_view(request):
 
 @login_required(login_url='login')
 def inbox_view(request):
-    if request.method == 'GET':
-        MessageRecipient.objects.filter(recipient_user=request.user, is_read=False).update(is_read=True)
     if request.method == 'POST':
         action = request.POST.get('action')
         if action == 'mark_read':
             recipient = get_object_or_404(MessageRecipient, pk=request.POST.get('recipient_id'), recipient_user=request.user)
             recipient.is_read = True
             recipient.save(update_fields=['is_read'])
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                unread_count = MessageRecipient.objects.filter(
+                    recipient_user=request.user,
+                    is_read=False,
+                    message__timestamp__gte=request.user.date_joined,
+                ).count()
+                return JsonResponse({'success': True, 'unread_count': unread_count})
         elif action == 'mark_all_read':
             MessageRecipient.objects.filter(recipient_user=request.user, is_read=False).update(is_read=True)
         elif action == 'clear_all':

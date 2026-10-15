@@ -14,7 +14,7 @@ from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import AcademicSession, AcademicTerm, AcademicWeek, AdmissionApplicationBatch, AdmissionCampaign, Applicant, Attendance, AttendanceRegister, AccountProfile, AuditLog, CBTAttempt, CBTExam, CBTQuestion, CBTResponse, ClassRoom, ClassRoomSubject, FeePayment, FeeStructure, FeeStructureItem, MessageRecipient, Notification, Parent, ParentLedgerEntry, ParentPaymentAccount, PasswordResetOTP, ResultAccessFee, Student, StudentExamSession, Subject, SubjectResult, StudentFeeAccount, StudentTermRecord, Teacher, TermEnrollment
+from .models import AcademicSession, AcademicTerm, AcademicWeek, AdmissionApplicationBatch, AdmissionCampaign, Applicant, Attendance, AttendanceRegister, AccountProfile, AuditLog, CBTAttempt, CBTExam, CBTQuestion, CBTResponse, ClassRoom, ClassRoomSubject, FeePayment, FeeStructure, FeeStructureItem, Message, MessageRecipient, Notification, Parent, ParentLedgerEntry, ParentPaymentAccount, PasswordResetOTP, ResultAccessFee, Student, StudentExamSession, Subject, SubjectResult, StudentFeeAccount, StudentTermRecord, Teacher, TermEnrollment
 from .utils import send_branded_email, send_registration_email
 from .views import parent_payable_charges, create_portal_account, provision_admission_accounts, provision_batch_admission_accounts, credit_parent_balance, pay_fee_account_balance_from_wallet, pay_result_access_fee_from_wallet, get_or_create_result_access_fee, student_result_access_status, InsufficientBalanceError, ChargeAlreadySettledError, DuplicateReferenceError
 
@@ -24,10 +24,51 @@ class LoginInteractionTests(TestCase):
         response = self.client.get(reverse('login'))
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'class="max-w-xl w-full"')
         self.assertContains(response, 'id="caps-lock-warning"')
         self.assertContains(response, 'Caps Lock is on.')
         self.assertContains(response, 'id="password-visibility-toggle"')
         self.assertContains(response, 'aria-label="Show password"')
+
+
+class InboxReadStateTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(username='inbox-reader', password='pass123')
+        self.sender = get_user_model().objects.create_user(username='inbox-sender', password='pass123')
+        self.message = Message.objects.create(sender=self.sender, subject='School update', body='Please read this update.')
+        self.recipient = MessageRecipient.objects.create(message=self.message, recipient_user=self.user)
+        self.url = reverse('inbox')
+        self.client.force_login(self.user)
+
+    def test_opening_inbox_does_not_mark_unopened_messages_read(self):
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="portal-confirm-modal"')
+        self.assertContains(response, 'data-confirm-message="Clear your entire inbox? This cannot be undone."')
+        self.recipient.refresh_from_db()
+        self.assertFalse(self.recipient.is_read)
+        self.assertEqual(response.context['unread_inbox_count'], 1)
+
+    def test_opened_message_read_state_persists_after_fresh_login(self):
+        response = self.client.post(
+            self.url,
+            {'action': 'mark_read', 'recipient_id': self.recipient.pk},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {'success': True, 'unread_count': 0})
+        self.recipient.refresh_from_db()
+        self.assertTrue(self.recipient.is_read)
+
+        self.client.logout()
+        self.client.force_login(self.user)
+        inbox_response = self.client.get(self.url)
+
+        self.assertEqual(inbox_response.context['unread_inbox_count'], 0)
+        self.recipient.refresh_from_db()
+        self.assertTrue(self.recipient.is_read)
 
 
 class PasswordResetOTPTests(TestCase):
@@ -50,6 +91,14 @@ class PasswordResetOTPTests(TestCase):
             user=self.user,
         )
         self.url = reverse('forgot_password')
+
+    def test_reset_stages_have_animated_transition_shell(self):
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-password-reset-stage')
+        self.assertContains(response, 'password-reset-stage-in')
+        self.assertContains(response, 'password-reset-stage-out')
 
     @patch('portal.views.send_branded_email', return_value=True)
     def test_parent_can_verify_email_otp_and_reset_password(self, send_email):
@@ -2801,7 +2850,9 @@ class AcademicCalendarGuardTests(TestCase):
             {'classroom': classroom.pk, 'week': week.pk, 'day': '2'},
         )
 
-        self.assertContains(response, 'Wednesday (26 Aug 2026)')
+        wednesday = response.context['attendance_days'][2]
+        self.assertEqual(wednesday['label'], 'Wednesday')
+        self.assertEqual(wednesday['date'], datetime.date(2026, 8, 26))
 
     def test_duplicate_term_creation_shows_error_message(self):
         session = AcademicSession.objects.create(name='2028/2029', is_active=True)
@@ -3124,7 +3175,13 @@ class AttendanceSessionWorkflowTests(TestCase):
         self.assertContains(partial, 'Monday')
         self.assertContains(partial, 'Friday')
         self.assertContains(partial, 'data-attendance-period="morning"')
+        self.assertContains(partial, 'value="Present" checked')
+        self.assertNotContains(partial, 'data-mark-all=')
+        self.assertContains(partial, 'attendance-student-sticky sticky left-0 z-20')
         self.assertContains(response, 'id="attendance-filter-modal"')
+        self.assertContains(response, 'id="unsavedAttendanceModal"')
+        self.assertNotContains(response, 'window.confirm(')
+        self.assertContains(response, '.attendance-modal-panel { opacity: 0; transform:')
         self.assertContains(response, 'id="attendance-week"')
         self.assertContains(response, "window.showToast('Attendance could not be updated. Check your connection and try again.', 'error')")
         self.assertNotContains(response, "region.prepend(message)")

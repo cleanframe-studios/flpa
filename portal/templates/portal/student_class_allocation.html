@@ -411,7 +411,7 @@
         e.preventDefault();
 
         if (selectedStudentIds.length === 0) {
-            alert('Please select at least one student');
+            window.showToast('Please select at least one student.', 'warning');
             return;
         }
 
@@ -419,7 +419,7 @@
         const className = document.getElementById('classSelect').value;
 
         if (!program || !className) {
-            alert('Please select both program and class');
+            window.showToast('Please select both program and class.', 'warning');
             return;
         }
 

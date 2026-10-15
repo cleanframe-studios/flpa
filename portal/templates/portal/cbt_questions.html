@@ -537,7 +537,7 @@ function confirmDeleteQuestion() {
     closeDeleteQuestionModal();
     renderQuestionFeed(activeExamId);
     showToast('Question deleted successfully.', 'delete');
-  }).catch((error) => alert(error.message));
+  }).catch((error) => showToast(error.message, 'error'));
 }
 
 function applyFilters() {
@@ -663,7 +663,7 @@ document.getElementById('questionForm').addEventListener('submit', function (eve
     })
     .catch((error) => {
       console.error('Submission Error:', error);
-      alert('Failed to save: ' + (error.message || 'Could not save the question.'));
+      showToast('Failed to save: ' + (error.message || 'Could not save the question.'), 'error');
     });
 });
 

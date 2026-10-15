@@ -380,13 +380,13 @@
     function closeStudentPrintModal() { const modal = document.getElementById('student-print-modal'); modal.classList.add('hidden'); modal.classList.remove('flex'); }
     async function printStudentDetails() {
         const statuses = Array.from(document.querySelectorAll('.student-print-status:checked')).map(input => input.value);
-        if (!statuses.length) { alert('Select at least one student status to print.'); return; }
+        if (!statuses.length) { window.showToast('Select at least one student status to print.', 'warning'); return; }
         const printUrl = new URL(window.location.href);
         printUrl.searchParams.delete('page');
         printUrl.searchParams.set('print_data', '1');
         statuses.forEach(status => printUrl.searchParams.append('status', status));
         const response = await fetch(printUrl);
-        if (!response.ok) { alert('Student details could not be loaded for printing.'); return; }
+        if (!response.ok) { window.showToast('Student details could not be loaded for printing.', 'error'); return; }
         const { students } = await response.json();
         const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[character]));
         const report = document.getElementById('student-print-report');

@@ -672,7 +672,7 @@
                         <div class="relative">
                             <button type="button" id="notification-bell-btn" onclick="toggleNotificationPanel(event)" class="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 shadow-sm transition hover:bg-slate-100 hover:text-slate-700">
                                 <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
-                                {% if unread_message_count or unread_notification_count %}<span class="absolute -top-1 -right-1 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white shadow">{{ unread_message_count|add:unread_notification_count }}</span>{% endif %}
+                                {% if unread_message_count or unread_notification_count %}<span data-unread-message-count="{{ unread_message_count }}" data-unread-notification-count="{{ unread_notification_count }}" class="absolute -top-1 -right-1 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white shadow">{{ unread_message_count|add:unread_notification_count }}</span>{% endif %}
                             </button>
                             <div id="notification-panel" class="hidden absolute right-0 z-50 mt-2 w-80 max-h-96 overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl">
                                 <div class="flex items-center justify-between border-b border-slate-100 p-4"><p class="text-sm font-bold text-slate-900">Notifications</p><div class="flex items-center gap-3"><a href="{% url 'inbox' %}" class="text-xs font-bold text-blue-600 hover:underline">View all</a>{% if request.user.is_staff or request.user.is_superuser or request.user.account_profile.role == 'admin' or request.user.account_profile.role == 'principal' %}<a href="{% url 'general_messaging' %}" class="text-xs font-bold text-emerald-600 hover:underline">Send message</a>{% endif %}</div></div>
@@ -820,7 +820,7 @@
                           console.log('Push notifications enabled successfully');
                         }).catch(function(error) {
                           console.error('Failed to enable notifications:', error);
-                          alert('Could not enable notifications: ' + (error && error.message ? error.message : error));
+                          window.showToast('Could not enable notifications: ' + (error && error.message ? error.message : error), 'error');
                         });
                       });
                       
@@ -1731,6 +1731,80 @@ document.addEventListener('DOMContentLoaded', function () {
         if (button.textContent.trim() === 'Class Work') button.firstChild.textContent = 'Class Management';
     });
 });
+</script>
+<style>
+    .portal-confirm-modal { opacity: 0; transition: opacity 220ms ease; }
+    .portal-confirm-modal[data-open="true"] { opacity: 1; }
+    .portal-confirm-panel { opacity: 0; transform: translateY(12px) scale(.96); transition: opacity 220ms ease, transform 220ms cubic-bezier(.2,.8,.2,1); }
+    .portal-confirm-modal[data-open="true"] .portal-confirm-panel { opacity: 1; transform: translateY(0) scale(1); }
+    @media (prefers-reduced-motion: reduce) { .portal-confirm-modal, .portal-confirm-panel { transition: none; } }
+</style>
+<div id="portal-confirm-modal" class="portal-confirm-modal fixed inset-0 z-[15000] hidden items-center justify-center bg-slate-950/65 p-4 backdrop-blur-md" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="portal-confirm-title" aria-describedby="portal-confirm-copy">
+    <div class="portal-confirm-panel w-full max-w-md rounded-3xl border border-white/15 bg-slate-900/95 p-6 text-white shadow-2xl shadow-slate-950/40">
+        <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-rose-300/20 bg-rose-400/10 text-rose-300" aria-hidden="true">
+            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 9v4m0 4h.01M10.3 3.9 2.7 17.1A2 2 0 0 0 4.4 20h15.2a2 2 0 0 0 1.7-2.9L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+        </div>
+        <h2 id="portal-confirm-title" class="text-lg font-black">Please confirm</h2>
+        <p id="portal-confirm-copy" class="mt-2 text-sm leading-6 text-slate-300"></p>
+        <div class="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <button type="button" data-portal-confirm-cancel class="rounded-xl border border-slate-600 px-4 py-3 text-sm font-bold text-slate-200 transition hover:bg-slate-800">Cancel</button>
+            <button type="button" data-portal-confirm-accept class="rounded-xl bg-gradient-to-r from-rose-600 to-red-600 px-4 py-3 text-sm font-bold text-white shadow-lg transition hover:brightness-110">Continue</button>
+        </div>
+    </div>
+</div>
+<script>
+(() => {
+    const modal = document.getElementById('portal-confirm-modal');
+    if (!modal) return;
+    let pendingForm = null;
+    let closeTimer;
+
+    function closeConfirmation(confirmed) {
+        window.clearTimeout(closeTimer);
+        delete modal.dataset.open;
+        modal.setAttribute('aria-hidden', 'true');
+        const form = confirmed ? pendingForm : null;
+        pendingForm = null;
+        closeTimer = window.setTimeout(() => {
+            if (modal.getAttribute('aria-hidden') === 'true') {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+            if (form) {
+                form.dataset.confirmed = 'true';
+                if (form.requestSubmit) form.requestSubmit();
+                else form.submit();
+            }
+        }, 230);
+    }
+
+    document.addEventListener('submit', event => {
+        const form = event.target;
+        if (!(form instanceof HTMLFormElement) || !form.hasAttribute('data-confirm')) return;
+        if (form.dataset.confirmed === 'true') {
+            delete form.dataset.confirmed;
+            return;
+        }
+        event.preventDefault();
+        pendingForm = form;
+        document.getElementById('portal-confirm-copy').textContent = form.dataset.confirmMessage || 'Are you sure you want to continue?';
+        window.clearTimeout(closeTimer);
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        modal.setAttribute('aria-hidden', 'false');
+        requestAnimationFrame(() => modal.dataset.open = 'true');
+        modal.querySelector('[data-portal-confirm-cancel]').focus();
+    });
+
+    modal.querySelector('[data-portal-confirm-cancel]').addEventListener('click', () => closeConfirmation(false));
+    modal.querySelector('[data-portal-confirm-accept]').addEventListener('click', () => closeConfirmation(true));
+    modal.addEventListener('click', event => {
+        if (event.target === modal) closeConfirmation(false);
+    });
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && modal.dataset.open === 'true') closeConfirmation(false);
+    });
+})();
 </script>
 </body>
 </html>
