@@ -29,6 +29,9 @@ class LoginInteractionTests(TestCase):
         self.assertContains(response, 'Caps Lock is on.')
         self.assertContains(response, 'id="password-visibility-toggle"')
         self.assertContains(response, 'aria-label="Show password"')
+        self.assertContains(response, 'name="remember_me"')
+        self.assertContains(response, 'remember-me-indicator')
+        self.assertContains(response, 'remember-me-checkbox:checked')
 
 
 class InboxReadStateTests(TestCase):

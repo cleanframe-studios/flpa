@@ -87,10 +87,21 @@
                 </button>
             </div>
             <p id="caps-lock-warning" class="mt-2 hidden text-xs font-bold text-amber-300" role="status" aria-live="polite">Caps Lock is on.</p>
-            <label class="flex items-center gap-2 text-xs font-medium text-white/65">
-                <input type="checkbox" name="remember_me" class="h-4 w-4 rounded border-white/30 bg-white/10 text-emerald-500 focus:ring-emerald-400">
-                Remember me on this device
+            <label class="group flex w-fit cursor-pointer items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-xs font-medium text-white/75 shadow-sm backdrop-blur-sm transition duration-200 hover:border-white/20 hover:bg-white/[0.08] hover:text-white focus-within:border-emerald-300/50 focus-within:ring-2 focus-within:ring-emerald-300/20">
+                <input type="checkbox" name="remember_me" class="remember-me-checkbox peer sr-only">
+                <span aria-hidden="true" class="remember-me-indicator flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-white/30 bg-slate-950/20 text-white shadow-inner transition duration-200 group-hover:border-emerald-200/70 peer-checked:border-emerald-400 peer-checked:bg-gradient-to-br peer-checked:from-emerald-400 peer-checked:to-teal-500 peer-checked:shadow-md peer-checked:shadow-emerald-950/30 peer-focus-visible:ring-2 peer-focus-visible:ring-emerald-300 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-slate-900">
+                    <svg class="remember-me-check h-3.5 w-3.5 scale-50 opacity-0 transition duration-200" fill="none" viewBox="0 0 20 20" stroke="currentColor" aria-hidden="true">
+                        <path d="m4 10 4 4 8-8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path>
+                    </svg>
+                </span>
+                <span class="leading-5">Remember me on this device</span>
             </label>
+            <style>
+                .remember-me-checkbox:checked + .remember-me-indicator .remember-me-check {
+                    transform: scale(1);
+                    opacity: 1;
+                }
+            </style>
         </div>
         
         <!-- The Interactive Button: Solid White to Red Gradient with Shine -->
