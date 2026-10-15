@@ -52,6 +52,19 @@ class AccountProfile(models.Model):
         return f'{self.user.username} ({self.role})'
 
 
+class PasswordResetOTP(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='password_reset_otps')
+    code_hash = models.CharField(max_length=128)
+    created_at = models.DateTimeField(default=timezone.now)
+    expires_at = models.DateTimeField()
+    attempts = models.PositiveSmallIntegerField(default=0)
+    verified_at = models.DateTimeField(null=True, blank=True)
+    is_used = models.BooleanField(default=False)
+
+    class Meta:
+        indexes = [models.Index(fields=['user', 'created_at'])]
+
+
 # --- Your Exact Student Model (Untouched) ---
 class Student(models.Model):
     SEX_CHOICES = [

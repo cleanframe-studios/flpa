@@ -2,6 +2,7 @@ import json
 import csv
 import logging
 import os
+import secrets
 import threading
 import uuid
 from django.shortcuts import render, redirect, get_object_or_404
@@ -10,6 +11,8 @@ from django.urls import reverse
 from django.contrib.auth import authenticate, login
 from django.contrib.auth import get_user_model, logout
 from django.contrib.auth.models import Group
+from django.contrib.auth.hashers import check_password, make_password
+from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib import messages
@@ -27,6 +30,7 @@ from django.db.models.functions import Lower
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 import datetime
+from datetime import timedelta
 from urllib.parse import quote
 from decimal import Decimal, InvalidOperation
 from .templatetags.portal_extras import is_cbt_eligible_class
@@ -39,6 +43,7 @@ from .models import (
     Holiday,
     Student,
     Parent,
+    PasswordResetOTP,
     Teacher,
     TeacherQualification,
     TermEnrollment,
@@ -5843,7 +5848,189 @@ def delete_teacher_view(request, pk):
     return redirect('teachers')
 
 def forgot_password_view(request):
-    return render(request, 'portal/forgot_password.html')
+    if request.method == 'GET' and request.GET.get('restart') == '1':
+        for key in (
+            'password_reset_challenge_id',
+            'password_reset_role',
+            'password_reset_identifier',
+            'password_reset_email',
+        ):
+            request.session.pop(key, None)
+    role = request.POST.get('role') or request.GET.get('role') or request.session.get('password_reset_role', '')
+    if role not in {'parent', 'staff'}:
+        role = ''
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action in {'request_code', 'resend_code'}:
+            role = request.POST.get('role', '')
+            identifier = request.POST.get('identifier', request.session.get('password_reset_identifier', '')).strip()
+            email = request.POST.get('email', request.session.get('password_reset_email', '')).strip().casefold()
+            request.session['password_reset_role'] = role if role in {'parent', 'staff'} else ''
+            request.session['password_reset_identifier'] = identifier
+            request.session['password_reset_email'] = email
+
+            account = _find_password_reset_account(role, identifier, email)
+            if account:
+                user, recipient, greeting = account
+                now = timezone.now()
+                challenge = None
+                with transaction.atomic():
+                    locked_user = User.objects.select_for_update().get(pk=user.pk)
+                    recent_requests = PasswordResetOTP.objects.filter(
+                        user=locked_user, created_at__gte=now - timedelta(hours=1),
+                    ).count()
+                    if recent_requests < 3:
+                        PasswordResetOTP.objects.filter(user=locked_user, is_used=False).update(is_used=True)
+                        code = f'{secrets.randbelow(1_000_000):06d}'
+                        challenge = PasswordResetOTP.objects.create(
+                            user=locked_user,
+                            code_hash=make_password(code),
+                            expires_at=now + timedelta(minutes=10),
+                        )
+                if challenge:
+                    delivered = send_branded_email(
+                        recipient,
+                        'Your password reset verification code',
+                        'Password reset verification',
+                        greeting,
+                        ['Use this one-time code to reset your portal password. If you did not request a reset, you can ignore this email.'],
+                        details={'Verification code': code, 'Expires in': '10 minutes'},
+                    )
+                    if delivered:
+                        request.session['password_reset_challenge_id'] = challenge.pk
+                    else:
+                        challenge.is_used = True
+                        challenge.save(update_fields=['is_used'])
+                        request.session.pop('password_reset_challenge_id', None)
+            else:
+                request.session.pop('password_reset_challenge_id', None)
+
+            messages.info(
+                request,
+                'If the account details match our records, a verification code will be sent to the registered email address.',
+            )
+            return redirect(f"{reverse('forgot_password')}?step=verify")
+
+        challenge_id = request.session.get('password_reset_challenge_id')
+        if action == 'verify_code':
+            with transaction.atomic():
+                challenge = PasswordResetOTP.objects.select_for_update().filter(
+                    pk=challenge_id, is_used=False, user__is_active=True,
+                ).first() if challenge_id else None
+                if not challenge or challenge.expires_at <= timezone.now():
+                    valid_code = False
+                elif challenge.verified_at:
+                    valid_code = True
+                elif challenge.attempts >= 5:
+                    valid_code = False
+                else:
+                    challenge.attempts += 1
+                    valid_code = check_password(request.POST.get('otp', '').strip(), challenge.code_hash)
+                    if valid_code:
+                        challenge.verified_at = timezone.now()
+                    challenge.save(update_fields=['attempts', 'verified_at'])
+
+            if valid_code:
+                return redirect(f"{reverse('forgot_password')}?step=reset")
+            messages.error(request, 'That code is invalid or expired. Request a new code and try again.')
+            return redirect(f"{reverse('forgot_password')}?step=verify")
+
+        if action == 'reset_password':
+            challenge = PasswordResetOTP.objects.filter(
+                pk=challenge_id, is_used=False, verified_at__isnull=False,
+                user__is_active=True,
+            ).select_related('user').first() if challenge_id else None
+            password = request.POST.get('password', '')
+            confirmation = request.POST.get('confirm_password', '')
+            if not challenge or challenge.expires_at <= timezone.now():
+                messages.error(request, 'Your verification has expired. Please request a new code.')
+                request.session.pop('password_reset_challenge_id', None)
+                return redirect('forgot_password')
+            if password != confirmation:
+                messages.error(request, 'The passwords do not match.')
+                return redirect(f"{reverse('forgot_password')}?step=reset")
+            try:
+                validate_password(password, user=challenge.user)
+            except ValidationError as error:
+                for error_message in error.messages:
+                    messages.error(request, error_message)
+                return redirect(f"{reverse('forgot_password')}?step=reset")
+
+            with transaction.atomic():
+                challenge = PasswordResetOTP.objects.select_for_update().filter(
+                    pk=challenge.pk, is_used=False, verified_at__isnull=False,
+                    expires_at__gt=timezone.now(), user__is_active=True,
+                ).select_related('user').first()
+                if not challenge:
+                    messages.error(request, 'Your verification has expired. Please request a new code.')
+                    request.session.pop('password_reset_challenge_id', None)
+                    return redirect('forgot_password')
+                challenge.user.set_password(password)
+                challenge.user.save(update_fields=['password'])
+                challenge.is_used = True
+                challenge.save(update_fields=['is_used'])
+
+            request.session.pop('password_reset_challenge_id', None)
+            request.session.pop('password_reset_role', None)
+            request.session.pop('password_reset_identifier', None)
+            request.session.pop('password_reset_email', None)
+            messages.success(request, 'Your password has been reset. You can now sign in with your new password.')
+            return redirect('login')
+
+    step = request.GET.get('step', 'identify')
+    if step not in {'identify', 'verify', 'reset'}:
+        step = 'identify'
+    challenge_id = request.session.get('password_reset_challenge_id')
+    challenge = PasswordResetOTP.objects.filter(
+        pk=challenge_id, is_used=False, expires_at__gt=timezone.now(),
+        user__is_active=True,
+    ).first() if challenge_id else None
+    if step == 'reset' and not challenge:
+        step = 'identify'
+    if step == 'reset' and not challenge.verified_at:
+        step = 'verify'
+
+    return render(request, 'portal/forgot_password.html', {
+        'role': role,
+        'step': step,
+        'student_help': request.GET.get('student_help') == '1',
+    })
+
+
+def _find_password_reset_account(role, identifier, email):
+    if not identifier or not email or role not in {'parent', 'staff'}:
+        return None
+
+    if role == 'parent':
+        normalized_phone = normalize_phone_number(identifier)
+        identifier_filter = (
+            Q(parent_id__iexact=identifier)
+            | Q(user__username__iexact=identifier)
+        )
+        if normalized_phone:
+            identifier_filter |= Q(phone_number=normalized_phone)
+        parent = Parent.objects.filter(user__is_active=True).filter(
+            identifier_filter,
+        ).select_related('user').first()
+        if not parent or not parent.user:
+            return None
+        registered_emails = [parent.email, parent.user.email]
+        recipient = next((value for value in registered_emails if value and value.casefold() == email), None)
+        return (parent.user, recipient, parent.name or parent.user.get_username()) if recipient else None
+
+    staff_roles = ('admin', 'principal', 'bursar', 'teacher', 'registrar')
+    user = User.objects.filter(is_active=True).filter(
+        Q(teacher_record__staff_id__iexact=identifier)
+        | Q(username__iexact=identifier, account_profile__role__in=staff_roles)
+    ).select_related('teacher_record', 'account_profile').first()
+    if not user:
+        return None
+    staff_email = getattr(getattr(user, 'teacher_record', None), 'email', None)
+    registered_emails = [staff_email, user.email]
+    recipient = next((value for value in registered_emails if value and value.casefold() == email), None)
+    greeting = str(user.get_full_name() or user.get_username())
+    return (user, recipient, greeting) if recipient else None
 
 
 def classroom_progression_order(queryset):

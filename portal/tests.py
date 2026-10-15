@@ -14,7 +14,7 @@ from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import AcademicSession, AcademicTerm, AcademicWeek, AdmissionApplicationBatch, AdmissionCampaign, Applicant, Attendance, AttendanceRegister, AccountProfile, AuditLog, CBTAttempt, CBTExam, CBTQuestion, CBTResponse, ClassRoom, ClassRoomSubject, FeePayment, FeeStructure, FeeStructureItem, MessageRecipient, Notification, Parent, ParentLedgerEntry, ParentPaymentAccount, ResultAccessFee, Student, StudentExamSession, Subject, SubjectResult, StudentFeeAccount, StudentTermRecord, Teacher, TermEnrollment
+from .models import AcademicSession, AcademicTerm, AcademicWeek, AdmissionApplicationBatch, AdmissionCampaign, Applicant, Attendance, AttendanceRegister, AccountProfile, AuditLog, CBTAttempt, CBTExam, CBTQuestion, CBTResponse, ClassRoom, ClassRoomSubject, FeePayment, FeeStructure, FeeStructureItem, MessageRecipient, Notification, Parent, ParentLedgerEntry, ParentPaymentAccount, PasswordResetOTP, ResultAccessFee, Student, StudentExamSession, Subject, SubjectResult, StudentFeeAccount, StudentTermRecord, Teacher, TermEnrollment
 from .utils import send_branded_email, send_registration_email
 from .views import parent_payable_charges, create_portal_account, provision_admission_accounts, provision_batch_admission_accounts, credit_parent_balance, pay_fee_account_balance_from_wallet, pay_result_access_fee_from_wallet, get_or_create_result_access_fee, student_result_access_status, InsufficientBalanceError, ChargeAlreadySettledError, DuplicateReferenceError
 
@@ -28,6 +28,141 @@ class LoginInteractionTests(TestCase):
         self.assertContains(response, 'Caps Lock is on.')
         self.assertContains(response, 'id="password-visibility-toggle"')
         self.assertContains(response, 'aria-label="Show password"')
+
+
+class PasswordResetOTPTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username='parent-reset-user',
+            email='parent@example.com',
+            password='OldPassword!2025',
+        )
+        self.parent = Parent.objects.create(
+            parent_id='FLA/PAR/2025/001',
+            name='Test Parent',
+            phone_number='+2348012345678',
+            sex='Male',
+            email='parent@example.com',
+            marital_status='Married',
+            address='Test address',
+            state='Lagos',
+            lga='Ikeja',
+            user=self.user,
+        )
+        self.url = reverse('forgot_password')
+
+    @patch('portal.views.send_branded_email', return_value=True)
+    def test_parent_can_verify_email_otp_and_reset_password(self, send_email):
+        request_response = self.client.post(self.url, {
+            'action': 'request_code',
+            'role': 'parent',
+            'identifier': self.parent.parent_id,
+            'email': 'parent@example.com',
+        })
+
+        self.assertRedirects(request_response, f'{self.url}?step=verify')
+        send_email.assert_called_once()
+        code = send_email.call_args.kwargs['details']['Verification code']
+        challenge = PasswordResetOTP.objects.get(user=self.user)
+        self.assertNotEqual(challenge.code_hash, code)
+        self.assertEqual(send_email.call_args.args[0], 'parent@example.com')
+
+        verify_response = self.client.post(self.url, {'action': 'verify_code', 'otp': code})
+        self.assertRedirects(verify_response, f'{self.url}?step=reset')
+        self.assertIsNotNone(PasswordResetOTP.objects.get(pk=challenge.pk).verified_at)
+
+        reset_response = self.client.post(self.url, {
+            'action': 'reset_password',
+            'password': 'NewStrongPassword!2026',
+            'confirm_password': 'NewStrongPassword!2026',
+        })
+        self.assertRedirects(reset_response, reverse('login'))
+        self.assertTrue(get_user_model().objects.get(pk=self.user.pk).check_password('NewStrongPassword!2026'))
+        self.assertTrue(PasswordResetOTP.objects.get(pk=challenge.pk).is_used)
+
+    @patch('portal.views.send_branded_email', return_value=True)
+    def test_staff_can_request_code_using_staff_id(self, send_email):
+        staff_user = get_user_model().objects.create_user(
+            username='staff-reset-user', email='staff@example.com', password='OldPassword!2025',
+        )
+        Teacher.objects.create(
+            staff_id='FLA/2025/STF/001',
+            first_name='Staff',
+            last_name='Member',
+            phone_number='+2348098765432',
+            email='staff@example.com',
+            user=staff_user,
+        )
+
+        response = self.client.post(self.url, {
+            'action': 'request_code',
+            'role': 'staff',
+            'identifier': 'FLA/2025/STF/001',
+            'email': 'staff@example.com',
+        })
+
+        self.assertRedirects(response, f'{self.url}?step=verify')
+        self.assertTrue(PasswordResetOTP.objects.filter(user=staff_user).exists())
+        self.assertEqual(send_email.call_args.args[0], 'staff@example.com')
+
+    @patch('portal.views.send_branded_email', return_value=True)
+    def test_unknown_account_gets_same_verification_step_without_email(self, send_email):
+        response = self.client.post(self.url, {
+            'action': 'request_code',
+            'role': 'parent',
+            'identifier': 'unknown-parent',
+            'email': 'parent@example.com',
+        })
+
+        self.assertRedirects(response, f'{self.url}?step=verify')
+        verify_page = self.client.get(response.url)
+        self.assertEqual(verify_page.context['step'], 'verify')
+        send_email.assert_not_called()
+        self.assertFalse(PasswordResetOTP.objects.exists())
+
+    @patch('portal.views.send_branded_email', return_value=True)
+    def test_code_requests_are_limited_per_account(self, send_email):
+        request_data = {
+            'action': 'request_code',
+            'role': 'parent',
+            'identifier': self.parent.parent_id,
+            'email': 'parent@example.com',
+        }
+        for _ in range(4):
+            self.client.post(self.url, request_data)
+
+        self.assertEqual(send_email.call_count, 3)
+        self.assertEqual(PasswordResetOTP.objects.filter(user=self.user).count(), 3)
+
+    @patch('portal.views.send_branded_email', return_value=True)
+    def test_otp_expires_and_invalid_attempts_are_limited(self, send_email):
+        self.client.post(self.url, {
+            'action': 'request_code',
+            'role': 'parent',
+            'identifier': self.parent.parent_id,
+            'email': 'parent@example.com',
+        })
+        challenge = PasswordResetOTP.objects.get(user=self.user)
+
+        for _ in range(5):
+            self.client.post(self.url, {'action': 'verify_code', 'otp': '000000'})
+        challenge.refresh_from_db()
+        self.assertEqual(challenge.attempts, 5)
+        self.assertIsNone(challenge.verified_at)
+
+        self.client.post(self.url, {
+            'action': 'request_code',
+            'role': 'parent',
+            'identifier': self.parent.parent_id,
+            'email': 'parent@example.com',
+        })
+        renewed = PasswordResetOTP.objects.filter(user=self.user, is_used=False).first()
+        renewed.expires_at = timezone.now() - datetime.timedelta(seconds=1)
+        renewed.save(update_fields=['expires_at'])
+        expired_response = self.client.post(self.url, {'action': 'verify_code', 'otp': '123456'})
+        self.assertRedirects(expired_response, f'{self.url}?step=verify')
+        renewed.refresh_from_db()
+        self.assertIsNone(renewed.verified_at)
 
 
 class StudentDirectoryTests(TestCase):
