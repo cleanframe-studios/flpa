@@ -3188,6 +3188,11 @@ class AttendanceSessionWorkflowTests(TestCase):
         self.assertContains(response, 'id="attendance-week"')
         self.assertContains(response, "window.showToast('Attendance could not be updated. Check your connection and try again.', 'error')")
         self.assertNotContains(response, "region.prepend(message)")
+        self.assertContains(response, 'id="attendance-filter-form" method="get" novalidate')
+        self.assertContains(response, 'Please select a ${label} before loading the register.')
+        self.assertContains(response, 'data-register-load-spinner')
+        self.assertContains(response, 'Loading register…')
+        self.assertContains(response, 'region.setAttribute(\'aria-busy\', \'true\')')
 
     def test_attendance_morning_and_afternoon_are_separate_and_binary(self):
         attendance_day = timezone.localdate().weekday()

@@ -32,16 +32,16 @@
                     <div><p class="text-[10px] font-black uppercase tracking-[0.2em] text-blue-700">Weekly register</p><h2 id="attendance-filter-title" class="mt-1 text-xl font-black">Choose attendance filters</h2><p class="mt-1 text-sm text-slate-600">Your current school week is selected automatically.</p></div>
                     <button type="button" onclick="closeAttendanceFilters()" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white bg-white/80 text-xl shadow-sm" aria-label="Close filters">&times;</button>
                 </div>
-                <form id="attendance-filter-form" method="get" class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <form id="attendance-filter-form" method="get" novalidate class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div>
                         <label for="attendance-session" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-600">Session</label>
-                        <select id="attendance-session" name="session" class="w-full rounded-xl border border-white bg-white/80 px-3 py-3 text-sm shadow-sm">
+                        <select id="attendance-session" name="session" required class="w-full rounded-xl border border-white bg-white/80 px-3 py-3 text-sm shadow-sm">
                             {% for option in sessions %}<option value="{{ option.pk }}" {% if selected_session.pk == option.pk %}selected{% endif %}>{{ option.name }}</option>{% endfor %}
                         </select>
                     </div>
                     <div>
                         <label for="attendance-term" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-600">Term</label>
-                        <select id="attendance-term" name="term" class="w-full rounded-xl border border-white bg-white/80 px-3 py-3 text-sm shadow-sm">
+                        <select id="attendance-term" name="term" required class="w-full rounded-xl border border-white bg-white/80 px-3 py-3 text-sm shadow-sm">
                             {% for option in terms %}<option value="{{ option.pk }}" {% if selected_term.pk == option.pk %}selected{% endif %}>{{ option.term_name }}</option>{% endfor %}
                         </select>
                     </div>
@@ -60,7 +60,10 @@
                         </select>
                     </div>
                     <input type="hidden" name="period" value="{{ selected_period }}">
-                    <button type="submit" class="mt-2 min-h-12 rounded-xl bg-blue-700 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-blue-900/20 transition hover:bg-blue-800 sm:col-span-2">Load Register</button>
+                    <button type="submit" class="mt-2 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-blue-900/20 transition hover:bg-blue-800 disabled:cursor-wait disabled:opacity-75 sm:col-span-2">
+                        <svg data-register-load-spinner class="hidden h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                        <span data-register-load-label>Load Register</span>
+                    </button>
                 </form>
             </div>
         </div>
@@ -258,6 +261,17 @@ document.getElementById('unsavedAttendanceModal')?.addEventListener('click', eve
     let activeRequest;
     let requestNumber = 0;
     let attendanceDirty = false;
+    let activeLoadButton;
+
+    function setLoadButtonBusy(button, isBusy) {
+        if (!button) return;
+        button.disabled = isBusy;
+        button.setAttribute('aria-busy', String(isBusy));
+        const spinner = button.querySelector('[data-register-load-spinner]');
+        if (spinner) spinner.classList.toggle('hidden', !isBusy);
+        const label = button.querySelector('[data-register-load-label]');
+        if (label) label.textContent = isBusy ? 'Loading register…' : 'Load Register';
+    }
 
     function markAttendanceDirty() {
         attendanceDirty = true;
@@ -310,10 +324,19 @@ document.getElementById('unsavedAttendanceModal')?.addEventListener('click', eve
         if (activeRequest) activeRequest.abort();
         activeRequest = new AbortController();
         const currentRequest = ++requestNumber;
-        if (!options.periodSwitch) region.setAttribute('aria-busy', 'true');
+        if (activeLoadButton && activeLoadButton !== options.filterSubmitButton) {
+            setLoadButtonBusy(activeLoadButton, false);
+            activeLoadButton = null;
+        }
+        const { filterSubmitButton, periodSwitch, ...fetchOptions } = options;
+        if (filterSubmitButton) {
+            activeLoadButton = filterSubmitButton;
+            setLoadButtonBusy(filterSubmitButton, true);
+        }
+        if (!periodSwitch) region.setAttribute('aria-busy', 'true');
         try {
             const response = await fetch(url, {
-                ...options,
+                ...fetchOptions,
                 headers: { ...(options.headers || {}), 'X-Requested-With': 'XMLHttpRequest' },
                 signal: activeRequest.signal,
             });
@@ -335,7 +358,9 @@ document.getElementById('unsavedAttendanceModal')?.addEventListener('click', eve
             }
         } finally {
             if (currentRequest === requestNumber) {
-                if (!options.periodSwitch) region.setAttribute('aria-busy', 'false');
+                if (!periodSwitch) region.setAttribute('aria-busy', 'false');
+                setLoadButtonBusy(activeLoadButton, false);
+                activeLoadButton = null;
                 document.querySelectorAll('[data-attendance-period]').forEach(button => {
                     button.disabled = false;
                     button.removeAttribute('aria-busy');
@@ -348,9 +373,23 @@ document.getElementById('unsavedAttendanceModal')?.addEventListener('click', eve
 
     filterForm.addEventListener('submit', async event => {
         event.preventDefault();
+        const missingFilter = [
+            [sessionSelect, 'academic session'],
+            [termSelect, 'term'],
+            [filterForm.querySelector('#attendance-classroom'), 'class'],
+            [weekSelect, 'week'],
+        ].find(([select]) => !select.value);
+        if (missingFilter) {
+            const [select, label] = missingFilter;
+            window.showToast(`Please select a ${label} before loading the register.`, 'warning');
+            select.focus();
+            return;
+        }
         if (!await confirmDiscardAttendanceChanges()) return;
         const url = updateAttendanceUrl();
-        loadRegister(url);
+        const submitButton = event.submitter || filterForm.querySelector('[type="submit"]');
+        closeAttendanceFilters();
+        loadRegister(url, { filterSubmitButton: submitButton });
     });
 
     sessionSelect.addEventListener('change', event => {
