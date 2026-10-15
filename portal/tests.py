@@ -420,6 +420,27 @@ class ResendEmailTests(TestCase):
 
 
 class AdmissionCampaignArchiveLoginTests(TestCase):
+    def test_archived_campaign_is_not_shown_on_login(self):
+        session = AcademicSession.objects.create(name='2026/2027')
+        term = AcademicTerm.objects.create(session=session, term_name='First Term')
+        campaign = AdmissionCampaign.objects.create(
+            campaign_name='Archived Admissions',
+            target_session=session,
+            target_term=term,
+            deadline=timezone.now() + datetime.timedelta(days=10),
+            status='Active',
+        )
+
+        campaign.status = 'Archived'
+        campaign.save()
+
+        response = self.client.get(reverse('login'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Welcome Back')
+        self.assertNotContains(response, campaign.campaign_name)
+        self.assertNotContains(response, 'admission-banner')
+
     def test_archiving_expired_campaign_removes_login_card(self):
         user = get_user_model().objects.create_user(
             username='campaign-registrar', password='pass123',
@@ -2876,6 +2897,41 @@ class AcademicCalendarGuardTests(TestCase):
 
 
 
+
+
+class PushNotificationSubscriptionTests(TestCase):
+    def test_push_subscription_endpoint_accepts_form_encoded_payloads(self):
+        user = get_user_model().objects.create_user(username='push-user', password='pass123')
+        client = self.client_class()
+        client.force_login(user)
+
+        response = client.post(reverse('register_push_subscription'), {
+            'endpoint': 'https://example.com/push',
+            'p256dh': 'test-p256dh',
+            'auth': 'test-auth',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['success'])
+        self.assertEqual(user.push_subscriptions.count(), 1)
+
+    def test_push_unsubscribe_endpoint_accepts_form_encoded_payloads(self):
+        user = get_user_model().objects.create_user(username='push-user-remove', password='pass123')
+        client = self.client_class()
+        client.force_login(user)
+        user.push_subscriptions.create(
+            endpoint='https://example.com/push',
+            p256dh='test-p256dh',
+            auth='test-auth',
+        )
+
+        response = client.post(reverse('unregister_push_subscription'), {
+            'endpoint': 'https://example.com/push',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['success'])
+        self.assertEqual(user.push_subscriptions.count(), 0)
 
 
 class AttendanceSessionWorkflowTests(TestCase):
