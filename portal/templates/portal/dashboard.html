@@ -19,6 +19,8 @@
     .animate-stage-1 { animation: assembleUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.05s forwards; opacity: 0; }
     .animate-stage-2 { animation: assembleUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.15s forwards; opacity: 0; }
     .animate-stage-3 { animation: assembleUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.25s forwards; opacity: 0; }
+    #dashboard-student-rows { transition: opacity 180ms ease; }
+    #dashboard-student-results[aria-busy="true"] #dashboard-student-rows { opacity: .45; }
 </style>
 
 <div class="flex-grow flex min-w-0 flex-col space-y-6 p-4 sm:p-8 max-w-7xl mx-auto w-full overflow-y-auto">
@@ -90,7 +92,9 @@
             </div>
             <div class="flex items-center space-x-3 w-full sm:w-auto">
                 <div class="relative w-full sm:w-64">
-                    <input type="text" placeholder="Search records..." class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 pl-10 text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:border-blue-500 transition-all">
+                    <form id="dashboard-student-search-form" method="get">
+                    <input id="dashboard-student-search" type="search" name="q" autocomplete="off" placeholder="Search by name or ID..." aria-label="Search student records" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 pl-10 text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:border-blue-500 transition-all">
+                    </form>
                     <svg class="absolute left-3 top-3 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                 </div>
                 <a href="{% url 'students' %}" class="bg-blue-600 hover:bg-blue-700 active:scale-95 transition-transform duration-100 text-white font-semibold text-xs py-2.5 px-4 rounded-xl shadow flex items-center space-x-2 flex-shrink-0">
@@ -100,7 +104,7 @@
             </div>
         </div>
 
-        <div class="overflow-x-auto border border-slate-100 rounded-2xl">
+        <div id="dashboard-student-results" class="overflow-x-auto border border-slate-100 rounded-2xl" aria-busy="false">
             <table class="w-full min-w-[720px] text-left border-collapse">
                 <thead>
                     <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 text-xs uppercase tracking-wider font-semibold">
@@ -110,40 +114,69 @@
                         <th class="py-4 px-6">Status</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-100 text-sm text-slate-700">
-                    {% for student in students %}
-                    <tr class="hover:bg-slate-50/80 transition-colors">
-                        <td class="py-4 px-6 font-semibold text-blue-600">{{ student.student_id }}</td>
-                        <td class="py-4 px-6 font-medium text-slate-900">{{ student.last_name }} {{ student.first_name }} {{ student.other_name|default:"" }}</td>
-                        <td class="py-4 px-6 font-semibold">
-                            {% if student.current_class %}
-                                <span class="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-blue-200">{{ student.current_class.name }}</span>
-                            {% else %}
-                                <span class="text-slate-400 italic text-xs">Unassigned</span>
-                            {% endif %}
-                        </td>
-                        <td class="py-4 px-6">
-                            {% if student.status == 'Student' or student.status == 'Active' or student.status == 'Present' %}
-                                <span class="bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-emerald-200">Student</span>
-                            {% elif student.status == 'Transferred' %}
-                                <span class="bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-amber-200">Transferred</span>
-                            {% elif student.status == 'Expelled' %}
-                                <span class="bg-red-50 text-red-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-red-200">Expelled</span>
-                            {% elif student.status == 'Graduated' %}
-                                <span class="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-blue-200">Graduated</span>
-                            {% elif student.status == 'Left' %}
-                                <span class="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-slate-300">Left</span>
-                            {% else %}
-                                <span class="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full text-xs font-semibold">{{ student.status }}</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr><td colspan="4" class="py-8 text-center text-slate-400 text-sm">No student records found in the database yet. Click "Add Student" above to register one.</td></tr>
-                    {% endfor %}
+                <tbody id="dashboard-student-rows" class="divide-y divide-slate-100 text-sm text-slate-700" aria-live="polite">
+                    {% include 'portal/partials/dashboard_student_rows.html' %}
                 </tbody>
             </table>
         </div>
     </div>
 </div>
+<script>
+(function () {
+    const form = document.getElementById('dashboard-student-search-form');
+    const search = document.getElementById('dashboard-student-search');
+    const results = document.getElementById('dashboard-student-results');
+    const rows = document.getElementById('dashboard-student-rows');
+    if (!form || !search || !results || !rows) return;
+
+    let timer;
+    let activeRequest;
+    let requestNumber = 0;
+
+    async function updateDashboardStudents() {
+        if (activeRequest) activeRequest.abort();
+        activeRequest = new AbortController();
+        const currentRequest = ++requestNumber;
+        const url = new URL(window.location.href);
+        const query = search.value.trim();
+        if (query) url.searchParams.set('q', query);
+        else url.searchParams.delete('q');
+        results.setAttribute('aria-busy', 'true');
+
+        try {
+            const response = await fetch(url, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                signal: activeRequest.signal,
+            });
+            if (!response.ok || response.redirected) throw new Error('Student search failed');
+            const markup = await response.text();
+            if (currentRequest !== requestNumber) return;
+            rows.innerHTML = markup;
+            window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+        } catch (error) {
+            if (error.name !== 'AbortError' && currentRequest === requestNumber) {
+                rows.innerHTML = '<tr><td colspan="4" class="py-8 text-center text-sm text-rose-700" role="alert">Student records could not be updated. Please try again.</td></tr>';
+            }
+        } finally {
+            if (currentRequest === requestNumber) {
+                results.setAttribute('aria-busy', 'false');
+                activeRequest = null;
+            }
+        }
+    }
+
+    form.addEventListener('submit', event => {
+        event.preventDefault();
+        updateDashboardStudents();
+    });
+    search.addEventListener('input', () => {
+        clearTimeout(timer);
+        timer = setTimeout(updateDashboardStudents, 300);
+    });
+    window.addEventListener('popstate', () => {
+        search.value = new URL(window.location.href).searchParams.get('q') || '';
+        updateDashboardStudents();
+    });
+})();
+</script>
 {% endblock %}

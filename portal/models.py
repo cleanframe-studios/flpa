@@ -668,6 +668,10 @@ class AttendanceRegister(models.Model):
 
 
 class Attendance(models.Model):
+    PERIOD_CHOICES = [
+        ('morning', 'Morning'),
+        ('afternoon', 'Afternoon'),
+    ]
     STATUS_CHOICES = [
         ('Present', 'Present'),
         ('Absent', 'Absent'),
@@ -680,11 +684,12 @@ class Attendance(models.Model):
     classroom = models.ForeignKey(ClassRoom, on_delete=models.PROTECT, related_name='attendance')
     session = models.ForeignKey(AcademicSession, on_delete=models.PROTECT, related_name='attendance')
     date = models.DateField()
+    period = models.CharField(max_length=10, choices=PERIOD_CHOICES, default='morning')
     status = models.CharField(max_length=100, choices=STATUS_CHOICES, default='Present')
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['student', 'classroom', 'session', 'date'], name='unique_student_attendance'),
+            models.UniqueConstraint(fields=['student', 'classroom', 'session', 'date', 'period'], name='unique_student_attendance_period'),
         ]
         ordering = ['student__last_name', 'student__first_name']
 
@@ -928,7 +933,7 @@ class AdmissionCampaign(models.Model):
         ordering = ['-deadline']
 
     def save(self, *args, **kwargs):
-        if self.deadline and self.deadline <= timezone.now():
+        if self.status == 'Active' and self.deadline and self.deadline <= timezone.now():
             self.status = 'Closed'
         self.is_active = self.status == 'Active'
         if self.is_active:

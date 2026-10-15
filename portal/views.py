@@ -1022,7 +1022,12 @@ def manage_campaigns_view(request):
             campaign.target_term_id = request.POST.get('target_term')
             campaign.application_fee = request.POST.get('application_fee') or 0
             campaign.deadline = combined_deadline()
-            campaign.status = 'Closed' if campaign.deadline and campaign.deadline < timezone.now() else request.POST.get('status', 'Closed')
+            requested_status = request.POST.get('status', 'Closed')
+            campaign.status = (
+                'Closed'
+                if requested_status == 'Active' and campaign.deadline and campaign.deadline < timezone.now()
+                else requested_status
+            )
             campaign.is_active = campaign.status == 'Active'
             campaign.save()
             messages.success(request, 'Admission campaign updated.')
@@ -4242,10 +4247,10 @@ def _report_card_context(student, term, published):
         current_date = term_start
         while current_date <= term_end:
             if current_date.weekday() < 5 and current_date not in holidays:
-                days_opened += 1
+                days_opened += len(Attendance.PERIOD_CHOICES)
             current_date += datetime.timedelta(days=1)
         days_present = Attendance.objects.filter(student=student, session=session, status__in=('Present', 'Late'), date__range=(term_start, term_end)).count()
-        days_absent = days_opened - days_present
+        days_absent = max(days_opened - days_present, 0)
     evaluation = StudentEvaluation.objects.filter(student=student, session=session, term=term).first()
     character_traits = [('attentiveness', 'Attentiveness'), ('punctuality', 'Punctuality'), ('self_control', 'Self Control'), ('relationship_with_others', 'Relationship With Others')]
     skill_traits = [('music', 'Music'), ('indoor_games', 'Indoor Games'), ('outdoor_games', 'Outdoor Games'), ('club_association', 'Club/Association')]
@@ -5015,6 +5020,24 @@ def exam_result_entry_view(request, student_pk):
 
 @login_required(login_url='login')
 def dashboard_view(request):
+    search_query = request.GET.get('q', '').strip()
+    student_search_fields = (
+        'first_name', 'last_name', 'other_name', 'student_id', 'lin',
+        'current_class__name', 'state_of_origin', 'lga_of_origin', 'status', 'program',
+    )
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        matching_students = Student.objects.select_related('current_class').all()
+        for search_term in search_query.split():
+            term_filter = Q()
+            for field in student_search_fields:
+                term_filter |= Q(**{f'{field}__icontains': search_term})
+            matching_students = matching_students.filter(term_filter)
+        matching_students = matching_students.order_by('-id')
+        students = matching_students[:20] if search_query else matching_students[:5]
+        return render(request, 'portal/partials/dashboard_student_rows.html', {
+            'students': students,
+        })
+
     today = timezone.localdate()
     active_session = AcademicSession.objects.filter(is_active=True).first()
     active_term = AcademicTerm.objects.filter(is_active=True, session=active_session).first() if active_session else None
@@ -5038,7 +5061,7 @@ def dashboard_view(request):
             'present': present,
             'rate': round((present / total) * 100) if total else 0,
         })
-    students = Student.objects.all().order_by('-id')[:5] # Recent 5 students
+    students = Student.objects.select_related('current_class').all().order_by('-id')[:5]
     
     context = {
         'total_students': total_students,
@@ -5131,7 +5154,7 @@ def update_absence_flag(student, selected_date, request=None):
         student=student,
         status='Absent',
         date__lte=selected_date,
-    ).order_by('-date')[:3]
+    ).order_by('-date').values_list('date', flat=True).distinct()[:3]
     was_flagged = student.consecutive_absence_flag
     student.consecutive_absence_flag = len(recent_absences) >= 3
     student.save(update_fields=['consecutive_absence_flag'])
@@ -5903,6 +5926,9 @@ def attendance_view(request):
     selected_class_id = request.POST.get('classroom') or request.GET.get('classroom')
     selected_week_id = request.POST.get('week') or request.GET.get('week')
     selected_day_value = request.POST.get('day') or request.GET.get('day')
+    selected_period = filter_data.get('period', 'morning')
+    if selected_period not in {'morning', 'afternoon'}:
+        selected_period = 'morning'
     if not selected_class_id and role_profile and role_profile.role == 'teacher' and teacher_record:
         assigned_classrooms = teacher_record.assigned_class.all()
         if assigned_classrooms.count() == 1:
@@ -5911,6 +5937,11 @@ def attendance_view(request):
     selected_week = None
     selected_date = None
     selected_day = None
+    register_feedback = ''
+    register_error = ''
+    is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
+    term_weeks = selected_term.weeks.order_by('start_date', 'week_number') if selected_term else AcademicWeek.objects.none()
+    today = timezone.localdate()
 
     def invalid_id(value):
         return value in (None, '', 'None') or not str(value).isdigit()
@@ -5918,43 +5949,72 @@ def attendance_view(request):
     if not session or not selected_term:
         messages.warning(request, 'Select an academic session and term before taking attendance.')
     elif request.method == 'POST' and request.POST.get('action') == 'save_attendance':
-        if invalid_id(selected_class_id) or invalid_id(selected_week_id) or selected_day_value not in {str(day) for day, _ in day_choices}:
+        if (invalid_id(selected_class_id) or invalid_id(selected_week_id)
+                or selected_day_value not in {str(day) for day, _ in day_choices}
+                or request.POST.get('period', 'morning') not in {'morning', 'afternoon'}):
             messages.error(request, 'Please select a valid classroom, academic week, and school day.')
             return redirect('attendance')
         selected_class = get_object_or_404(classrooms, pk=int(selected_class_id))
         selected_week = get_object_or_404(AcademicWeek, pk=int(selected_week_id), term=selected_term)
         selected_day = int(selected_day_value)
         selected_date = selected_week.start_date + datetime.timedelta(days=selected_day)
-        if Holiday.objects.filter(term=selected_term, date=selected_date).exists():
-            messages.error(request, 'Attendance cannot be recorded on an academic holiday.')
+        selected_period = request.POST.get('period', 'morning')
+        if selected_date > today or selected_date > selected_week.end_date:
+            register_feedback = 'Attendance cannot be recorded for a future school day.'
+            if not is_ajax:
+                messages.error(request, register_feedback)
+                return redirect(
+                    f'{request.path}?classroom={selected_class.pk}&week={selected_week.pk}'
+                    f'&day={selected_day}&period={selected_period}'
+                )
+        elif Holiday.objects.filter(term=selected_term, date=selected_date).exists():
+            register_feedback = 'Attendance cannot be recorded on an academic holiday.'
+            if not is_ajax:
+                messages.error(request, register_feedback)
+                return redirect(
+                    f'{request.path}?classroom={selected_class.pk}&week={selected_week.pk}'
+                    f'&day={selected_day}&period={selected_period}'
+                )
         else:
             students = list(students_in_term_classroom(selected_term, selected_class))
-            allowed_statuses = {value for value, _ in Attendance.STATUS_CHOICES}
-            submitted_statuses = [request.POST.get(f'status_{student.pk}', 'Present') for student in students]
+            allowed_statuses = {'Present', 'Absent'}
+            submitted_statuses = [request.POST.get(f'status_{student.pk}') for student in students]
             if any(status not in allowed_statuses for status in submitted_statuses):
-                messages.error(request, 'One or more attendance statuses are invalid.')
-                return redirect(f'{request.path}?classroom={selected_class.pk}&week={selected_week.pk}&day={selected_day}')
-            with transaction.atomic():
-                register, _ = AttendanceRegister.objects.get_or_create(
-                    classroom=selected_class,
-                    session=session,
-                    date=selected_date,
-                )
-                for index, student in enumerate(students):
-                    Attendance.objects.update_or_create(
-                        student=student,
+                register_error = 'Mark every student Present or Absent before saving.'
+                if not is_ajax:
+                    messages.error(request, register_error)
+                    return redirect(
+                        f'{request.path}?classroom={selected_class.pk}&week={selected_week.pk}'
+                        f'&day={selected_day}&period={selected_period}'
+                    )
+            else:
+                with transaction.atomic():
+                    register, _ = AttendanceRegister.objects.get_or_create(
                         classroom=selected_class,
                         session=session,
                         date=selected_date,
-                        defaults={
-                            'register': register,
-                            'status': submitted_statuses[index],
-                        },
                     )
-                for student in students:
-                    update_absence_flag(student, selected_date, request)
-            messages.success(request, 'Attendance register updated successfully!')
-            return redirect(f'{request.path}?classroom={selected_class.pk}&week={selected_week.pk}&day={selected_day}')
+                    for index, student in enumerate(students):
+                        Attendance.objects.update_or_create(
+                            student=student,
+                            classroom=selected_class,
+                            session=session,
+                            date=selected_date,
+                            period=selected_period,
+                            defaults={
+                                'register': register,
+                                'status': submitted_statuses[index],
+                            },
+                        )
+                    for student in students:
+                        update_absence_flag(student, selected_date, request)
+                register_feedback = f'{selected_period.title()} attendance saved for {selected_date:%A, %d %B %Y}.'
+                if not is_ajax:
+                    messages.success(request, 'Attendance register updated successfully!')
+                    return redirect(
+                        f'{request.path}?classroom={selected_class.pk}&week={selected_week.pk}'
+                        f'&day={selected_day}&period={selected_period}'
+                    )
     elif selected_term:
         if selected_class_id in ('', 'None'):
             messages.error(request, 'Please select a valid classroom.')
@@ -5970,6 +6030,8 @@ def attendance_view(request):
                 messages.error(request, 'Please select a valid academic week.')
             else:
                 selected_week = AcademicWeek.objects.filter(pk=int(selected_week_id), term=selected_term).first()
+        elif selected_week_id is None:
+            selected_week = term_weeks.filter(start_date__lte=today, end_date__gte=today).first()
         if selected_day_value in ('', 'None'):
             messages.error(request, 'Please select a valid school day.')
         elif selected_day_value is not None:
@@ -5977,40 +6039,90 @@ def attendance_view(request):
                 messages.error(request, 'Please select a valid school day.')
             else:
                 selected_day = int(selected_day_value)
+        elif selected_week:
+            if selected_week.start_date <= today <= selected_week.end_date:
+                selected_day = min(today.weekday(), 4)
+            else:
+                selected_day = 0
         if selected_week and selected_day is not None:
             selected_date = selected_week.start_date + datetime.timedelta(days=selected_day)
 
     students = list(students_in_term_classroom(selected_term, selected_class)) if selected_class else []
     attendance_statuses = {}
-    attendance_recorded = False
+    attendance_marked_count = 0
     if selected_class and selected_date:
         attendance_statuses = dict(Attendance.objects.filter(
             classroom=selected_class,
             session=session,
             date=selected_date,
+            period=selected_period,
         ).values_list('student_id', 'status'))
-        attendance_recorded = bool(attendance_statuses)
+        attendance_marked_count = len(attendance_statuses)
     for student in students:
-        student.attendance_status = attendance_statuses.get(student.pk, 'Present')
+        stored_status = attendance_statuses.get(student.pk)
+        student.attendance_status = (
+            'Present' if stored_status in {'Present', 'Late'}
+            else 'Absent' if stored_status == 'Absent'
+            else None
+        )
+    term_holiday_dates = set(
+        Holiday.objects.filter(term=selected_term).values_list('date', flat=True)
+    ) if selected_term else set()
     day_options = [
         {
             'value': day,
             'label': label,
             'date': selected_week.start_date + datetime.timedelta(days=day) if selected_week else None,
+            'is_future': bool(
+                selected_week
+                and (
+                    selected_week.start_date + datetime.timedelta(days=day) > today
+                    or selected_week.start_date + datetime.timedelta(days=day) > selected_week.end_date
+                )
+            ),
+            'is_holiday': bool(
+                selected_week
+                and selected_week.start_date + datetime.timedelta(days=day) in term_holiday_dates
+            ),
         }
         for day, label in day_choices
     ]
+    selected_date_is_holiday = bool(selected_date and selected_date in term_holiday_dates)
+    selected_date_unavailable = bool(
+        selected_date and selected_week
+        and (selected_date > today or selected_date > selected_week.end_date)
+    )
+    term_holidays_by_id = {}
+    for term_id, holiday_date in Holiday.objects.filter(term__in=all_terms).values_list('term_id', 'date'):
+        term_holidays_by_id.setdefault(term_id, set()).add(holiday_date)
+    weeks_by_term = {str(term_option.pk): [] for term_option in all_terms}
+    for week in AcademicWeek.objects.filter(term__in=all_terms).order_by('term_id', 'start_date', 'week_number'):
+        term_holidays = term_holidays_by_id.get(week.term_id, set())
+        weeks_by_term[str(week.term_id)].append({
+            'pk': week.pk,
+            'week_number': week.week_number,
+            'start_date': week.start_date.isoformat(),
+            'end_date': week.end_date.isoformat(),
+            'holidays': [
+                (week.start_date + datetime.timedelta(days=day)).isoformat()
+                for day in range(5)
+                if week.start_date + datetime.timedelta(days=day) in term_holidays
+            ],
+        })
     context = {
         'classrooms': classrooms,
         'sessions': sessions,
         'terms': terms,
         'terms_json': json.dumps(session_terms_map()),
+        'attendance_weeks_json': json.dumps(weeks_by_term),
         'selected_session': session,
         'selected_term': selected_term,
         'current_session': session,
         'active_term': selected_term,
         'weeks': selected_term.weeks.all() if selected_term else [],
         'day_options': day_options,
+        'selected_date_is_holiday': selected_date_is_holiday,
+        'selected_date_unavailable': selected_date_unavailable,
         'selected_class': selected_class,
         'selected_class_id': selected_class_id,
         'selected_week': selected_week,
@@ -6018,10 +6130,17 @@ def attendance_view(request):
         'selected_day': selected_day,
         'selected_date': selected_date,
         'students': students,
-        'status_choices': Attendance.STATUS_CHOICES,
         'attendance_statuses': attendance_statuses,
-        'attendance_recorded': attendance_recorded,
+        'attendance_marked_count': attendance_marked_count,
+        'attendance_recorded': bool(students) and attendance_marked_count == len(students),
+        'selected_period': selected_period,
+        'period_choices': Attendance.PERIOD_CHOICES,
+        'register_feedback': register_feedback,
+        'register_error': register_error,
+        'today': today,
     }
+    if is_ajax:
+        return render(request, 'portal/partials/attendance_register.html', context)
     return render(request, 'portal/attendance.html', context)
 
 

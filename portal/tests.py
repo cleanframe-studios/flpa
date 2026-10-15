@@ -419,6 +419,49 @@ class ResendEmailTests(TestCase):
         }
 
 
+class AdmissionCampaignArchiveLoginTests(TestCase):
+    def test_archiving_expired_campaign_removes_login_card(self):
+        user = get_user_model().objects.create_user(
+            username='campaign-registrar', password='pass123',
+        )
+        AccountProfile.objects.create(user=user, role='registrar')
+        self.client.force_login(user)
+        session = AcademicSession.objects.create(name='2026/2027')
+        term = AcademicTerm.objects.create(session=session, term_name='First Term')
+        campaign = AdmissionCampaign.objects.create(
+            campaign_name='Archived Campaign',
+            target_session=session,
+            target_term=term,
+            deadline=timezone.now() + datetime.timedelta(days=5),
+            status='Active',
+        )
+
+        response = self.client.post(reverse('manage_campaigns'), {
+            'action': 'edit_campaign',
+            'campaign_id': campaign.pk,
+            'campaign_name': campaign.campaign_name,
+            'target_session': session.pk,
+            'target_term': term.pk,
+            'application_fee': '2500',
+            'deadline_date': (timezone.localdate() - datetime.timedelta(days=1)).isoformat(),
+            'deadline_time': '23:59',
+            'status': 'Archived',
+        })
+
+        self.assertRedirects(response, reverse('manage_campaigns'))
+        campaign.refresh_from_db()
+        self.assertEqual(campaign.status, 'Archived')
+        self.assertFalse(campaign.is_active)
+
+        self.client.logout()
+        response = self.client.get(reverse('login'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Welcome Back')
+        self.assertNotContains(response, campaign.campaign_name)
+        self.assertNotContains(response, 'admission-banner')
+
+
 class AdmissionApprovalWorkflowTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(username='registrar', password='pass123')
@@ -1408,11 +1451,15 @@ class AcademicCalendarGuardTests(TestCase):
         student = Student.objects.create(first_name='Ada', last_name='Lovelace', sex='Female', date_of_birth='2015-01-01', state_of_origin='Lagos', lga_of_origin='Ikeja', program='Primary (PRY)', current_class=classroom)
         register = AttendanceRegister.objects.create(classroom=classroom, session=session, date=week.start_date)
         Attendance.objects.create(register=register, student=student, classroom=classroom, session=session, date=week.start_date, status='Present')
+        Attendance.objects.create(
+            register=register, student=student, classroom=classroom, session=session,
+            date=week.start_date, period='afternoon', status='Present',
+        )
 
         response = self.client.get(reverse('report_card', args=[student.pk]), {'session': session.pk, 'term': term.pk})
 
-        self.assertEqual(response.context['days_school_opened'], 5)
-        self.assertEqual(response.context['days_present'], 1)
+        self.assertEqual(response.context['days_school_opened'], 10)
+        self.assertEqual(response.context['days_present'], 2)
 
     def test_bursar_cannot_access_attendance_manager(self):
         bursar_user = get_user_model().objects.create_user(username='attendance-bursar', password='pass')
@@ -2828,3 +2875,187 @@ class AcademicCalendarGuardTests(TestCase):
         self.assertEqual(enrollment.classroom, current_class)
 
 
+
+
+
+class AttendanceSessionWorkflowTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username='attendance-admin', password='pass123', is_staff=True,
+        )
+        AccountProfile.objects.create(user=self.user, role='admin')
+        self.client.force_login(self.user)
+        self.session = AcademicSession.objects.create(name='2026/2027', is_active=True)
+        self.term = AcademicTerm.objects.create(
+            session=self.session, term_name='First Term', is_active=True,
+        )
+        self.classroom = ClassRoom.objects.create(
+            name='Primary 1', section='Primary', level_number=1,
+        )
+        self.student = Student.objects.create(
+            first_name='Ada', last_name='Lovelace', sex='Female',
+            date_of_birth='2015-01-01', state_of_origin='Lagos',
+            lga_of_origin='Ikeja', program='Primary (PRY)',
+            current_class=self.classroom,
+        )
+        self.week_start = timezone.localdate() - datetime.timedelta(days=timezone.localdate().weekday())
+        self.week = AcademicWeek.objects.create(
+            term=self.term, week_number=1, start_date=self.week_start,
+            end_date=self.week_start + datetime.timedelta(days=4),
+        )
+
+    def test_attendance_defaults_to_current_week_and_today_without_reload_partial(self):
+        response = self.client.get(reverse('attendance'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['selected_week'], self.week)
+        self.assertEqual(response.context['selected_day'], min(timezone.localdate().weekday(), 4))
+
+        partial = self.client.get(
+            reverse('attendance'),
+            {'classroom': self.classroom.pk, 'week': self.week.pk, 'day': timezone.localdate().weekday()},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+        self.assertTemplateUsed(partial, 'portal/partials/attendance_register.html')
+        self.assertNotContains(partial, '<html')
+        self.assertContains(partial, 'Not saved yet')
+        self.assertNotContains(partial, 'value="Present" required checked')
+
+    def test_attendance_morning_and_afternoon_are_separate_and_binary(self):
+        attendance_day = timezone.localdate().weekday()
+        base_payload = {
+            'action': 'save_attendance',
+            'session': self.session.pk,
+            'term': self.term.pk,
+            'classroom': self.classroom.pk,
+            'week': self.week.pk,
+            'day': attendance_day,
+            f'status_{self.student.pk}': 'Present',
+        }
+
+        for period, status in (('morning', 'Present'), ('afternoon', 'Absent')):
+            payload = {**base_payload, 'period': period, f'status_{self.student.pk}': status}
+            response = self.client.post(
+                reverse('attendance'), payload,
+                HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+            )
+            self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(
+            Attendance.objects.filter(student=self.student, date=timezone.localdate()).count(),
+            2,
+        )
+        self.assertEqual(
+            Attendance.objects.get(student=self.student, period='afternoon').status,
+            'Absent',
+        )
+
+    def test_attendance_requires_an_explicit_status_for_every_student(self):
+        response = self.client.post(
+            reverse('attendance'),
+            {
+                'action': 'save_attendance',
+                'session': self.session.pk,
+                'term': self.term.pk,
+                'classroom': self.classroom.pk,
+                'week': self.week.pk,
+                'day': timezone.localdate().weekday(),
+                'period': 'morning',
+            },
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Mark every student Present or Absent before saving.')
+        self.assertFalse(Attendance.objects.filter(student=self.student).exists())
+
+    def test_future_school_day_is_disabled_and_cannot_be_saved(self):
+        today = timezone.localdate()
+        if today.weekday() >= 4:
+            self.skipTest('The current school week has no future weekdays to verify.')
+        future_day = today.weekday() + 1
+        response = self.client.get(
+            reverse('attendance'),
+            {'classroom': self.classroom.pk, 'week': self.week.pk, 'day': future_day},
+        )
+        self.assertContains(response, 'Not open yet')
+
+        response = self.client.post(reverse('attendance'), {
+            'action': 'save_attendance',
+            'session': self.session.pk,
+            'term': self.term.pk,
+            'classroom': self.classroom.pk,
+            'week': self.week.pk,
+            'day': future_day,
+            'period': 'morning',
+            f'status_{self.student.pk}': 'Present',
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Attendance.objects.filter(student=self.student).exists())
+
+
+class DashboardStudentSearchTests(TestCase):
+    def test_admin_app_more_matches_control_center_dropdowns(self):
+        user = get_user_model().objects.create_user(
+            username='navigation-admin', password='pass123', is_staff=True,
+        )
+        AccountProfile.objects.create(user=user, role='admin')
+        self.client.force_login(user)
+
+        response = self.client.get(reverse('dashboard'))
+        content = response.content.decode()
+        app_drawer = content.split('id="app-more-drawer"', 1)[1].split('id="staff-more-drawer"', 1)[0]
+
+        menu_ids = (
+            'app-academics-menu', 'app-finance-menu', 'app-payroll-menu',
+            'app-admissions-menu', 'app-students-menu', 'app-staff-menu',
+            'app-parents-menu', 'app-cbt-menu', 'app-results-menu',
+            'app-messaging-menu',
+        )
+        menu_positions = [app_drawer.index(f'id="{menu_id}"') for menu_id in menu_ids]
+        self.assertEqual(menu_positions, sorted(menu_positions))
+        self.assertEqual(app_drawer.count('class="app-command-section"'), len(menu_ids))
+        self.assertEqual(app_drawer.count('class="app-command-link'), 38)
+
+        for label in (
+            'Academics', 'Bursary &amp; Finance', 'HR &amp; Payroll',
+            'Admissions Hub', 'Student Manager', 'Staff Manager',
+            'Parents Manager', 'CBT Manager', 'Results', 'Messaging',
+            'Academic Calendar', 'Term Enrollment', 'Student Class Allocation',
+            'Daily Attendance', 'Class Subjects', 'Class Management',
+            'Fee Structures', 'Book List', 'Student Ledgers',
+            'Payment History', 'Defaulters List', 'Character &amp; Skills',
+            'Automated Comments', 'CBT Results', 'Payroll History / Payslips',
+        ):
+            self.assertIn(label, app_drawer)
+
+        for obsolete_heading in ('Academic Setup', 'User Operations', '>Finance<', '>System<'):
+            self.assertNotIn(obsolete_heading, app_drawer)
+
+    def test_dashboard_search_returns_matching_student_rows_only(self):
+        user = get_user_model().objects.create_user(
+            username='dashboard-admin', password='pass123', is_staff=True,
+        )
+        AccountProfile.objects.create(user=user, role='admin')
+        classroom = ClassRoom.objects.create(name='Primary 1', section='Primary', level_number=1)
+        Student.objects.create(
+            first_name='Ada', last_name='Lovelace', student_id='FLA-SEARCH-1',
+            sex='Female', date_of_birth='2015-01-01', state_of_origin='Lagos',
+            lga_of_origin='Ikeja', program='Primary (PRY)', current_class=classroom,
+        )
+        Student.objects.create(
+            first_name='Grace', last_name='Hopper', student_id='FLA-SEARCH-2',
+            sex='Female', date_of_birth='2015-01-01', state_of_origin='Lagos',
+            lga_of_origin='Ikeja', program='Primary (PRY)', current_class=classroom,
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(
+            reverse('dashboard'), {'q': 'Ada'},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'portal/partials/dashboard_student_rows.html')
+        self.assertContains(response, 'FLA-SEARCH-1')
+        self.assertNotContains(response, 'FLA-SEARCH-2')

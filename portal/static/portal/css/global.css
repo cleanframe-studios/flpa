@@ -205,6 +205,15 @@ body {
         max-height: calc(100dvh - 7.5rem);
     }
 
+    .standalone-dropdown-open {
+        z-index: 10001 !important;
+    }
+
+    .standalone-dropdown-flip {
+        top: auto !important;
+        bottom: calc(100% + .35rem) !important;
+    }
+
     #toast-container,
     #globalToastContainer {
         top: 4.75rem !important;
