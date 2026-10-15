@@ -1,4 +1,5 @@
 {% extends 'portal/base.html' %}
+{% load static %}
 
 {% block page_title %}Daily Attendance{% endblock %}
 {% block main_classes %}flex-grow flex flex-col p-0 bg-slate-100{% endblock %}
@@ -73,7 +74,18 @@
             window.attendanceWeeksMap = {{ attendance_weeks_json|default:'{}'|safe }};
         </script>
         <div id="attendance-register-region" aria-live="polite" aria-busy="false">
-            {% include 'portal/partials/attendance_register.html' %}
+            <div id="attendance-register-content">
+                {% include 'portal/partials/attendance_register.html' %}
+            </div>
+            <div data-attendance-register-loader class="absolute inset-0 z-30 hidden items-center justify-center rounded-3xl bg-white/70 p-4 backdrop-blur-md" role="status" aria-live="polite">
+                <div class="flex flex-col items-center gap-3 rounded-3xl border border-white/80 bg-slate-900/90 px-7 py-5 text-white shadow-2xl shadow-slate-950/25">
+                    <div class="flex items-center gap-3">
+                        <img src="{% static 'portal/logo.png' %}" alt="" class="h-11 w-11 rounded-xl bg-white p-1.5 object-contain">
+                        <svg class="h-7 w-7 animate-spin text-sky-300" fill="none" viewBox="0 0 24 24" aria-hidden="true"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                    </div>
+                    <span class="text-xs font-bold tracking-wide">Loading attendance…</span>
+                </div>
+            </div>
         </div>
         {% endif %}
     </div>
@@ -115,36 +127,7 @@
     #globalToastContainer { z-index: 12001; }
     #attendance-register-region { position: relative; min-height: 6rem; transition: opacity 180ms ease; }
     #attendance-register-region[aria-busy="true"] { pointer-events: none; }
-    #attendance-register-region[aria-busy="true"]::before {
-        content: "";
-        position: absolute;
-        top: calc(50% - 1.7rem);
-        left: calc(50% - .7rem);
-        z-index: 21;
-        width: 1.4rem;
-        height: 1.4rem;
-        border: 3px solid rgba(30, 58, 138, .18);
-        border-top-color: #1d4ed8;
-        border-radius: 50%;
-        animation: attendance-spin .75s linear infinite;
-    }
-    #attendance-register-region[aria-busy="true"]::after {
-        content: "Loading weekly register…";
-        position: absolute;
-        inset: 0;
-        z-index: 20;
-        display: grid;
-        place-content: center;
-        padding-top: 2.8rem;
-        min-height: 7rem;
-        border: 1px solid rgba(255,255,255,.7);
-        border-radius: 1.5rem;
-        background: rgba(255,255,255,.66);
-        color: #1e3a8a;
-        font-size: .875rem;
-        font-weight: 800;
-        backdrop-filter: blur(18px);
-    }
+    #attendance-register-region[aria-busy="true"] [data-attendance-register-loader] { display: flex; }
     .attendance-week-scroll { position: relative; isolation: isolate; }
     .attendance-student-sticky { position: sticky; background-clip: padding-box; box-shadow: 6px 0 10px -10px rgba(15,23,42,.45); }
     .attendance-week-scroll tbody .attendance-student-sticky { background-color: #fff; }
@@ -154,11 +137,9 @@
     .attendance-modal-panel { opacity: 0; transform: translateY(12px) scale(.96); transition: opacity 220ms ease, transform 220ms cubic-bezier(.2,.8,.2,1); }
     .attendance-modal[data-open="true"] .attendance-modal-panel { opacity: 1; transform: translateY(0) scale(1); }
     .attendance-toggle[disabled] label { cursor: not-allowed; opacity: .45; }
-    @keyframes attendance-spin { to { transform: rotate(360deg); } }
-    #attendance-register-region[aria-busy="true"] > * { opacity: .3; }
+    #attendance-register-region[aria-busy="true"] #attendance-register-content { opacity: .3; }
     @media (prefers-reduced-motion: reduce) {
         #attendance-register-region, .attendance-modal, .attendance-modal-panel { transition: none; }
-        #attendance-register-region[aria-busy="true"]::before { animation: none; }
     }
 </style>
 <script>
@@ -252,7 +233,8 @@ document.getElementById('unsavedAttendanceModal')?.addEventListener('click', eve
 (function () {
     const filterForm = document.getElementById('attendance-filter-form');
     const region = document.getElementById('attendance-register-region');
-    if (!filterForm || !region) return;
+    const registerContent = document.getElementById('attendance-register-content');
+    if (!filterForm || !region || !registerContent) return;
     const sessionSelect = document.getElementById('attendance-session');
     const termSelect = document.getElementById('attendance-term');
     const weekSelect = document.getElementById('attendance-week');
@@ -329,12 +311,12 @@ document.getElementById('unsavedAttendanceModal')?.addEventListener('click', eve
             setLoadButtonBusy(activeLoadButton, false);
             activeLoadButton = null;
         }
-        const { filterSubmitButton, periodSwitch, ...fetchOptions } = options;
+        const { filterSubmitButton, ...fetchOptions } = options;
         if (filterSubmitButton) {
             activeLoadButton = filterSubmitButton;
             setLoadButtonBusy(filterSubmitButton, true);
         }
-        if (!periodSwitch) region.setAttribute('aria-busy', 'true');
+        region.setAttribute('aria-busy', 'true');
         try {
             const response = await fetch(url, {
                 ...fetchOptions,
@@ -344,7 +326,7 @@ document.getElementById('unsavedAttendanceModal')?.addEventListener('click', eve
             if (!response.ok || response.redirected) throw new Error('Attendance request failed');
             const markup = await response.text();
             if (currentRequest !== requestNumber) return;
-            region.innerHTML = markup;
+            registerContent.innerHTML = markup;
             attendanceDirty = false;
             if (options.method !== 'POST') updateAttendanceUrl();
             const selectedWeek = weekSelect.selectedOptions[0]?.textContent || '';
@@ -359,13 +341,12 @@ document.getElementById('unsavedAttendanceModal')?.addEventListener('click', eve
             }
         } finally {
             if (currentRequest === requestNumber) {
-                if (!periodSwitch) region.setAttribute('aria-busy', 'false');
+                region.setAttribute('aria-busy', 'false');
                 setLoadButtonBusy(activeLoadButton, false);
                 activeLoadButton = null;
                 document.querySelectorAll('[data-attendance-period]').forEach(button => {
                     button.disabled = false;
                     button.removeAttribute('aria-busy');
-                    button.querySelector('[data-period-spinner]')?.classList.add('hidden');
                 });
                 activeRequest = null;
             }
@@ -412,13 +393,10 @@ document.getElementById('unsavedAttendanceModal')?.addEventListener('click', eve
             if (!await confirmDiscardAttendanceChanges()) return;
             document.querySelectorAll('[data-attendance-period]').forEach(button => {
                 button.disabled = true;
-                button.setAttribute('aria-busy', 'false');
-                button.querySelector('[data-period-spinner]')?.classList.add('hidden');
             });
             periodButton.setAttribute('aria-busy', 'true');
-            periodButton.querySelector('[data-period-spinner]')?.classList.remove('hidden');
             filterForm.elements.period.value = periodButton.dataset.attendancePeriod;
-            loadRegister(updateAttendanceUrl(), { periodSwitch: true });
+            loadRegister(updateAttendanceUrl());
         }
     });
 

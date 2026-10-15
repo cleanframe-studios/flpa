@@ -47,6 +47,15 @@ body {
     visibility: visible;
 }
 
+@media (display-mode: standalone), (display-mode: fullscreen) {
+    html.app-transition-pending #page-transition-loader {
+        display: flex !important;
+        opacity: 1;
+        pointer-events: auto;
+        visibility: visible;
+    }
+}
+
 .page-transition-card {
     align-items: center;
     backdrop-filter: blur(24px);
@@ -322,14 +331,6 @@ body {
     .public-site form:hover,
     .public-site iframe:hover {
         transform: translateY(-0.375rem);
-@media (display-mode: standalone), (display-mode: fullscreen) {
-    html.app-transition-pending #page-transition-loader {
-        display: flex !important;
-        opacity: 1;
-        pointer-events: auto;
-        visibility: visible;
-    }
-}
         border-color: rgb(59 130 246 / 0.5);
         box-shadow: 0 20px 40px rgb(30 58 138 / 0.25);
     }
