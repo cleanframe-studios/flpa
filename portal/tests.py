@@ -3193,6 +3193,7 @@ class AttendanceSessionWorkflowTests(TestCase):
         self.assertContains(response, 'data-register-load-spinner')
         self.assertContains(response, 'Loading register…')
         self.assertContains(response, 'region.setAttribute(\'aria-busy\', \'true\')')
+        self.assertContains(response, '#globalToastContainer { z-index: 12001; }')
 
     def test_attendance_morning_and_afternoon_are_separate_and_binary(self):
         attendance_day = timezone.localdate().weekday()
