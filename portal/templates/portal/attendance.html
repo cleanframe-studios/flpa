@@ -310,7 +310,7 @@ document.getElementById('unsavedAttendanceModal')?.addEventListener('click', eve
         if (activeRequest) activeRequest.abort();
         activeRequest = new AbortController();
         const currentRequest = ++requestNumber;
-        region.setAttribute('aria-busy', 'true');
+        if (!options.periodSwitch) region.setAttribute('aria-busy', 'true');
         try {
             const response = await fetch(url, {
                 ...options,
@@ -335,7 +335,12 @@ document.getElementById('unsavedAttendanceModal')?.addEventListener('click', eve
             }
         } finally {
             if (currentRequest === requestNumber) {
-                region.setAttribute('aria-busy', 'false');
+                if (!options.periodSwitch) region.setAttribute('aria-busy', 'false');
+                document.querySelectorAll('[data-attendance-period]').forEach(button => {
+                    button.disabled = false;
+                    button.removeAttribute('aria-busy');
+                    button.querySelector('[data-period-spinner]')?.classList.add('hidden');
+                });
                 activeRequest = null;
             }
         }
@@ -365,8 +370,15 @@ document.getElementById('unsavedAttendanceModal')?.addEventListener('click', eve
         const periodButton = event.target.closest('[data-attendance-period]');
         if (periodButton) {
             if (!await confirmDiscardAttendanceChanges()) return;
+            document.querySelectorAll('[data-attendance-period]').forEach(button => {
+                button.disabled = true;
+                button.setAttribute('aria-busy', 'false');
+                button.querySelector('[data-period-spinner]')?.classList.add('hidden');
+            });
+            periodButton.setAttribute('aria-busy', 'true');
+            periodButton.querySelector('[data-period-spinner]')?.classList.remove('hidden');
             filterForm.elements.period.value = periodButton.dataset.attendancePeriod;
-            loadRegister(updateAttendanceUrl());
+            loadRegister(updateAttendanceUrl(), { periodSwitch: true });
         }
     });
 

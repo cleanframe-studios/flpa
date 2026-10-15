@@ -4,11 +4,11 @@
         <div class="min-w-0">
             <p class="text-[10px] font-black uppercase tracking-[0.18em] text-blue-700">Weekly attendance</p>
             <h2 class="mt-1 truncate text-lg font-black text-slate-900">{{ selected_class.name }} <span class="font-semibold text-slate-500">· Week {{ selected_week.week_number }}</span></h2>
-            <p class="mt-1 text-xs text-slate-500">{{ students|length }} student{{ students|length|pluralize }} · Swipe sideways to see each school day</p>
+            <p class="mt-1 text-xs text-slate-500">{{ students|length }} student{{ students|length|pluralize }}</p>
         </div>
         <div class="inline-flex w-fit items-center gap-1 rounded-2xl border border-white/90 bg-white/65 p-1 shadow-lg shadow-blue-950/10 backdrop-blur-2xl" role="group" aria-label="Attendance session">
             {% for value,label in period_choices %}
-            <button type="button" data-attendance-period="{{ value }}" aria-pressed="{% if selected_period == value %}true{% else %}false{% endif %}" class="rounded-xl px-4 py-2.5 text-xs font-black transition {% if selected_period == value %}bg-gradient-to-r from-blue-700 to-indigo-600 text-white shadow-md shadow-blue-900/20{% else %}text-slate-600 hover:bg-white/80{% endif %}">{{ label }}</button>
+            <button type="button" data-attendance-period="{{ value }}" aria-pressed="{% if selected_period == value %}true{% else %}false{% endif %}" class="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-black transition {% if selected_period == value %}bg-gradient-to-r from-blue-700 to-indigo-600 text-white shadow-md shadow-blue-900/20{% else %}text-slate-600 hover:bg-white/80{% endif %}"><span>{{ label }}</span><svg data-period-spinner class="hidden h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4z"></path></svg></button>
             {% endfor %}
         </div>
     </header>
@@ -90,10 +90,9 @@
                 </tbody>
             </table>
         </div>
-        <p class="mt-2 px-1 text-[10px] text-slate-500">P = Present · A = Absent{% if not can_edit_saved_attendance %} · Finalized days are locked for teachers.{% endif %}</p>
+        <p class="mt-2 px-1 text-[10px] text-slate-500">P = Present · A = Absent</p>
 
         <div class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
-            <p class="text-xs font-semibold text-slate-500">{% if can_edit_saved_attendance %}Admins can update saved marks.{% else %}Save once to finalize a day. Ask an admin if a correction is needed.{% endif %}</p>
             <div class="flex items-center gap-2">
                 {% if request.user.is_superuser and attendance_marked_count %}
                 <button type="button" onclick="openClearAttendanceModal()" class="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs font-bold text-rose-700 hover:bg-rose-100">Clear day</button>
