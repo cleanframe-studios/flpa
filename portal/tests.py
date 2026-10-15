@@ -19,6 +19,17 @@ from .utils import send_branded_email, send_registration_email
 from .views import parent_payable_charges, create_portal_account, provision_admission_accounts, provision_batch_admission_accounts, credit_parent_balance, pay_fee_account_balance_from_wallet, pay_result_access_fee_from_wallet, get_or_create_result_access_fee, student_result_access_status, InsufficientBalanceError, ChargeAlreadySettledError, DuplicateReferenceError
 
 
+class LoginInteractionTests(TestCase):
+    def test_login_has_caps_lock_warning_and_password_visibility_toggle(self):
+        response = self.client.get(reverse('login'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="caps-lock-warning"')
+        self.assertContains(response, 'Caps Lock is on.')
+        self.assertContains(response, 'id="password-visibility-toggle"')
+        self.assertContains(response, 'aria-label="Show password"')
+
+
 class StudentDirectoryTests(TestCase):
     def setUp(self):
         user = get_user_model().objects.create_user(username='directory-user', password='pass123')
@@ -2974,8 +2985,12 @@ class AttendanceSessionWorkflowTests(TestCase):
         )
         self.assertTemplateUsed(partial, 'portal/partials/attendance_register.html')
         self.assertNotContains(partial, '<html')
-        self.assertContains(partial, 'Not saved yet')
-        self.assertNotContains(partial, 'value="Present" required checked')
+        self.assertContains(partial, 'Weekly attendance')
+        self.assertContains(partial, 'Monday')
+        self.assertContains(partial, 'Friday')
+        self.assertContains(partial, 'data-attendance-period="morning"')
+        self.assertContains(response, 'id="attendance-filter-modal"')
+        self.assertContains(response, 'id="attendance-week"')
 
     def test_attendance_morning_and_afternoon_are_separate_and_binary(self):
         attendance_day = timezone.localdate().weekday()
@@ -3006,6 +3021,34 @@ class AttendanceSessionWorkflowTests(TestCase):
             'Absent',
         )
 
+    def test_weekly_register_saves_multiple_days_in_one_request(self):
+        response = self.client.post(
+            reverse('attendance'),
+            {
+                'action': 'save_attendance',
+                'session': self.session.pk,
+                'term': self.term.pk,
+                'classroom': self.classroom.pk,
+                'week': self.week.pk,
+                'day': timezone.localdate().weekday(),
+                'period': 'morning',
+                f'status_{self.student.pk}_0': 'Present',
+                f'status_{self.student.pk}_1': 'Absent',
+            },
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'attendance saved for 2 school day(s)')
+        monday = Attendance.objects.get(student=self.student, date=self.week_start, period='morning')
+        tuesday = Attendance.objects.get(
+            student=self.student,
+            date=self.week_start + datetime.timedelta(days=1),
+            period='morning',
+        )
+        self.assertEqual(monday.status, 'Present')
+        self.assertEqual(tuesday.status, 'Absent')
+
     def test_attendance_requires_an_explicit_status_for_every_student(self):
         response = self.client.post(
             reverse('attendance'),
@@ -3022,8 +3065,63 @@ class AttendanceSessionWorkflowTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Mark every student Present or Absent before saving.')
+        self.assertContains(response, 'Choose attendance for at least one school day before saving.')
         self.assertFalse(Attendance.objects.filter(student=self.student).exists())
+
+    def test_teacher_cannot_change_a_finalized_day_but_admin_can(self):
+        register = AttendanceRegister.objects.create(
+            classroom=self.classroom, session=self.session, date=self.week_start,
+        )
+        record = Attendance.objects.create(
+            register=register, student=self.student, classroom=self.classroom,
+            session=self.session, date=self.week_start, period='morning', status='Present',
+        )
+
+        teacher_user = get_user_model().objects.create_user(username='attendance-teacher', password='pass123')
+        AccountProfile.objects.create(user=teacher_user, role='teacher')
+        teacher = Teacher.objects.create(
+            first_name='Taylor', last_name='Teacher', staff_type='Teaching',
+            phone_number='08055551234', email='attendance-teacher@example.com',
+            user=teacher_user,
+        )
+        teacher.assigned_class.add(self.classroom)
+        self.client.force_login(teacher_user)
+
+        payload = {
+            'action': 'save_attendance',
+            'session': self.session.pk,
+            'term': self.term.pk,
+            'classroom': self.classroom.pk,
+            'week': self.week.pk,
+            'day': 0,
+            'period': 'morning',
+            f'status_{self.student.pk}_0': 'Absent',
+        }
+        response = self.client.post(
+            reverse('attendance'), payload,
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertContains(response, 'already finalized and can only be changed by an admin')
+        record.refresh_from_db()
+        self.assertEqual(record.status, 'Present')
+        teacher_register = self.client.get(
+            reverse('attendance'),
+            {'classroom': self.classroom.pk, 'week': self.week.pk, 'day': 0},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+        self.assertContains(teacher_register, 'title="Present"')
+        self.assertNotContains(teacher_register, f'name="status_{self.student.pk}_0"')
+
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('attendance'), payload,
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertContains(response, 'attendance saved for 1 school day(s)')
+        record.refresh_from_db()
+        self.assertEqual(record.status, 'Absent')
 
     def test_future_school_day_is_disabled_and_cannot_be_saved(self):
         today = timezone.localdate()
@@ -3034,7 +3132,7 @@ class AttendanceSessionWorkflowTests(TestCase):
             reverse('attendance'),
             {'classroom': self.classroom.pk, 'week': self.week.pk, 'day': future_day},
         )
-        self.assertContains(response, 'Not open yet')
+        self.assertContains(response, 'Upcoming')
 
         response = self.client.post(reverse('attendance'), {
             'action': 'save_attendance',

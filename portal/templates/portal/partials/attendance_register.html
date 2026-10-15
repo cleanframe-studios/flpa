@@ -1,41 +1,22 @@
-{% if selected_class and selected_week and selected_date is not None and selected_date_unavailable %}
-<section class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-    <h2 class="font-bold text-slate-900">{{ selected_class.name }} · Week {{ selected_week.week_number }}</h2>
-    <p class="mt-1 text-sm text-slate-600">{{ selected_date|date:'l, d F Y' }} has not happened yet. Attendance will be available on that day.</p>
-</section>
-{% elif selected_class and selected_week and selected_date is not None and selected_date_is_holiday %}
-<section class="rounded-3xl border border-amber-200 bg-amber-50 p-5 shadow-sm sm:p-6">
-    <h2 class="font-bold text-amber-900">{{ selected_class.name }} · {{ selected_date|date:'l, d F Y' }}</h2>
-    <p class="mt-1 text-sm text-amber-800">This date is a school holiday. Attendance cannot be recorded.</p>
-</section>
-{% elif selected_class and selected_week and selected_date is not None %}
-<section class="overflow-visible rounded-3xl border border-slate-200 bg-white shadow-sm" data-attendance-date="{{ selected_date|date:'Y-m-d' }}" data-classroom="{{ selected_class.pk }}" data-week="{{ selected_week.pk }}" data-day="{{ selected_day }}">
-    <header class="border-b border-slate-100 p-4 sm:p-6">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-                <h2 class="text-lg font-bold text-slate-900">{{ selected_class.name }} Register</h2>
-                <p class="mt-1 text-xs text-slate-500">Week {{ selected_week.week_number }} · {{ selected_date|date:'l, d F Y' }} · {{ students|length }} student{{ students|length|pluralize }}</p>
-            </div>
-            {% if attendance_recorded %}
-            <span data-attendance-summary class="inline-flex items-center gap-2 self-start rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700"><span class="h-2 w-2 rounded-full bg-emerald-500"></span>Saved · {{ attendance_marked_count }}/{{ students|length }}</span>
-            {% elif attendance_marked_count %}
-            <span data-attendance-summary class="self-start rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700">Partially marked · {{ attendance_marked_count }}/{{ students|length }}</span>
-            {% else %}
-            <span data-attendance-summary class="self-start rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-600">Not saved yet</span>
-            {% endif %}
+{% if selected_class and selected_week and selected_date is not None %}
+<section class="overflow-hidden rounded-3xl border border-white/80 bg-white/85 shadow-xl shadow-slate-900/5 backdrop-blur-xl" data-attendance-date="{{ selected_date|date:'Y-m-d' }}" data-classroom="{{ selected_class.pk }}" data-week="{{ selected_week.pk }}" data-day="{{ selected_day }}">
+    <header class="flex flex-col gap-4 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+        <div class="min-w-0">
+            <p class="text-[10px] font-black uppercase tracking-[0.18em] text-blue-700">Weekly attendance</p>
+            <h2 class="mt-1 truncate text-lg font-black text-slate-900">{{ selected_class.name }} <span class="font-semibold text-slate-500">· Week {{ selected_week.week_number }}</span></h2>
+            <p class="mt-1 text-xs text-slate-500">{{ students|length }} student{{ students|length|pluralize }} · Swipe sideways to see each school day</p>
         </div>
-
-        <div class="mt-4 grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1" role="group" aria-label="Attendance session">
+        <div class="inline-flex w-fit items-center gap-1 rounded-2xl border border-white/90 bg-white/65 p-1 shadow-lg shadow-blue-950/10 backdrop-blur-2xl" role="group" aria-label="Attendance session">
             {% for value,label in period_choices %}
-            <button type="button" data-attendance-period="{{ value }}" aria-pressed="{% if selected_period == value %}true{% else %}false{% endif %}" class="rounded-xl px-3 py-2.5 text-sm font-bold transition {% if selected_period == value %}bg-white text-blue-800 shadow-sm{% else %}text-slate-500 hover:text-slate-800{% endif %}">{{ label }}</button>
+            <button type="button" data-attendance-period="{{ value }}" aria-pressed="{% if selected_period == value %}true{% else %}false{% endif %}" class="rounded-xl px-4 py-2.5 text-xs font-black transition {% if selected_period == value %}bg-gradient-to-r from-blue-700 to-indigo-600 text-white shadow-md shadow-blue-900/20{% else %}text-slate-600 hover:bg-white/80{% endif %}">{{ label }}</button>
             {% endfor %}
         </div>
-        <p class="mt-2 text-xs text-slate-500">Morning and afternoon are saved separately.</p>
-        {% if register_error %}<p class="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900" role="alert">{{ register_error }}</p>{% elif register_feedback %}<p class="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800" role="status">{{ register_feedback }}</p>{% endif %}
     </header>
 
+    {% if register_error %}<p class="mx-4 mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900 sm:mx-6" role="alert">{{ register_error }}</p>{% elif register_feedback %}<p class="mx-4 mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 sm:mx-6" role="status">{{ register_feedback }}</p>{% endif %}
+
     {% if students %}
-    <form method="post" id="attendance-save-form" class="p-4 sm:p-6" data-attendance-recorded="{% if attendance_recorded %}true{% else %}false{% endif %}">
+    <form method="post" id="attendance-save-form" class="p-3 sm:p-5">
         {% csrf_token %}
         <input type="hidden" name="action" value="save_attendance">
         <input type="hidden" name="session" value="{{ selected_session.pk }}">
@@ -45,46 +26,83 @@
         <input type="hidden" name="day" value="{{ selected_day }}">
         <input type="hidden" name="period" value="{{ selected_period }}">
 
-        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <p class="text-sm font-bold text-slate-700">Mark each student</p>
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
+            <div class="flex items-center gap-2">
+                <span data-attendance-summary class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-bold text-slate-700">
+                    <span data-attendance-save-status>{% if register_feedback %}Saved · {% endif %}{{ attendance_complete_days }}/5 days finalized</span>
+                </span>
+                {% if can_edit_saved_attendance %}<span class="rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-bold text-indigo-700">Admin editing enabled</span>{% endif %}
+            </div>
             <div class="flex gap-2">
-                <button type="button" data-mark-all="Present" class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100">All present</button>
-                <button type="button" data-mark-all="Absent" class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-800 hover:bg-rose-100">All absent</button>
+                <button type="button" data-mark-all="Present" class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] font-bold text-emerald-800 transition hover:bg-emerald-100">Editable days · All present</button>
+                <button type="button" data-mark-all="Absent" class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-bold text-rose-800 transition hover:bg-rose-100">Editable days · All absent</button>
             </div>
         </div>
 
-        <ol class="space-y-2">
-            {% for student in students %}
-            <li class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
-                <div class="flex min-w-0 items-center gap-3">
-                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-500">{{ forloop.counter }}</span>
-                    <div class="min-w-0">
-                        <p class="truncate text-sm font-bold text-slate-900">{{ student.last_name }} {{ student.first_name }} {{ student.other_name|default:'' }}</p>
-                        <p class="text-xs text-slate-500">{{ student.student_id }}</p>
-                    </div>
-                </div>
-                <fieldset class="grid grid-cols-2 gap-2 sm:w-56" aria-label="Attendance for {{ student.first_name }} {{ student.last_name }}">
-                    <legend class="sr-only">Attendance status</legend>
-                    <label class="cursor-pointer">
-                        <input type="radio" name="status_{{ student.pk }}" value="Present" required {% if student.attendance_status == 'Present' %}checked{% endif %} class="peer sr-only">
-                        <span class="flex min-h-11 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-sm font-bold text-emerald-800 transition peer-checked:border-emerald-600 peer-checked:bg-emerald-600 peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-emerald-500">Present</span>
-                    </label>
-                    <label class="cursor-pointer">
-                        <input type="radio" name="status_{{ student.pk }}" value="Absent" required {% if student.attendance_status == 'Absent' %}checked{% endif %} class="peer sr-only">
-                        <span class="flex min-h-11 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 px-3 text-sm font-bold text-rose-800 transition peer-checked:border-rose-600 peer-checked:bg-rose-600 peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-rose-500">Absent</span>
-                    </label>
-                </fieldset>
-            </li>
-            {% endfor %}
-        </ol>
+        <div class="attendance-week-scroll overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+            <table class="w-full min-w-[730px] border-separate border-spacing-0 text-left">
+                <thead>
+                    <tr class="bg-slate-50">
+                        <th scope="col" class="attendance-student-sticky sticky left-0 z-20 min-w-[210px] border-b border-slate-200 bg-slate-50 px-3 py-3 text-[10px] font-black uppercase tracking-wider text-slate-500 sm:min-w-[260px] sm:px-4">Student</th>
+                        {% for day in attendance_days %}
+                        <th scope="col" class="min-w-[96px] border-b border-slate-200 px-2 py-3 text-center {% if day.is_future or day.is_holiday %}bg-slate-100/80{% endif %}">
+                            <span class="block text-[11px] font-black text-slate-800">{{ day.label }}</span>
+                            <span class="mt-0.5 block text-[10px] font-medium text-slate-500">{{ day.date|date:'d M' }}</span>
+                            {% if day.is_holiday %}<span class="mt-1 block text-[9px] font-bold uppercase text-amber-700">Holiday</span>{% elif day.is_future %}<span class="mt-1 block text-[9px] font-bold uppercase text-slate-400">Upcoming</span>{% elif day.is_locked %}<span class="mt-1 block text-[9px] font-bold uppercase text-emerald-700">Finalized</span>{% elif day.is_complete %}<span class="mt-1 block text-[9px] font-bold uppercase text-indigo-700">Saved</span>{% elif day.marked_count %}<span class="mt-1 block text-[9px] font-bold uppercase text-amber-700">{{ day.marked_count }}/{{ students|length }} marked</span>{% endif %}
+                        </th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for student in students %}
+                    <tr class="group hover:bg-blue-50/30">
+                        <th scope="row" class="attendance-student-sticky sticky left-0 z-10 border-b border-slate-100 bg-white px-3 py-3 text-left group-hover:bg-blue-50/60 sm:px-4">
+                            <span class="block truncate text-xs font-bold text-slate-900 sm:text-sm">{{ student.last_name }} {{ student.first_name }} {{ student.other_name|default:'' }}</span>
+                            <span class="mt-0.5 block truncate text-[10px] font-medium text-slate-500">{{ student.student_id }}</span>
+                        </th>
+                        {% for day in attendance_days %}
+                        <td class="border-b border-slate-100 px-2 py-2 text-center {% if day.is_future or day.is_holiday %}bg-slate-50/80{% endif %}">
+                            {% for student_day in student.week_attendance %}
+                            {% if student_day.day == day.index %}
+                                {% if day.is_future or day.is_holiday or day.is_locked and not can_edit_saved_attendance %}
+                                    {% if student_day.status == 'Present' %}
+                                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700" title="Present" aria-label="Present"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="m5 12 4 4L19 6"/></svg></span>
+                                    {% elif student_day.status == 'Absent' %}
+                                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-rose-100 text-rose-700" title="Absent" aria-label="Absent"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="m7 7 10 10M17 7 7 17"/></svg></span>
+                                    {% else %}
+                                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-400" title="{% if day.is_future %}Not open yet{% elif day.is_holiday %}School holiday{% else %}Not marked{% endif %}" aria-label="{% if day.is_future %}Not open yet{% elif day.is_holiday %}School holiday{% else %}Not marked{% endif %}">—</span>
+                                    {% endif %}
+                                {% else %}
+                                <fieldset class="attendance-toggle mx-auto inline-flex rounded-xl border border-slate-200 bg-slate-50 p-0.5" aria-label="{{ student.first_name }} {{ student.last_name }}, {{ day.label }}" {% if not day.can_mark %}disabled{% endif %}>
+                                    <legend class="sr-only">{{ student.first_name }} {{ student.last_name }} on {{ day.label }}</legend>
+                                    <label class="cursor-pointer">
+                                        <input type="radio" name="status_{{ student.pk }}_{{ day.index }}" value="Present" {% if student_day.status == 'Present' %}checked{% endif %} class="peer sr-only" {% if not day.can_mark %}disabled{% endif %}>
+                                        <span class="flex h-7 min-w-8 items-center justify-center rounded-lg px-2 text-[10px] font-black text-slate-500 transition peer-checked:bg-emerald-600 peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-emerald-500">P</span>
+                                    </label>
+                                    <label class="cursor-pointer">
+                                        <input type="radio" name="status_{{ student.pk }}_{{ day.index }}" value="Absent" {% if student_day.status == 'Absent' %}checked{% endif %} class="peer sr-only" {% if not day.can_mark %}disabled{% endif %}>
+                                        <span class="flex h-7 min-w-8 items-center justify-center rounded-lg px-2 text-[10px] font-black text-slate-500 transition peer-checked:bg-rose-600 peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-rose-500">A</span>
+                                    </label>
+                                </fieldset>
+                                {% endif %}
+                            {% endif %}
+                            {% endfor %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p class="mt-2 px-1 text-[10px] text-slate-500">P = Present · A = Absent{% if not can_edit_saved_attendance %} · Finalized days are locked for teachers.{% endif %}</p>
 
-        <div class="sticky bottom-20 z-10 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:pt-5 sm:shadow-none">
-            <p class="text-xs font-semibold text-slate-500" data-attendance-save-status>{% if attendance_recorded %}This session is saved. You can update it if needed.{% else %}Save this session when all students are marked.{% endif %}</p>
+        <div class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+            <p class="text-xs font-semibold text-slate-500">{% if can_edit_saved_attendance %}Admins can update saved marks.{% else %}Save once to finalize a day. Ask an admin if a correction is needed.{% endif %}</p>
             <div class="flex items-center gap-2">
                 {% if request.user.is_superuser and attendance_marked_count %}
-                <button type="button" onclick="openClearAttendanceModal()" class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700 hover:bg-rose-100">Clear day</button>
+                <button type="button" onclick="openClearAttendanceModal()" class="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs font-bold text-rose-700 hover:bg-rose-100">Clear day</button>
                 {% endif %}
-                <button type="submit" class="rounded-xl bg-blue-700 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-blue-800">Save {{ selected_period|title }}</button>
+                <button type="submit" class="rounded-xl bg-gradient-to-r from-blue-700 to-indigo-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-blue-900/20 transition hover:from-blue-800 hover:to-indigo-700">Save week</button>
             </div>
         </div>
     </form>
@@ -92,8 +110,9 @@
     <p class="p-8 text-center text-sm text-slate-500">No active students are assigned to this classroom.</p>
     {% endif %}
 </section>
-{% elif selected_class and selected_week %}
-<div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">Choose a school day to load attendance.</div>
 {% else %}
-<div class="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-600">Choose a classroom, week, and day, then tap <strong>Load Register</strong>.</div>
+<div class="rounded-3xl border border-dashed border-slate-300 bg-white/75 p-8 text-center text-sm text-slate-600 shadow-sm">
+    <p class="font-bold text-slate-800">Your weekly register is ready</p>
+    <p class="mt-1">Open <strong>Filters</strong>, choose a classroom and week, then load the register.</p>
+</div>
 {% endif %}

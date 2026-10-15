@@ -5917,6 +5917,9 @@ def attendance_view(request):
     selected_term = selected_term or terms.first()
     role_profile = getattr(request.user, 'account_profile', None)
     teacher_record = getattr(request.user, 'teacher_record', None) if role_profile and role_profile.role == 'teacher' else None
+    role_name = role_profile.role.lower() if role_profile else ''
+    user_groups = {name.lower() for name in request.user.groups.values_list('name', flat=True)}
+    can_edit_saved_attendance = request.user.is_superuser or role_name == 'admin' or 'admin' in user_groups
     if role_profile and role_profile.role == 'teacher':
         classrooms = teacher_record.assigned_class.all() if teacher_record else ClassRoom.objects.none()
     else:
@@ -5950,71 +5953,101 @@ def attendance_view(request):
         messages.warning(request, 'Select an academic session and term before taking attendance.')
     elif request.method == 'POST' and request.POST.get('action') == 'save_attendance':
         if (invalid_id(selected_class_id) or invalid_id(selected_week_id)
-                or selected_day_value not in {str(day) for day, _ in day_choices}
                 or request.POST.get('period', 'morning') not in {'morning', 'afternoon'}):
-            messages.error(request, 'Please select a valid classroom, academic week, and school day.')
+            messages.error(request, 'Please select a valid classroom, academic week, and attendance session.')
             return redirect('attendance')
         selected_class = get_object_or_404(classrooms, pk=int(selected_class_id))
         selected_week = get_object_or_404(AcademicWeek, pk=int(selected_week_id), term=selected_term)
-        selected_day = int(selected_day_value)
+        if selected_day_value in {str(day) for day, _ in day_choices}:
+            selected_day = int(selected_day_value)
+        elif selected_week.start_date <= today <= selected_week.end_date:
+            selected_day = min(today.weekday(), 4)
+        else:
+            selected_day = 0
         selected_date = selected_week.start_date + datetime.timedelta(days=selected_day)
         selected_period = request.POST.get('period', 'morning')
-        if selected_date > today or selected_date > selected_week.end_date:
-            register_feedback = 'Attendance cannot be recorded for a future school day.'
-            if not is_ajax:
-                messages.error(request, register_feedback)
-                return redirect(
-                    f'{request.path}?classroom={selected_class.pk}&week={selected_week.pk}'
-                    f'&day={selected_day}&period={selected_period}'
-                )
-        elif Holiday.objects.filter(term=selected_term, date=selected_date).exists():
-            register_feedback = 'Attendance cannot be recorded on an academic holiday.'
-            if not is_ajax:
-                messages.error(request, register_feedback)
-                return redirect(
-                    f'{request.path}?classroom={selected_class.pk}&week={selected_week.pk}'
-                    f'&day={selected_day}&period={selected_period}'
-                )
-        else:
-            students = list(students_in_term_classroom(selected_term, selected_class))
-            allowed_statuses = {'Present', 'Absent'}
-            submitted_statuses = [request.POST.get(f'status_{student.pk}') for student in students]
-            if any(status not in allowed_statuses for status in submitted_statuses):
-                register_error = 'Mark every student Present or Absent before saving.'
-                if not is_ajax:
-                    messages.error(request, register_error)
-                    return redirect(
-                        f'{request.path}?classroom={selected_class.pk}&week={selected_week.pk}'
-                        f'&day={selected_day}&period={selected_period}'
-                    )
-            else:
-                with transaction.atomic():
+        students = list(students_in_term_classroom(selected_term, selected_class))
+        allowed_statuses = {'Present', 'Absent'}
+        holiday_dates = set(Holiday.objects.filter(
+            term=selected_term,
+            date__gte=selected_week.start_date,
+            date__lte=selected_week.start_date + datetime.timedelta(days=4),
+        ).values_list('date', flat=True))
+        existing_by_day = {}
+        for attendance_day in range(5):
+            attendance_date = selected_week.start_date + datetime.timedelta(days=attendance_day)
+            existing_by_day[attendance_day] = dict(Attendance.objects.filter(
+                classroom=selected_class,
+                session=session,
+                date=attendance_date,
+                period=selected_period,
+            ).values_list('student_id', 'status'))
+
+        submitted_by_day = {}
+        invalid_submission = False
+        locked_submission = False
+        for attendance_day in range(5):
+            attendance_date = selected_week.start_date + datetime.timedelta(days=attendance_day)
+            day_statuses = []
+            for student in students:
+                status = request.POST.get(f'status_{student.pk}_{attendance_day}')
+                if status is None and attendance_day == selected_day:
+                    status = request.POST.get(f'status_{student.pk}')
+                day_statuses.append(status or '')
+            if not any(day_statuses):
+                continue
+            if attendance_date > today or attendance_date > selected_week.end_date or attendance_date in holiday_dates:
+                invalid_submission = True
+                continue
+            if any(status not in allowed_statuses for status in day_statuses):
+                invalid_submission = True
+                continue
+            if existing_by_day[attendance_day] and not can_edit_saved_attendance:
+                locked_submission = True
+                continue
+            submitted_by_day[attendance_day] = day_statuses
+
+        if locked_submission:
+            register_error = 'This day is already finalized and can only be changed by an admin.'
+        elif invalid_submission:
+            register_error = 'Mark every student Present or Absent for each day you are saving. Future days and holidays cannot be marked.'
+        elif not submitted_by_day and students:
+            register_error = 'Choose attendance for at least one school day before saving.'
+        elif students:
+            with transaction.atomic():
+                for attendance_day, statuses in submitted_by_day.items():
+                    attendance_date = selected_week.start_date + datetime.timedelta(days=attendance_day)
                     register, _ = AttendanceRegister.objects.get_or_create(
                         classroom=selected_class,
                         session=session,
-                        date=selected_date,
+                        date=attendance_date,
                     )
                     for index, student in enumerate(students):
                         Attendance.objects.update_or_create(
                             student=student,
                             classroom=selected_class,
                             session=session,
-                            date=selected_date,
+                            date=attendance_date,
                             period=selected_period,
-                            defaults={
-                                'register': register,
-                                'status': submitted_statuses[index],
-                            },
+                            defaults={'register': register, 'status': statuses[index]},
                         )
                     for student in students:
-                        update_absence_flag(student, selected_date, request)
-                register_feedback = f'{selected_period.title()} attendance saved for {selected_date:%A, %d %B %Y}.'
-                if not is_ajax:
-                    messages.success(request, 'Attendance register updated successfully!')
-                    return redirect(
-                        f'{request.path}?classroom={selected_class.pk}&week={selected_week.pk}'
-                        f'&day={selected_day}&period={selected_period}'
-                    )
+                        update_absence_flag(student, attendance_date, request)
+            register_feedback = f'{selected_period.title()} attendance saved for {len(submitted_by_day)} school day(s).'
+        elif not students:
+            register_error = 'There are no active students in this classroom to mark.'
+        if register_error and not is_ajax:
+            messages.error(request, register_error)
+            return redirect(
+                f'{request.path}?classroom={selected_class.pk}&week={selected_week.pk}'
+                f'&day={selected_day}&period={selected_period}'
+            )
+        if register_feedback and not is_ajax:
+            messages.success(request, register_feedback)
+            return redirect(
+                f'{request.path}?classroom={selected_class.pk}&week={selected_week.pk}'
+                f'&day={selected_day}&period={selected_period}'
+            )
     elif selected_term:
         if selected_class_id in ('', 'None'):
             messages.error(request, 'Please select a valid classroom.')
@@ -6048,50 +6081,58 @@ def attendance_view(request):
             selected_date = selected_week.start_date + datetime.timedelta(days=selected_day)
 
     students = list(students_in_term_classroom(selected_term, selected_class)) if selected_class else []
-    attendance_statuses = {}
-    attendance_marked_count = 0
-    if selected_class and selected_date:
-        attendance_statuses = dict(Attendance.objects.filter(
-            classroom=selected_class,
-            session=session,
-            date=selected_date,
-            period=selected_period,
-        ).values_list('student_id', 'status'))
-        attendance_marked_count = len(attendance_statuses)
-    for student in students:
-        stored_status = attendance_statuses.get(student.pk)
-        student.attendance_status = (
-            'Present' if stored_status in {'Present', 'Late'}
-            else 'Absent' if stored_status == 'Absent'
-            else None
-        )
     term_holiday_dates = set(
         Holiday.objects.filter(term=selected_term).values_list('date', flat=True)
     ) if selected_term else set()
-    day_options = [
-        {
-            'value': day,
-            'label': label,
-            'date': selected_week.start_date + datetime.timedelta(days=day) if selected_week else None,
-            'is_future': bool(
-                selected_week
-                and (
-                    selected_week.start_date + datetime.timedelta(days=day) > today
-                    or selected_week.start_date + datetime.timedelta(days=day) > selected_week.end_date
-                )
-            ),
-            'is_holiday': bool(
-                selected_week
-                and selected_week.start_date + datetime.timedelta(days=day) in term_holiday_dates
-            ),
-        }
-        for day, label in day_choices
-    ]
-    selected_date_is_holiday = bool(selected_date and selected_date in term_holiday_dates)
-    selected_date_unavailable = bool(
-        selected_date and selected_week
-        and (selected_date > today or selected_date > selected_week.end_date)
-    )
+    attendance_days = []
+    attendance_complete_days = 0
+    attendance_marked_count = 0
+    attendance_statuses = {}
+    statuses_by_day = {}
+    if selected_class and selected_week:
+        for day, label in day_choices:
+            attendance_date = selected_week.start_date + datetime.timedelta(days=day)
+            statuses_by_day[day] = dict(Attendance.objects.filter(
+                classroom=selected_class,
+                session=session,
+                date=attendance_date,
+                period=selected_period,
+            ).values_list('student_id', 'status'))
+            statuses = statuses_by_day[day]
+            is_complete = len(statuses) == len(students) and bool(students)
+            attendance_complete_days += int(is_complete)
+            is_locked = bool(statuses) and not can_edit_saved_attendance
+            attendance_days.append({
+                'index': day,
+                'label': label,
+                'date': attendance_date,
+                'is_future': attendance_date > today or attendance_date > selected_week.end_date,
+                'is_holiday': attendance_date in term_holiday_dates,
+                'is_locked': is_locked,
+                'is_complete': is_complete,
+                'marked_count': len(statuses),
+                'can_mark': (
+                    attendance_date <= today
+                    and attendance_date <= selected_week.end_date
+                    and attendance_date not in term_holiday_dates
+                    and (can_edit_saved_attendance or not is_locked)
+                ),
+            })
+            if day == selected_day:
+                attendance_statuses = statuses
+                attendance_marked_count = len(statuses)
+        for student in students:
+            student.week_attendance = [
+                {
+                    'day': day['index'],
+                    'status': (
+                        'Present' if (statuses_by_day[day['index']].get(student.pk) in {'Present', 'Late'})
+                        else 'Absent' if statuses_by_day[day['index']].get(student.pk) == 'Absent'
+                        else None
+                    ),
+                }
+                for day in attendance_days
+            ]
     term_holidays_by_id = {}
     for term_id, holiday_date in Holiday.objects.filter(term__in=all_terms).values_list('term_id', 'date'):
         term_holidays_by_id.setdefault(term_id, set()).add(holiday_date)
@@ -6120,19 +6161,18 @@ def attendance_view(request):
         'current_session': session,
         'active_term': selected_term,
         'weeks': selected_term.weeks.all() if selected_term else [],
-        'day_options': day_options,
-        'selected_date_is_holiday': selected_date_is_holiday,
-        'selected_date_unavailable': selected_date_unavailable,
         'selected_class': selected_class,
         'selected_class_id': selected_class_id,
         'selected_week': selected_week,
         'selected_week_id': selected_week_id,
         'selected_day': selected_day,
         'selected_date': selected_date,
+        'attendance_days': attendance_days,
+        'attendance_complete_days': attendance_complete_days,
         'students': students,
         'attendance_statuses': attendance_statuses,
         'attendance_marked_count': attendance_marked_count,
-        'attendance_recorded': bool(students) and attendance_marked_count == len(students),
+        'can_edit_saved_attendance': can_edit_saved_attendance,
         'selected_period': selected_period,
         'period_choices': Attendance.PERIOD_CHOICES,
         'register_feedback': register_feedback,

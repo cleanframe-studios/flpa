@@ -19,50 +19,51 @@
         </div>
         {% else %}
         <div class="flex flex-col gap-2 rounded-2xl border border-blue-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5">
-            <div><p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Active academic period</p><p class="mt-1 font-black text-slate-900">{{ current_session.name }} · {{ active_term.term_name }}</p></div>
-            <span class="self-start rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[10px] font-bold text-emerald-700 sm:self-auto">Session active</span>
+            <div><p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Attendance workspace</p><p class="mt-1 font-black text-slate-900">{{ current_session.name }} · {{ active_term.term_name }}</p><p data-attendance-filter-summary class="mt-1 text-xs text-slate-500">{% if selected_class %}{{ selected_class.name }} · Week {{ selected_week.week_number }}{% else %}Choose a class to open its weekly register{% endif %}</p></div>
+            <button type="button" onclick="openAttendanceFilters()" class="inline-flex min-h-11 items-center justify-center gap-2 self-start rounded-xl border border-white/80 bg-white/70 px-4 py-2.5 text-sm font-bold text-blue-900 shadow-lg shadow-blue-950/10 backdrop-blur-xl transition hover:bg-white sm:self-auto">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6h16M7 12h10m-7 6h4"/></svg>
+                Filters
+            </button>
         </div>
 
-        <form id="attendance-filter-form" method="get" class="grid grid-cols-1 gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2 sm:p-5 lg:grid-cols-5 lg:items-end">
-            <div>
-                <label for="attendance-session" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-600">Session</label>
-                <select id="attendance-session" name="session" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-800 focus:border-blue-500 focus:outline-none">
-                    {% for option in sessions %}<option value="{{ option.pk }}" {% if selected_session.pk == option.pk %}selected{% endif %}>{{ option.name }}</option>{% endfor %}
-                </select>
+        <div id="attendance-filter-modal" class="fixed inset-0 z-[12000] hidden items-center justify-center overflow-y-auto bg-slate-950/55 p-4 pb-28 backdrop-blur-md" role="dialog" aria-modal="true" aria-labelledby="attendance-filter-title">
+            <div class="w-full max-w-lg rounded-3xl border border-white/70 bg-white/75 p-5 text-slate-900 shadow-2xl shadow-slate-950/30 backdrop-blur-2xl sm:p-7">
+                <div class="mb-5 flex items-start justify-between gap-4">
+                    <div><p class="text-[10px] font-black uppercase tracking-[0.2em] text-blue-700">Weekly register</p><h2 id="attendance-filter-title" class="mt-1 text-xl font-black">Choose attendance filters</h2><p class="mt-1 text-sm text-slate-600">Your current school week is selected automatically.</p></div>
+                    <button type="button" onclick="closeAttendanceFilters()" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white bg-white/80 text-xl shadow-sm" aria-label="Close filters">&times;</button>
+                </div>
+                <form id="attendance-filter-form" method="get" class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                        <label for="attendance-session" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-600">Session</label>
+                        <select id="attendance-session" name="session" class="w-full rounded-xl border border-white bg-white/80 px-3 py-3 text-sm shadow-sm">
+                            {% for option in sessions %}<option value="{{ option.pk }}" {% if selected_session.pk == option.pk %}selected{% endif %}>{{ option.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label for="attendance-term" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-600">Term</label>
+                        <select id="attendance-term" name="term" class="w-full rounded-xl border border-white bg-white/80 px-3 py-3 text-sm shadow-sm">
+                            {% for option in terms %}<option value="{{ option.pk }}" {% if selected_term.pk == option.pk %}selected{% endif %}>{{ option.term_name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label for="attendance-classroom" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-600">Classroom</label>
+                        <select id="attendance-classroom" name="classroom" required class="w-full rounded-xl border border-white bg-white/80 px-3 py-3 text-sm shadow-sm">
+                            <option value="">Choose classroom</option>
+                            {% for classroom in classrooms %}<option value="{{ classroom.pk }}" {% if selected_class_id|stringformat:'s' == classroom.pk|stringformat:'s' %}selected{% endif %}>{{ classroom.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label for="attendance-week" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-600">Academic week</label>
+                        <select id="attendance-week" name="week" required class="w-full rounded-xl border border-white bg-white/80 px-3 py-3 text-sm shadow-sm">
+                            <option value="">Choose week</option>
+                            {% for week in weeks %}<option value="{{ week.pk }}" {% if selected_week.pk == week.pk %}selected{% endif %}>Week {{ week.week_number }} · {{ week.start_date|date:'d M' }}–{{ week.end_date|date:'d M Y' }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <input type="hidden" name="period" value="{{ selected_period }}">
+                    <button type="submit" class="mt-2 min-h-12 rounded-xl bg-blue-700 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-blue-900/20 transition hover:bg-blue-800 sm:col-span-2">Load Register</button>
+                </form>
             </div>
-            <div>
-                <label for="attendance-term" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-600">Term</label>
-                <select id="attendance-term" name="term" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-800 focus:border-blue-500 focus:outline-none">
-                    {% for option in terms %}<option value="{{ option.pk }}" {% if selected_term.pk == option.pk %}selected{% endif %}>{{ option.term_name }}</option>{% endfor %}
-                </select>
-            </div>
-            <div>
-                <label for="attendance-classroom" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-600">Classroom</label>
-                <select id="attendance-classroom" name="classroom" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-800 focus:border-blue-500 focus:outline-none">
-                    <option value="">Choose classroom</option>
-                    {% for classroom in classrooms %}<option value="{{ classroom.pk }}" {% if selected_class_id|stringformat:'s' == classroom.pk|stringformat:'s' %}selected{% endif %}>{{ classroom.name }}</option>{% endfor %}
-                </select>
-            </div>
-            <div>
-                <label for="attendance-week" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-600">Academic week</label>
-                <select id="attendance-week" name="week" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-800 focus:border-blue-500 focus:outline-none">
-                    <option value="">Choose week</option>
-                    {% for week in weeks %}<option value="{{ week.pk }}" {% if selected_week_id|stringformat:'s' == week.pk|stringformat:'s' %}selected{% endif %}>Week {{ week.week_number }} · {{ week.start_date|date:'d M' }}–{{ week.end_date|date:'d M Y' }}</option>{% endfor %}
-                </select>
-            </div>
-            <div>
-                <label for="attendance-day" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-600">School day</label>
-                <select id="attendance-day" name="day" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-800 focus:border-blue-500 focus:outline-none">
-                    {% for option in day_options %}
-                    <option value="{{ option.value }}" {% if selected_day == option.value %}selected{% endif %} {% if option.is_future or option.is_holiday %}disabled{% endif %}>
-                        {{ option.label }}{% if option.date %} ({{ option.date|date:'d M Y' }}){% endif %}{% if option.is_holiday %} · Holiday{% elif option.is_future %} · Not open yet{% endif %}
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <input type="hidden" name="period" value="{{ selected_period }}">
-            <button type="submit" class="min-h-11 rounded-xl bg-blue-700 px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-800 sm:col-span-2 lg:col-span-5">Load Register</button>
-        </form>
+        </div>
 
         <script>
             window.resultTermsMap = {{ terms_json|default:'{}'|safe }};
@@ -94,11 +95,71 @@
 {% endif %}
 
 <style>
-    #attendance-register-region { transition: opacity 180ms ease; }
-    #attendance-register-region[aria-busy="true"] { opacity: .55; pointer-events: none; }
-    @media (prefers-reduced-motion: reduce) { #attendance-register-region { transition: none; } }
+    #attendance-register-region { position: relative; min-height: 6rem; transition: opacity 180ms ease; }
+    #attendance-register-region[aria-busy="true"] { pointer-events: none; }
+    #attendance-register-region[aria-busy="true"]::before {
+        content: "";
+        position: absolute;
+        top: calc(50% - 1.7rem);
+        left: calc(50% - .7rem);
+        z-index: 21;
+        width: 1.4rem;
+        height: 1.4rem;
+        border: 3px solid rgba(30, 58, 138, .18);
+        border-top-color: #1d4ed8;
+        border-radius: 50%;
+        animation: attendance-spin .75s linear infinite;
+    }
+    #attendance-register-region[aria-busy="true"]::after {
+        content: "Loading weekly register…";
+        position: absolute;
+        inset: 0;
+        z-index: 20;
+        display: grid;
+        place-content: center;
+        padding-top: 2.8rem;
+        min-height: 7rem;
+        border: 1px solid rgba(255,255,255,.7);
+        border-radius: 1.5rem;
+        background: rgba(255,255,255,.66);
+        color: #1e3a8a;
+        font-size: .875rem;
+        font-weight: 800;
+        backdrop-filter: blur(18px);
+    }
+    .attendance-student-sticky { box-shadow: 6px 0 10px -10px rgba(15,23,42,.45); }
+    .attendance-toggle[disabled] label { cursor: not-allowed; opacity: .45; }
+    @keyframes attendance-spin { to { transform: rotate(360deg); } }
+    #attendance-register-region[aria-busy="true"] > * { opacity: .3; }
+    @media (prefers-reduced-motion: reduce) {
+        #attendance-register-region { transition: none; }
+        #attendance-register-region[aria-busy="true"]::before { animation: none; }
+    }
 </style>
 <script>
+function openAttendanceFilters() {
+    const modal = document.getElementById('attendance-filter-modal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    modal.querySelector('select')?.focus();
+}
+function closeAttendanceFilters() {
+    const modal = document.getElementById('attendance-filter-modal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    document.querySelector('[onclick="openAttendanceFilters()"]')?.focus();
+}
+document.getElementById('attendance-filter-modal')?.addEventListener('click', event => {
+    if (event.target.id === 'attendance-filter-modal') closeAttendanceFilters();
+});
+document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && document.getElementById('attendance-filter-modal')?.classList.contains('flex')) {
+        closeAttendanceFilters();
+    }
+});
+
 function openClearAttendanceModal() {
     const modal = document.getElementById('clearAttendanceModal');
     if (!modal) return;
@@ -130,8 +191,8 @@ document.getElementById('clearAttendanceModal')?.addEventListener('click', event
     const sessionSelect = document.getElementById('attendance-session');
     const termSelect = document.getElementById('attendance-term');
     const weekSelect = document.getElementById('attendance-week');
-    const daySelect = document.getElementById('attendance-day');
     const today = document.querySelector('[data-attendance-today]').dataset.attendanceToday;
+    const filterSummary = document.querySelector('[data-attendance-filter-summary]');
 
     let activeRequest;
     let requestNumber = 0;
@@ -153,7 +214,7 @@ document.getElementById('clearAttendanceModal')?.addEventListener('click', event
         return window.confirm('You have attendance changes that are not saved. Leave this register without saving?');
     }
 
-    function rebuildWeeksAndDays(defaultToToday) {
+    function rebuildWeeksAndDays() {
         const termWeeks = (window.attendanceWeeksMap || {})[termSelect.value] || [];
         weekSelect.replaceChildren(new Option('Choose week', ''));
         termWeeks.forEach(week => {
@@ -167,36 +228,11 @@ document.getElementById('clearAttendanceModal')?.addEventListener('click', event
         const currentWeek = termWeeks.find(week => week.start_date <= today && week.end_date >= today);
         const chosenWeek = currentWeek || termWeeks[0];
         weekSelect.value = chosenWeek ? String(chosenWeek.pk) : '';
-        rebuildDays(chosenWeek, defaultToToday);
-    }
-
-    function rebuildDays(week, defaultToToday) {
-        const names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const previousDay = daySelect.value;
-        daySelect.replaceChildren();
-        if (!week) return;
-        for (let day = 0; day < 5; day += 1) {
-            const date = new Date(week.start_date + 'T12:00:00');
-            date.setDate(date.getDate() + day);
-            const isoDate = date.toISOString().slice(0, 10);
-            const holiday = week.holidays.includes(isoDate);
-            const option = new Option(
-                `${names[day]} (${String(date.getDate()).padStart(2, '0')} ${months[date.getMonth()]} ${date.getFullYear()})${holiday ? ' · Holiday' : isoDate > today ? ' · Not open yet' : ''}`,
-                day,
-            );
-            option.disabled = holiday || isoDate > today || isoDate > week.end_date;
-            daySelect.appendChild(option);
-        }
-        const defaultDay = week.start_date <= today && week.end_date >= today
-            ? Math.min((new Date(today + 'T12:00:00').getDay() + 6) % 7, 4)
-            : 0;
-        daySelect.value = defaultToToday || !previousDay ? String(defaultDay) : previousDay;
-        if (daySelect.selectedOptions[0]?.disabled) daySelect.value = String(defaultDay);
     }
 
     function updateAttendanceUrl() {
         const url = new URL(window.location.href);
+        url.searchParams.delete('day');
         for (const [key, value] of new FormData(filterForm)) {
             if (value) url.searchParams.set(key, value);
             else url.searchParams.delete(key);
@@ -222,6 +258,12 @@ document.getElementById('clearAttendanceModal')?.addEventListener('click', event
             region.innerHTML = markup;
             attendanceDirty = false;
             if (options.method !== 'POST') updateAttendanceUrl();
+            const selectedWeek = weekSelect.selectedOptions[0]?.textContent || '';
+            const selectedClass = filterForm.querySelector('#attendance-classroom').selectedOptions[0]?.textContent || '';
+            if (filterSummary) filterSummary.textContent = selectedClass && selectedClass !== 'Choose classroom'
+                ? `${selectedClass} · ${selectedWeek}`
+                : 'Choose a class to open its weekly register';
+            closeAttendanceFilters();
         } catch (error) {
             if (error.name !== 'AbortError' && currentRequest === requestNumber) {
                 const message = document.createElement('p');
@@ -254,14 +296,9 @@ document.getElementById('clearAttendanceModal')?.addEventListener('click', event
             option.textContent = term.name;
             termSelect.appendChild(option);
         });
-        rebuildWeeksAndDays(true);
+        rebuildWeeksAndDays();
     });
-    termSelect.addEventListener('change', () => rebuildWeeksAndDays(true));
-    weekSelect.addEventListener('change', () => {
-        const week = ((window.attendanceWeeksMap || {})[termSelect.value] || [])
-            .find(item => String(item.pk) === weekSelect.value);
-        rebuildDays(week, true);
-    });
+    termSelect.addEventListener('change', rebuildWeeksAndDays);
 
     region.addEventListener('click', event => {
         const periodButton = event.target.closest('[data-attendance-period]');
@@ -274,7 +311,7 @@ document.getElementById('clearAttendanceModal')?.addEventListener('click', event
         const markAllButton = event.target.closest('[data-mark-all]');
         if (markAllButton) {
             region.querySelectorAll(`input[type="radio"][value="${markAllButton.dataset.markAll}"]`).forEach(input => {
-                input.checked = true;
+                if (!input.disabled) input.checked = true;
             });
             markAttendanceDirty();
         }
