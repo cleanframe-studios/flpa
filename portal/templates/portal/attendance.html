@@ -266,11 +266,7 @@ document.getElementById('clearAttendanceModal')?.addEventListener('click', event
             closeAttendanceFilters();
         } catch (error) {
             if (error.name !== 'AbortError' && currentRequest === requestNumber) {
-                const message = document.createElement('p');
-                message.className = 'rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700';
-                message.setAttribute('role', 'alert');
-                message.textContent = 'Attendance could not be updated. Check your connection and try again.';
-                region.prepend(message);
+                window.showToast('Attendance could not be updated. Check your connection and try again.', 'error');
             }
         } finally {
             if (currentRequest === requestNumber) {

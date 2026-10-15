@@ -2991,6 +2991,8 @@ class AttendanceSessionWorkflowTests(TestCase):
         self.assertContains(partial, 'data-attendance-period="morning"')
         self.assertContains(response, 'id="attendance-filter-modal"')
         self.assertContains(response, 'id="attendance-week"')
+        self.assertContains(response, "window.showToast('Attendance could not be updated. Check your connection and try again.', 'error')")
+        self.assertNotContains(response, "region.prepend(message)")
 
     def test_attendance_morning_and_afternoon_are_separate_and_binary(self):
         attendance_day = timezone.localdate().weekday()

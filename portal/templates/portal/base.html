@@ -993,9 +993,13 @@
 
             const toast = document.createElement('div');
             const isDelete = type === 'delete';
+            const isError = type === 'error';
+            const isWarning = type === 'warning';
             toast.className = `pointer-events-none max-w-sm w-[320px] rounded-2xl border px-4 py-3 text-sm font-semibold shadow-2xl backdrop-blur-md opacity-0 translate-x-4 transition-all duration-300 ease-out bg-white/85 border-white/40 ${
-                isDelete
+                isDelete || isError
                     ? 'border-l-4 border-l-red-500 text-red-700'
+                    : isWarning
+                    ? 'border-l-4 border-l-amber-500 text-amber-800'
                     : 'border-l-4 border-l-emerald-500 text-slate-900'
             }`;
             toast.textContent = message;
