@@ -14,7 +14,7 @@ from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import AcademicSession, AcademicTerm, AcademicWeek, AdmissionApplicationBatch, AdmissionCampaign, Applicant, Attendance, AttendanceRegister, AccountProfile, AuditLog, CBTAttempt, CBTExam, CBTQuestion, CBTResponse, ClassRoom, ClassRoomSubject, FeePayment, FeeStructure, FeeStructureItem, Message, MessageRecipient, Notification, Parent, ParentLedgerEntry, ParentPaymentAccount, PasswordResetOTP, ResultAccessFee, Student, StudentExamSession, Subject, SubjectResult, StudentFeeAccount, StudentTermRecord, Teacher, TermEnrollment
+from .models import AcademicSession, AcademicTerm, AcademicWeek, AdmissionApplicationBatch, AdmissionCampaign, Applicant, Attendance, AttendanceRegister, AccountProfile, AuditLog, CBTAttempt, CBTExam, CBTQuestion, CBTResponse, ClassRoom, ClassRoomSubject, FeePayment, FeeStructure, FeeStructureItem, Message, MessageRecipient, Notification, Parent, ParentLedgerEntry, ParentPaymentAccount, PasswordResetOTP, ResultAccessFee, Student, StudentBirthdayCelebration, StudentExamSession, Subject, SubjectResult, StudentFeeAccount, StudentTermRecord, Teacher, TermEnrollment
 from .utils import send_branded_email, send_registration_email
 from .views import parent_payable_charges, create_portal_account, provision_admission_accounts, provision_batch_admission_accounts, credit_parent_balance, pay_fee_account_balance_from_wallet, pay_result_access_fee_from_wallet, get_or_create_result_access_fee, student_result_access_status, InsufficientBalanceError, ChargeAlreadySettledError, DuplicateReferenceError
 
@@ -32,6 +32,30 @@ class LoginInteractionTests(TestCase):
         self.assertContains(response, 'name="remember_me"')
         self.assertContains(response, 'remember-me-indicator')
         self.assertContains(response, 'remember-me-checkbox:checked')
+
+    def test_login_returns_to_safe_birthday_link_after_authentication(self):
+        user = get_user_model().objects.create_user(username='birthday-link-user', password='pass123')
+        target = '/birthdays/12/2026/'
+        self.client.get(reverse('login'), {'next': target})
+
+        response = self.client.post(reverse('login'), {
+            'username': user.username,
+            'password': 'pass123',
+            'next': target,
+        })
+
+        self.assertRedirects(response, target, fetch_redirect_response=False)
+
+    def test_login_rejects_external_next_redirect(self):
+        user = get_user_model().objects.create_user(username='safe-login-user', password='pass123')
+
+        response = self.client.post(reverse('login'), {
+            'username': user.username,
+            'password': 'pass123',
+            'next': 'https://evil.example/steal',
+        })
+
+        self.assertRedirects(response, reverse('dashboard'), fetch_redirect_response=False)
 
 
 class InboxReadStateTests(TestCase):
@@ -53,6 +77,15 @@ class InboxReadStateTests(TestCase):
         self.assertFalse(self.recipient.is_read)
         self.assertEqual(response.context['unread_inbox_count'], 1)
 
+    def test_inbox_message_with_action_url_exposes_its_destination(self):
+        self.message.action_url = '/birthdays/12/2026/'
+        self.message.save(update_fields=['action_url'])
+
+        response = self.client.get(self.url)
+
+        self.assertContains(response, 'href="/birthdays/12/2026/"')
+        self.assertContains(response, 'Open birthday surprise')
+
     def test_opened_message_read_state_persists_after_fresh_login(self):
         response = self.client.post(
             self.url,
@@ -72,6 +105,181 @@ class InboxReadStateTests(TestCase):
         self.assertEqual(inbox_response.context['unread_inbox_count'], 0)
         self.recipient.refresh_from_db()
         self.assertTrue(self.recipient.is_read)
+
+
+class StudentBirthdayAutomationTests(TestCase):
+    def setUp(self):
+        self.today = timezone.localdate()
+        self.teacher_user = get_user_model().objects.create_user(
+            username='birthday-teacher',
+            email='birthday-teacher@example.com',
+            password='pass123',
+        )
+        AccountProfile.objects.create(user=self.teacher_user, role='teacher')
+        self.teacher = Teacher.objects.create(
+            first_name='Amara',
+            last_name='Teacher',
+            phone_number='+2348012345671',
+            email='birthday-teacher@example.com',
+            user=self.teacher_user,
+        )
+        self.principal_user = get_user_model().objects.create_user(
+            username='birthday-principal',
+            email='principal@example.com',
+            password='pass123',
+        )
+        AccountProfile.objects.create(user=self.principal_user, role='principal')
+        self.parent_user = get_user_model().objects.create_user(
+            username='birthday-parent',
+            email='parent-birthday@example.com',
+            password='pass123',
+        )
+        AccountProfile.objects.create(user=self.parent_user, role='parent')
+        self.parent = Parent.objects.create(
+            name='Ada Parent',
+            phone_number='+2348012345672',
+            sex='Female',
+            email='parent-birthday@example.com',
+            marital_status='Married',
+            address='Test address',
+            state='Lagos',
+            lga='Ikeja',
+            user=self.parent_user,
+        )
+        self.student_user = get_user_model().objects.create_user(
+            username='birthday-student',
+            email='student-birthday@example.com',
+            password='pass123',
+        )
+        AccountProfile.objects.create(user=self.student_user, role='student')
+        self.classroom = ClassRoom.objects.create(
+            name='Birthday Primary 4',
+            section='Primary',
+            level_number=4,
+            class_teacher=self.teacher,
+        )
+        self.student = Student.objects.create(
+            first_name='Ada',
+            last_name='Lovelace',
+            sex='Female',
+            date_of_birth=self._birthday_for(self.today),
+            state_of_origin='Lagos',
+            lga_of_origin='Ikeja',
+            program='Primary (PRY)',
+            current_class=self.classroom,
+            parent=self.parent,
+            user=self.student_user,
+        )
+
+    @staticmethod
+    def _birthday_for(day):
+        return day.replace(year=day.year - 10)
+
+    @patch('portal.management.commands.send_student_birthday_notifications.send_branded_email')
+    @patch('portal.views._send_message')
+    def test_day_before_sends_class_teacher_reminder_once(self, send_message, send_email):
+        tomorrow = self.today + datetime.timedelta(days=1)
+        self.student.date_of_birth = self._birthday_for(tomorrow)
+        self.student.save(update_fields=['date_of_birth'])
+
+        call_command('send_student_birthday_notifications', date=self.today.isoformat())
+        call_command('send_student_birthday_notifications', date=self.today.isoformat())
+
+        celebration = StudentBirthdayCelebration.objects.get(student=self.student, year=tomorrow.year)
+        self.assertIsNotNone(celebration.teacher_reminder_sent_at)
+        send_message.assert_called_once()
+        self.assertEqual(send_message.call_args.args[3], 'Important')
+        self.assertEqual(send_message.call_args.args[4], [self.teacher_user])
+        self.assertEqual(send_message.call_args.kwargs['action_url'], reverse(
+            'teacher_birthday_wish',
+            kwargs={'student_id': self.student.pk, 'year': tomorrow.year},
+        ))
+        self.assertFalse(send_message.call_args.kwargs['send_email'])
+        self.assertEqual(send_email.call_count, 1)
+        self.assertEqual(send_email.call_args.kwargs['recipient'], self.teacher.email)
+
+    @patch('portal.management.commands.send_student_birthday_notifications.send_branded_email')
+    @patch('portal.views._send_message')
+    def test_birthday_sends_family_and_staff_messages_and_email_once(self, send_message, send_email):
+        celebration = StudentBirthdayCelebration.objects.create(
+            student=self.student,
+            year=self.today.year,
+            favourite_colour='blue',
+            teacher_wish='Keep asking wonderful questions!',
+        )
+
+        call_command('send_student_birthday_notifications', date=self.today.isoformat())
+        call_command('send_student_birthday_notifications', date=self.today.isoformat())
+
+        celebration.refresh_from_db()
+        self.assertIsNotNone(celebration.birthday_notified_at)
+        self.assertEqual(send_message.call_count, 3)
+        recipients = [call.args[4] for call in send_message.call_args_list]
+        self.assertIn([self.parent_user], recipients)
+        self.assertIn([self.student_user], recipients)
+        self.assertIn([self.teacher_user, self.principal_user], recipients)
+        self.assertEqual(send_email.call_count, 3)
+        emailed_users = {call.kwargs['recipient'] for call in send_email.call_args_list}
+        self.assertEqual(emailed_users, {
+            self.parent.email,
+            self.teacher.email,
+            self.principal_user.email,
+        })
+        family_call = next(call for call in send_message.call_args_list if call.args[4] == [self.parent_user])
+        self.assertEqual(
+            family_call.kwargs['action_url'],
+            reverse('birthday_celebration', kwargs={'student_id': self.student.pk, 'year': self.today.year}),
+        )
+
+    def test_teacher_can_submit_wish_and_parent_can_open_birthday_story(self):
+        celebration = StudentBirthdayCelebration.objects.create(
+            student=self.student,
+            year=self.today.year,
+            birthday_notified_at=timezone.now(),
+        )
+        self.client.force_login(self.teacher_user)
+        wish_url = reverse(
+            'teacher_birthday_wish',
+            kwargs={'student_id': self.student.pk, 'year': self.today.year},
+        )
+        response = self.client.post(wish_url, {
+            'favourite_colour': 'blue',
+            'teacher_wish': 'Keep shining brightly!',
+        })
+        self.assertRedirects(response, wish_url)
+        celebration.refresh_from_db()
+        self.assertEqual(celebration.favourite_colour, 'blue')
+        self.assertEqual(celebration.teacher_wish, 'Keep shining brightly!')
+        self.assertEqual(celebration.teacher_submitted_by, self.teacher_user)
+
+        self.client.force_login(self.parent_user)
+        story_url = reverse(
+            'birthday_celebration',
+            kwargs={'student_id': self.student.pk, 'year': self.today.year},
+        )
+        response = self.client.get(story_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Keep shining brightly!')
+        self.assertContains(response, 'With love from the management')
+        self.assertContains(response, 'birthday-orbit')
+
+    def test_student_outside_primary_four_and_six_cannot_open_story(self):
+        self.classroom.level_number = 3
+        self.classroom.name = 'Birthday Primary 3'
+        self.classroom.save(update_fields=['level_number', 'name'])
+        StudentBirthdayCelebration.objects.create(
+            student=self.student,
+            year=self.today.year,
+            birthday_notified_at=timezone.now(),
+        )
+        self.client.force_login(self.student_user)
+
+        response = self.client.get(reverse(
+            'birthday_celebration',
+            kwargs={'student_id': self.student.pk, 'year': self.today.year},
+        ))
+
+        self.assertEqual(response.status_code, 403)
 
 
 class PasswordResetOTPTests(TestCase):

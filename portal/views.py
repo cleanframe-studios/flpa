@@ -29,6 +29,7 @@ from django.db.models.deletion import ProtectedError
 from django.db.models.functions import Lower
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
+from django.utils.http import url_has_allowed_host_and_scheme
 import datetime
 from datetime import timedelta
 from urllib.parse import quote
@@ -74,6 +75,7 @@ from .models import (
     Message,
     MessageRecipient,
     Notification,
+    StudentBirthdayCelebration,
     StaffSalaryProfile,
     PayrollRun,
     Payslip,
@@ -372,9 +374,20 @@ def _login_destination(user):
     return 'dashboard'
 
 
+def _login_redirect_target(request, user):
+    redirect_to = request.POST.get('next') or request.GET.get('next')
+    if redirect_to and url_has_allowed_host_and_scheme(
+        redirect_to,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return redirect_to
+    return _login_destination(user)
+
+
 def login_view(request):
     if request.user.is_authenticated:
-        return redirect(_login_destination(request.user))
+        return redirect(_login_redirect_target(request, request.user))
 
     if request.method == 'POST':
         user_name = request.POST.get('username')
@@ -390,7 +403,7 @@ def login_view(request):
                 return redirect('login')
             login(request, user)
             request.session.set_expiry(settings.SESSION_COOKIE_AGE if remember_me else 0)
-            return redirect(_login_destination(user))
+            return redirect(_login_redirect_target(request, user))
         else:
             messages.error(request, 'Invalid username or password.')
 
@@ -1325,17 +1338,23 @@ def _user_notification_email(user):
     ).strip()
 
 
-def _send_message(sender, subject, body, priority, recipient_users):
+def _send_message(sender, subject, body, priority, recipient_users, action_url='', send_email=True):
     from .utils import send_push_notification_to_user
     
     recipient_users = list(recipient_users)
     sender_name = (sender.get_full_name() or sender.username) if sender else 'Future Leaders Private Academy'
-    message = Message.objects.create(sender=sender, subject=subject, body=body, priority=priority)
+    message = Message.objects.create(
+        sender=sender,
+        subject=subject,
+        body=body,
+        priority=priority,
+        action_url=action_url,
+    )
     MessageRecipient.objects.bulk_create([
         MessageRecipient(message=message, recipient_user=user) for user in recipient_users
     ], ignore_conflicts=True)
     Notification.objects.bulk_create([
-        Notification(recipient=user, title=subject, message=body, link=reverse('inbox'))
+        Notification(recipient=user, title=subject, message=body, link=action_url or reverse('inbox'))
         for user in recipient_users
     ])
     
@@ -1355,8 +1374,13 @@ def _send_message(sender, subject, body, priority, recipient_users):
             logger.error(f'Failed to send push for message {message.id} to {user.username}: {str(e)}')
             print(f'Push failed: {e}', flush=True)
         recipient_email = _user_notification_email(user)
-        if recipient_email:
+        if send_email and recipient_email:
             parent = getattr(user, 'parent_record', None)
+            email_action_url = action_url
+            if email_action_url and email_action_url.startswith('/'):
+                email_action_url = f'{settings.PORTAL_BASE_URL.rstrip("/")}{email_action_url}'
+            elif not email_action_url:
+                email_action_url = f'{settings.PORTAL_BASE_URL.rstrip("/")}{reverse("inbox")}'
             send_branded_email(
                 recipient=recipient_email,
                 subject=subject,
@@ -1364,8 +1388,8 @@ def _send_message(sender, subject, body, priority, recipient_users):
                 greeting=(getattr(parent, 'display_name', '') if parent else '') or user.get_full_name() or user.username,
                 paragraphs=[body[:4000]],
                 details={'From': sender_name, 'Priority': priority},
-                action_url=f'{settings.PORTAL_BASE_URL.rstrip("/")}{reverse("inbox")}',
-                action_label='Open your inbox',
+                action_url=email_action_url,
+                action_label='Open your birthday surprise' if action_url else 'Open your inbox',
             )
     
     return message
@@ -1582,6 +1606,142 @@ def notification_feed_view(request):
             'message': notification.message,
             'link': notification.link or reverse('inbox'),
         } for notification in notifications],
+    })
+
+
+def _birthday_anniversary(date_of_birth, year):
+    try:
+        return date_of_birth.replace(year=year)
+    except ValueError:
+        if date_of_birth.month == 2 and date_of_birth.day == 29:
+            return datetime.date(year, 2, 28)
+        raise
+
+
+def _birthday_school_manager(user):
+    profile = getattr(user, 'account_profile', None)
+    roles = {role.lower() for role in user.groups.values_list('name', flat=True)}
+    return user.is_superuser or (profile and profile.role.lower() in ('admin', 'principal')) or bool(
+        roles.intersection({'admin', 'principal'})
+    )
+
+
+@login_required(login_url='login')
+def teacher_birthday_wish_view(request, student_id, year):
+    student = get_object_or_404(
+        Student.objects.select_related('current_class__class_teacher__user'),
+        pk=student_id,
+        status__in=('Active', 'Student'),
+    )
+    today = timezone.localdate()
+    tomorrow = today + datetime.timedelta(days=1)
+    if year not in (today.year, tomorrow.year):
+        return HttpResponseForbidden('This birthday wish form is no longer available.')
+    birthday = _birthday_anniversary(student.date_of_birth, year)
+    if birthday not in (today, tomorrow):
+        return HttpResponseForbidden('This birthday wish form is no longer available.')
+
+    teacher = getattr(request.user, 'teacher_record', None)
+    is_class_teacher = bool(
+        teacher
+        and student.current_class_id
+        and student.current_class.class_teacher_id == teacher.pk
+    )
+    if not is_class_teacher and not _birthday_school_manager(request.user):
+        return HttpResponseForbidden('Only the student’s class teacher may submit a birthday wish.')
+
+    celebration, _ = StudentBirthdayCelebration.objects.get_or_create(student=student, year=year)
+    if request.method == 'POST':
+        favourite_colour = request.POST.get('favourite_colour', '').strip()
+        teacher_wish = request.POST.get('teacher_wish', '').strip()
+        valid_colours = {value for value, _ in StudentBirthdayCelebration.COLOR_CHOICES}
+        if favourite_colour and favourite_colour not in valid_colours:
+            messages.error(request, 'Please choose a colour from the list.')
+        elif not teacher_wish:
+            messages.error(request, 'Please add a birthday wish for the student.')
+        elif len(teacher_wish) > 1500:
+            messages.error(request, 'Please keep the birthday wish under 1,500 characters.')
+        else:
+            celebration.favourite_colour = favourite_colour
+            celebration.teacher_wish = teacher_wish
+            celebration.teacher_submitted_by = request.user
+            celebration.teacher_submitted_at = timezone.now()
+            celebration.save(update_fields=[
+                'favourite_colour',
+                'teacher_wish',
+                'teacher_submitted_by',
+                'teacher_submitted_at',
+            ])
+            messages.success(request, 'Your birthday wish has been saved for the celebration.')
+            return redirect('teacher_birthday_wish', student_id=student.pk, year=year)
+
+    return render(request, 'portal/teacher_birthday_wish.html', {
+        'student': student,
+        'celebration': celebration,
+        'birthday': birthday,
+        'colour_choices': StudentBirthdayCelebration.COLOR_CHOICES,
+    })
+
+
+@login_required(login_url='login')
+def birthday_celebration_view(request, student_id, year):
+    student = get_object_or_404(
+        Student.objects.select_related(
+            'current_class',
+            'current_class__class_teacher',
+            'current_class__class_teacher__user',
+            'parent',
+            'parent__user',
+            'user',
+        ),
+        pk=student_id,
+        status__in=('Active', 'Student'),
+    )
+    today = timezone.localdate()
+    if year != today.year:
+        return HttpResponseForbidden('This birthday celebration is not available yet.')
+    birthday = _birthday_anniversary(student.date_of_birth, year)
+    if birthday > today:
+        return HttpResponseForbidden('This birthday celebration is not available yet.')
+
+    is_parent = bool(student.parent_id and student.parent.user_id == request.user.pk)
+    is_student = bool(
+        student.user_id == request.user.pk
+        and student.current_class_id
+        and student.current_class.section == 'Primary'
+        and student.current_class.level_number in (4, 6)
+    )
+    is_teacher = bool(
+        student.current_class_id
+        and student.current_class.class_teacher_id
+        and student.current_class.class_teacher.user_id == request.user.pk
+    )
+    if not (is_parent or is_student or is_teacher or _birthday_school_manager(request.user)):
+        return HttpResponseForbidden('This birthday celebration is private to the student and school community.')
+
+    celebration = get_object_or_404(
+        StudentBirthdayCelebration,
+        student=student,
+        year=year,
+        birthday_notified_at__isnull=False,
+    )
+    colour_hex = {
+        'red': '#f87171',
+        'orange': '#fb923c',
+        'yellow': '#facc15',
+        'green': '#4ade80',
+        'blue': '#60a5fa',
+        'purple': '#c084fc',
+        'pink': '#f472b6',
+        'black': '#1e293b',
+        'white': '#f8fafc',
+    }.get(celebration.favourite_colour, '#818cf8')
+    return render(request, 'portal/birthday_celebration.html', {
+        'student': student,
+        'celebration': celebration,
+        'birthday': birthday,
+        'is_family_view': is_parent or is_student,
+        'favourite_colour_hex': colour_hex,
     })
 
 
@@ -6432,6 +6592,8 @@ def staff_class_allocation_view(request):
 # ============================================================================
 # Web Push Notification Endpoints
 # ============================================================================
+
+
 
 @login_required(login_url='login')
 @require_POST

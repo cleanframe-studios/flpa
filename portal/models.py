@@ -1076,6 +1076,7 @@ class Message(models.Model):
     subject = models.CharField(max_length=150)
     body = models.TextField()
     priority = models.CharField(max_length=100, choices=PRIORITY_CHOICES, default='Standard')
+    action_url = models.CharField(max_length=500, blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -1083,6 +1084,44 @@ class Message(models.Model):
 
     def __str__(self):
         return self.subject
+
+
+class StudentBirthdayCelebration(models.Model):
+    COLOR_CHOICES = [
+        ('red', 'Red'),
+        ('orange', 'Orange'),
+        ('yellow', 'Yellow'),
+        ('green', 'Green'),
+        ('blue', 'Blue'),
+        ('purple', 'Purple'),
+        ('pink', 'Pink'),
+        ('black', 'Black'),
+        ('white', 'White'),
+        ('other', 'Another colour'),
+    ]
+
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='birthday_celebrations')
+    year = models.PositiveSmallIntegerField()
+    favourite_colour = models.CharField(max_length=16, choices=COLOR_CHOICES, blank=True)
+    teacher_wish = models.TextField(blank=True)
+    teacher_submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='submitted_birthday_wishes',
+    )
+    teacher_submitted_at = models.DateTimeField(null=True, blank=True)
+    teacher_reminder_sent_at = models.DateTimeField(null=True, blank=True)
+    birthday_notified_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['student', 'year'], name='unique_student_birthday_celebration_year'),
+        ]
+
+    def __str__(self):
+        return f'{self.student} birthday {self.year}'
 
 
 class MessageRecipient(models.Model):

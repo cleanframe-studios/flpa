@@ -1,0 +1,35 @@
+{% extends 'portal/base.html' %}
+{% block page_title %}Birthday wish for {{ student.first_name }}{% endblock %}
+{% block content %}
+<div class="fixed inset-0 z-[13000] flex items-center justify-center overflow-y-auto bg-slate-950/65 p-4 pb-28 backdrop-blur-lg" role="dialog" aria-modal="true" aria-labelledby="birthday-wish-title">
+  <section class="w-full max-w-xl overflow-hidden rounded-3xl border border-white/60 bg-white/90 shadow-2xl shadow-slate-950/40">
+    <div class="bg-gradient-to-br from-blue-950 via-indigo-900 to-rose-900 px-6 py-7 text-white sm:px-8">
+      <p class="text-[10px] font-black uppercase tracking-[.22em] text-sky-200">A little moment that matters</p>
+      <h1 id="birthday-wish-title" class="mt-2 text-2xl font-black">Help us celebrate {{ student.first_name }}</h1>
+      <p class="mt-2 text-sm leading-6 text-blue-100">{{ birthday|date:'l, j F' }} · {{ student.current_class.name }}</p>
+    </div>
+    <div class="p-6 sm:p-8">
+      <p class="mb-5 text-sm leading-6 text-slate-600">Your words can make a child feel seen. Add a birthday wish to share with the family, and tell us their favourite colour if you know it.</p>
+      <form method="post" class="space-y-5">
+        {% csrf_token %}
+        <div>
+          <label for="birthday-favourite-colour" class="mb-2 block text-sm font-bold text-slate-800">Favourite colour <span class="font-normal text-slate-500">(optional)</span></label>
+          <select id="birthday-favourite-colour" name="favourite_colour" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200">
+            <option value="">Not sure / leave as a surprise</option>
+            {% for value,label in colour_choices %}<option value="{{ value }}" {% if celebration.favourite_colour == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="birthday-teacher-wish" class="mb-2 block text-sm font-bold text-slate-800">Your birthday wish <span class="text-rose-600">*</span></label>
+          <textarea id="birthday-teacher-wish" name="teacher_wish" rows="5" maxlength="1500" required class="w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-800 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" placeholder="Share a warm wish, a kind memory, or something you admire about {{ student.first_name }}...">{{ celebration.teacher_wish }}</textarea>
+          <p class="mt-1 text-xs text-slate-500">A few sincere words are perfect.</p>
+        </div>
+        <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
+          <a href="{% url 'inbox' %}" class="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50">Back to inbox</a>
+          <button type="submit" class="inline-flex min-h-11 items-center justify-center rounded-xl bg-gradient-to-r from-indigo-700 to-blue-700 px-5 py-2 text-sm font-bold text-white shadow-lg shadow-indigo-950/20 transition hover:-translate-y-0.5">Save birthday wish</button>
+        </div>
+      </form>
+    </div>
+  </section>
+</div>
+{% endblock %}

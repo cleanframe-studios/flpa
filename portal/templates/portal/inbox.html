@@ -38,6 +38,7 @@
             </div>
             <p class="mt-0.5 truncate text-xs text-slate-500">{{ recipient.message.sender|user_display_name }}</p>
             <p class="msg-preview mt-1 truncate text-xs text-slate-600">{{ recipient.message.body|linebreaksbr }}</p>
+            {% if recipient.message.action_url %}<a href="{{ recipient.message.action_url }}" class="mt-2 inline-flex items-center gap-1 text-xs font-bold text-indigo-700 hover:text-indigo-900">Open birthday surprise <span aria-hidden="true">→</span></a>{% endif %}
           </div>
           {% if not recipient.is_read %}
           <div class="flex flex-shrink-0 flex-col items-end gap-2">
