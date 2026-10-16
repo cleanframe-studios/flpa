@@ -334,13 +334,14 @@ class PasswordResetOTPTests(TestCase):
         )
         self.url = reverse('forgot_password')
 
-    def test_reset_stages_have_animated_transition_shell(self):
+    def test_reset_stages_load_without_page_transition_overlay_or_animation(self):
         response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'data-password-reset-stage')
-        self.assertContains(response, 'password-reset-stage-in')
-        self.assertContains(response, 'password-reset-stage-out')
+        self.assertContains(response, 'requestPage')
+        self.assertNotContains(response, 'password-flow-entering')
+        self.assertNotContains(response, 'password-reset-stage-in')
 
     @patch('portal.views.send_branded_email', return_value=True)
     def test_parent_can_verify_email_otp_and_reset_password(self, send_email):

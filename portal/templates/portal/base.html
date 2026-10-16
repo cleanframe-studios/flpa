@@ -1741,11 +1741,6 @@ document.addEventListener('DOMContentLoaded', function () {
     .portal-confirm-modal[data-open="true"] { opacity: 1; }
     .portal-confirm-panel { opacity: 0; transform: translateY(12px) scale(.96); transition: opacity 220ms ease, transform 220ms cubic-bezier(.2,.8,.2,1); }
     .portal-confirm-modal[data-open="true"] .portal-confirm-panel { opacity: 1; transform: translateY(0) scale(1); }
-    @keyframes password-flow-enter { from { opacity: 0; transform: translateY(12px) scale(.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
-    @keyframes password-flow-leave { to { opacity: 0; transform: translateY(-8px) scale(.99); } }
-    .password-flow-entering { animation: password-flow-enter 240ms cubic-bezier(.2,.8,.2,1) both; }
-    .password-flow-leaving { animation: password-flow-leave 160ms ease-in both; pointer-events: none; }
-    .password-reset-stage { animation: password-flow-enter 260ms cubic-bezier(.2,.8,.2,1) both; }
     @media (prefers-reduced-motion: reduce) { .portal-confirm-modal, .portal-confirm-panel { transition: none; } }
 </style>
 <div id="portal-confirm-modal" class="portal-confirm-modal fixed inset-0 z-[15000] hidden items-center justify-center bg-slate-950/65 p-4 backdrop-blur-md" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="portal-confirm-title" aria-describedby="portal-confirm-copy">
@@ -1850,73 +1845,34 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    function animateIn(element) {
-        element.classList.remove('password-flow-leaving');
-        element.classList.add('password-flow-entering');
-        window.setTimeout(() => element.classList.remove('password-flow-entering'), 280);
-    }
-
-    function transitionToDocument(parsedDocument, nextUrl) {
+    function transitionToDocument(parsedDocument) {
         const nextLogin = parsedDocument.querySelector('#login-flow-root');
         const nextStage = parsedDocument.querySelector('[data-password-reset-stage]');
         if (!nextLogin && !nextStage) return false;
 
         const currentStage = document.querySelector('[data-password-reset-stage]');
         const loginRoot = document.getElementById('login-flow-root');
-        const outgoing = currentStage || (loginRoot && !loginRoot.hidden ? loginRoot : null);
-        const requestedStep = new URL(nextUrl, window.location.href).searchParams.get('step') || 'identify';
-        const finishTransition = () => {
-            if (outgoing) {
-                if (outgoing === loginRoot && nextStage) {
-                    outgoing.hidden = true;
-                } else if (!(nextLogin && currentStage && !loginRoot)) {
-                    outgoing.remove();
-                } else {
-                    outgoing.classList.remove('password-flow-leaving');
-                }
-            }
-
-            if (nextStage) {
-                let stage = document.querySelector('[data-password-reset-stage]');
-                if (stage && stage !== nextStage) {
-                    stage.replaceWith(nextStage);
-                    stage = nextStage;
-                } else if (!stage) {
-                    const currentLogin = document.getElementById('login-flow-root');
-                    if (currentLogin) currentLogin.after(nextStage);
-                    else if (main) main.append(nextStage);
-                    stage = nextStage;
-                }
-                stage.hidden = false;
-                animateIn(stage);
-                const firstInput = stage.querySelector('input:not([type="hidden"])');
-                if (firstInput && requestedStep !== 'identify') {
-                    window.setTimeout(() => firstInput.focus({ preventScroll: true }), 250);
-                }
-            } else if (nextLogin) {
-                let currentLogin = document.getElementById('login-flow-root');
-                if (currentLogin && currentLogin !== nextLogin) {
-                    currentLogin.hidden = false;
-                } else if (!currentLogin) {
-                    if (currentStage) currentStage.replaceWith(nextLogin);
-                    else if (main) main.append(nextLogin);
-                    currentLogin = nextLogin;
-                }
-                if (currentStage) currentStage.remove();
+        if (nextStage) {
+            if (loginRoot) loginRoot.hidden = true;
+            if (currentStage) currentStage.replaceWith(nextStage);
+            else if (loginRoot) loginRoot.after(nextStage);
+            else if (main) main.append(nextStage);
+            nextStage.hidden = false;
+        } else if (nextLogin) {
+            let currentLogin = loginRoot;
+            if (currentLogin && currentLogin !== nextLogin) {
                 currentLogin.hidden = false;
-                initializeLoginControls(currentLogin);
-                animateIn(currentLogin);
+            } else if (!currentLogin) {
+                if (currentStage) currentStage.replaceWith(nextLogin);
+                else if (main) main.append(nextLogin);
+                currentLogin = nextLogin;
             }
-            showToastMessages(parsedDocument);
-            if (main) main.scrollTo({ top: 0, behavior: 'smooth' });
-        };
-
-        if (outgoing) {
-            outgoing.classList.add('password-flow-leaving');
-            window.setTimeout(finishTransition, 160);
-        } else {
-            finishTransition();
+            if (currentStage) currentStage.remove();
+            currentLogin.hidden = false;
+            initializeLoginControls(currentLogin);
         }
+        showToastMessages(parsedDocument);
+        if (main) main.scrollTop = 0;
         return true;
     }
 
@@ -2004,7 +1960,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!response.ok) throw new Error('Could not complete password recovery. Please try again.');
         const markup = await response.text();
         const parsedDocument = new DOMParser().parseFromString(markup, 'text/html');
-        if (!transitionToDocument(parsedDocument, response.url)) throw new Error('The password recovery page could not be loaded.');
+        if (!transitionToDocument(parsedDocument)) throw new Error('The password recovery page could not be loaded.');
         return response.url;
     }
 
