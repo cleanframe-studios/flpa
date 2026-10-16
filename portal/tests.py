@@ -49,9 +49,9 @@ class LoginInteractionTests(TestCase):
         response = self.client.get(reverse('login'))
 
         self.assertContains(response, 'visualViewport')
-        self.assertContains(response, '--login-visible-height')
         self.assertContains(response, 'login-keyboard-open')
-        self.assertContains(response, 'behavior: \'smooth\'')
+        self.assertContains(response, 'scrollFocusedFieldIntoView')
+        self.assertNotContains(response, '--login-visible-height')
         self.assertContains(response, 'data-password-recovery-link')
 
     def test_login_and_reset_templates_share_client_side_password_flow(self):

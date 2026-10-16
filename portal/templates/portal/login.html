@@ -5,28 +5,22 @@
 {% block content %}
 <style>
     @media (max-width: 767px) {
-        body:has(#login-flow-root) {
-            height: var(--login-visible-height, 100dvh);
-            min-height: 0;
+        body:has(#login-flow-root:not([hidden])) {
+            min-height: 100dvh;
             justify-content: flex-start;
-            overflow: hidden;
         }
-        body:has(#login-flow-root) > main {
-            flex: 1 1 auto;
+        body:has(#login-flow-root:not([hidden])) > main {
             min-height: 0;
-            max-height: var(--login-visible-height, 100dvh);
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
             overflow-y: auto;
             overscroll-behavior-y: contain;
             -webkit-overflow-scrolling: touch;
             scroll-padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
-            padding: max(5.5rem, calc(env(safe-area-inset-top) + 4.5rem)) 1rem max(1.5rem, env(safe-area-inset-bottom));
-            scroll-behavior: smooth;
+            padding: max(6rem, calc(env(safe-area-inset-top) + 5rem)) 1rem max(2rem, env(safe-area-inset-bottom));
         }
         body.login-keyboard-open > main {
-            align-items: flex-start;
-            padding-top: max(4.5rem, calc(env(safe-area-inset-top) + 3.5rem));
+            padding-top: max(5rem, calc(env(safe-area-inset-top) + 4rem));
         }
     }
 </style>

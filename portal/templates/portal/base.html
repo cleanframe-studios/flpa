@@ -1746,11 +1746,6 @@ document.addEventListener('DOMContentLoaded', function () {
     .password-flow-entering { animation: password-flow-enter 240ms cubic-bezier(.2,.8,.2,1) both; }
     .password-flow-leaving { animation: password-flow-leave 160ms ease-in both; pointer-events: none; }
     .password-reset-stage { animation: password-flow-enter 260ms cubic-bezier(.2,.8,.2,1) both; }
-    @media (max-width: 767px) {
-        body:has(#login-flow-root), body.password-flow-active { height: var(--login-visible-height, 100dvh); min-height: 0; justify-content: flex-start; overflow: hidden; }
-        body:has(#login-flow-root) > main, body.password-flow-active > main { flex: 1 1 auto; min-height: 0; max-height: var(--login-visible-height, 100dvh); overflow-y: auto; overscroll-behavior-y: contain; -webkit-overflow-scrolling: touch; scroll-behavior: smooth; }
-        body.login-keyboard-open > main { align-items: flex-start; padding-top: max(4.5rem, calc(env(safe-area-inset-top) + 3.5rem)); }
-    }
     @media (prefers-reduced-motion: reduce) { .portal-confirm-modal, .portal-confirm-panel { transition: none; } }
 </style>
 <div id="portal-confirm-modal" class="portal-confirm-modal fixed inset-0 z-[15000] hidden items-center justify-center bg-slate-950/65 p-4 backdrop-blur-md" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="portal-confirm-title" aria-describedby="portal-confirm-copy">
@@ -1841,12 +1836,6 @@ document.addEventListener('DOMContentLoaded', function () {
 <script>
 (() => {
     let navigating = false;
-    let viewportFrame = 0;
-    let scrollFrame = 0;
-    let lastFieldScroll = 0;
-    let lastKeyboardState = false;
-    let largestViewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-    const viewport = window.visualViewport;
     const main = document.querySelector('body > main');
 
     function activeFlowRoot() {
@@ -1876,8 +1865,6 @@ document.addEventListener('DOMContentLoaded', function () {
         const loginRoot = document.getElementById('login-flow-root');
         const outgoing = currentStage || (loginRoot && !loginRoot.hidden ? loginRoot : null);
         const requestedStep = new URL(nextUrl, window.location.href).searchParams.get('step') || 'identify';
-        document.body.classList.toggle('password-flow-active', Boolean(nextStage));
-
         const finishTransition = () => {
             if (outgoing) {
                 if (outgoing === loginRoot && nextStage) {
@@ -1917,13 +1904,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
                 if (currentStage) currentStage.remove();
                 currentLogin.hidden = false;
-                document.body.classList.remove('password-flow-active');
                 initializeLoginControls(currentLogin);
                 animateIn(currentLogin);
             }
             showToastMessages(parsedDocument);
             if (main) main.scrollTo({ top: 0, behavior: 'smooth' });
-            isKeyboardOpen();
         };
 
         if (outgoing) {
@@ -1943,6 +1928,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const visibilityToggle = form.querySelector('#password-visibility-toggle');
         const warning = form.querySelector('#caps-lock-warning');
         const submit = form.querySelector('#login-submit');
+        const viewport = window.visualViewport;
         if (password && warning) {
             const updateWarning = event => warning.classList.toggle(
                 'hidden',
@@ -1976,7 +1962,38 @@ document.addEventListener('DOMContentLoaded', function () {
                 submit.textContent = 'Signing in...';
             }
         });
+        let scrollTimer;
+        function scrollFocusedFieldIntoView() {
+            const field = document.activeElement;
+            if (!field || !form.contains(field) || !viewport) return;
+            const visibleBottom = viewport.offsetTop + viewport.height;
+            const rect = field.getBoundingClientRect();
+            if (rect.bottom > visibleBottom - 20 || rect.top < viewport.offsetTop + 12) {
+                field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+        function syncKeyboardViewport() {
+            if (!viewport) return;
+            const fieldFocused = form.contains(document.activeElement);
+            if (!fieldFocused) largestViewportHeight = Math.max(largestViewportHeight, viewport.height);
+            const keyboardOpen = fieldFocused && viewport.height < largestViewportHeight - 120;
+            document.body.classList.toggle('login-keyboard-open', keyboardOpen);
+            if (keyboardOpen) {
+                window.clearTimeout(scrollTimer);
+                scrollTimer = window.setTimeout(scrollFocusedFieldIntoView, 120);
+            }
+        }
+        form.addEventListener('focusin', () => window.setTimeout(scrollFocusedFieldIntoView, 220));
+        form.addEventListener('focusout', () => window.setTimeout(syncKeyboardViewport, 180));
+        if (viewport) {
+            viewport.addEventListener('resize', syncKeyboardViewport);
+            viewport.addEventListener('scroll', syncKeyboardViewport);
+        }
+        window.addEventListener('resize', syncKeyboardViewport);
+        syncKeyboardViewport();
     }
+
+    let largestViewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
 
     async function requestPage(url, options) {
         const response = await fetch(url, {
@@ -1991,49 +2008,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return response.url;
     }
 
-    function isKeyboardOpen() {
-        if (!viewport || !main) return false;
-        const active = document.activeElement;
-        const flow = activeFlowRoot();
-        const fieldFocused = Boolean(flow && active && flow.contains(active) && /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName));
-        if (!fieldFocused) largestViewportHeight = Math.max(largestViewportHeight, viewport.height, window.innerHeight);
-
-        const keyboardOpen = fieldFocused && viewport.height < largestViewportHeight - 120;
-        document.body.classList.toggle('login-keyboard-open', keyboardOpen);
-        if (keyboardOpen && active instanceof HTMLElement) {
-            const rect = active.getBoundingClientRect();
-            const visibleTop = Math.max(viewport.offsetTop + 12, 56);
-            const visibleBottom = viewport.offsetTop + viewport.height - 20;
-            let scrollBy = 0;
-            if (rect.bottom > visibleBottom) scrollBy = rect.bottom - visibleBottom;
-            else if (rect.top < visibleTop) scrollBy = rect.top - visibleTop;
-            if (Math.abs(scrollBy) > 28 && Date.now() - lastFieldScroll > 220) {
-                lastFieldScroll = Date.now();
-                main.scrollBy({ top: scrollBy, behavior: 'smooth' });
-            }
-        } else if (lastKeyboardState && !keyboardOpen) {
-            main.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-        lastKeyboardState = keyboardOpen;
-        return keyboardOpen;
-    }
-
-    function scheduleViewportSync() {
-        if (viewportFrame) return;
-        viewportFrame = window.requestAnimationFrame(() => {
-            viewportFrame = 0;
-            if (viewport) {
-                document.documentElement.style.setProperty('--login-visible-height', `${Math.round(viewport.height)}px`);
-            }
-            isKeyboardOpen();
-        });
-    }
-
     initializeLoginControls(document.getElementById('login-flow-root'));
-    if (document.querySelector('[data-password-reset-stage]')) {
-        document.body.classList.add('password-flow-active');
-    }
-    scheduleViewportSync();
 
     document.addEventListener('click', event => {
         const link = event.target instanceof Element
@@ -2089,20 +2064,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    document.addEventListener('focusin', event => {
-        if (event.target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName)) {
-            window.requestAnimationFrame(() => {
-                if (scrollFrame) window.cancelAnimationFrame(scrollFrame);
-                scrollFrame = window.requestAnimationFrame(isKeyboardOpen);
-            });
-        }
-    });
-    document.addEventListener('focusout', () => window.setTimeout(scheduleViewportSync, 80));
-    if (viewport) {
-        viewport.addEventListener('resize', scheduleViewportSync);
-        viewport.addEventListener('scroll', scheduleViewportSync);
-    }
-    window.addEventListener('resize', scheduleViewportSync);
 })();
 </script>
 </body>
