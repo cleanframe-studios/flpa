@@ -429,7 +429,7 @@
                     {% if portal_profile_picture_url %}<img src="{{ portal_profile_picture_url }}" alt="{{ portal_display_name }} profile picture" class="h-8 w-8 rounded-full border border-white object-cover shadow-sm" onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden');"><span class="hidden h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-xs font-black text-blue-800">{{ portal_first_name|slice:':1'|upper }}</span>{% else %}<span class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-xs font-black text-blue-800">{{ portal_first_name|slice:':1'|upper }}</span>{% endif %}
                     <span class="hidden max-w-24 truncate text-[10px] font-bold uppercase tracking-wider text-slate-600 sm:inline">{{ portal_display_name }}</span>
                 </a>
-                <a href="{% url 'logout' %}" class="flex h-8 w-9 items-center justify-center rounded-full text-slate-500 transition hover:bg-red-50 hover:text-red-600" aria-label="Sign out" title="Sign out"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4m7 14 5-5m0 0-5-5m5 5H9"/></svg></a>
+                <a href="{% url 'logout' %}" data-portal-confirm-link data-confirm-title="Sign out?" data-confirm-label="Sign out" data-confirm-message="Are you sure you want to sign out?" class="flex h-8 w-9 items-center justify-center rounded-full text-slate-500 transition hover:bg-red-50 hover:text-red-600" aria-label="Sign out" title="Sign out"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4m7 14 5-5m0 0-5-5m5 5H9"/></svg></a>
             </div>
         </header>
 
@@ -706,7 +706,7 @@
                                 <p class="text-[10px] text-slate-500 uppercase tracking-widest">{% if request.user.is_superuser %}Super Admin{% elif request.user.is_staff %}Admin{% elif request.user.account_profile.role == 'teacher' %}Teacher{% if request.user.teacher_record.assigned_class.exists %} · {{ request.user.teacher_record.assigned_class.all|join:', ' }}{% endif %}{% elif request.user.account_profile.role == 'parent' %}Parent{% elif request.user.account_profile.role == 'student' %}Student{% elif request.user.account_profile.role == 'bursar' %}Bursar{% elif request.user.account_profile.role == 'registrar' %}Registrar{% elif request.user.account_profile.role == 'principal' %}Principal{% else %}Portal User{% endif %}</p>
                             </div>
                             </a>
-                            <a href="{% url 'logout' %}" title="Sign Out" aria-label="Sign out" class="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 transition hover:bg-red-50 hover:text-red-600">
+                            <a href="{% url 'logout' %}" data-portal-confirm-link data-confirm-title="Sign out?" data-confirm-label="Sign out" data-confirm-message="Are you sure you want to sign out?" title="Sign Out" aria-label="Sign out" class="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 transition hover:bg-red-50 hover:text-red-600">
                                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4m7 14 5-5m0 0-5-5m5 5H9"/></svg>
                             </a>
                         </div>
@@ -1761,6 +1761,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const modal = document.getElementById('portal-confirm-modal');
     if (!modal) return;
     let pendingForm = null;
+    let pendingHref = null;
     let closeTimer;
 
     function closeConfirmation(confirmed) {
@@ -1768,7 +1769,9 @@ document.addEventListener('DOMContentLoaded', function () {
         delete modal.dataset.open;
         modal.setAttribute('aria-hidden', 'true');
         const form = confirmed ? pendingForm : null;
+        const href = confirmed ? pendingHref : null;
         pendingForm = null;
+        pendingHref = null;
         closeTimer = window.setTimeout(() => {
             if (modal.getAttribute('aria-hidden') === 'true') {
                 modal.classList.add('hidden');
@@ -1779,8 +1782,29 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (form.requestSubmit) form.requestSubmit();
                 else form.submit();
             }
+            if (href) window.location.assign(href);
         }, 230);
     }
+
+    function openConfirmation(message, title, acceptLabel) {
+        document.getElementById('portal-confirm-title').textContent = title || 'Please confirm';
+        document.getElementById('portal-confirm-copy').textContent = message || 'Are you sure you want to continue?';
+        modal.querySelector('[data-portal-confirm-accept]').textContent = acceptLabel || 'Continue';
+        window.clearTimeout(closeTimer);
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        modal.setAttribute('aria-hidden', 'false');
+        requestAnimationFrame(() => modal.dataset.open = 'true');
+        modal.querySelector('[data-portal-confirm-cancel]').focus();
+    }
+
+    document.addEventListener('click', event => {
+        const link = event.target instanceof Element ? event.target.closest('a[data-portal-confirm-link]') : null;
+        if (!link || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        pendingHref = link.href;
+        openConfirmation(link.dataset.confirmMessage, link.dataset.confirmTitle, link.dataset.confirmLabel);
+    });
 
     document.addEventListener('submit', event => {
         const form = event.target;
@@ -1791,13 +1815,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         event.preventDefault();
         pendingForm = form;
-        document.getElementById('portal-confirm-copy').textContent = form.dataset.confirmMessage || 'Are you sure you want to continue?';
-        window.clearTimeout(closeTimer);
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-        modal.setAttribute('aria-hidden', 'false');
-        requestAnimationFrame(() => modal.dataset.open = 'true');
-        modal.querySelector('[data-portal-confirm-cancel]').focus();
+        openConfirmation(form.dataset.confirmMessage, form.dataset.confirmTitle, form.dataset.confirmLabel);
     });
 
     modal.querySelector('[data-portal-confirm-cancel]').addEventListener('click', () => closeConfirmation(false));

@@ -33,6 +33,24 @@ class LoginInteractionTests(TestCase):
         self.assertContains(response, 'remember-me-indicator')
         self.assertContains(response, 'remember-me-checkbox:checked')
 
+    def test_authenticated_pages_show_custom_sign_out_confirmation(self):
+        user = get_user_model().objects.create_user(username='signout-confirm-user', password='pass123')
+        self.client.force_login(user)
+
+        response = self.client.get(reverse('inbox'))
+
+        self.assertContains(response, 'data-portal-confirm-link')
+        self.assertContains(response, 'data-confirm-title="Sign out?"')
+        self.assertContains(response, 'Are you sure you want to sign out?')
+        self.assertContains(response, 'id="portal-confirm-modal"')
+
+    def test_login_has_mobile_keyboard_viewport_adjustments(self):
+        response = self.client.get(reverse('login'))
+
+        self.assertContains(response, 'visualViewport')
+        self.assertContains(response, 'login-keyboard-open')
+        self.assertContains(response, 'scrollFocusedFieldIntoView')
+
     def test_login_returns_to_safe_birthday_link_after_authentication(self):
         user = get_user_model().objects.create_user(username='birthday-link-user', password='pass123')
         target = '/birthdays/12/2026/'

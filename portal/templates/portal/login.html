@@ -3,6 +3,27 @@
 {% block content_width %}{% if landing_campaign %}max-w-4xl{% else %}max-w-xl{% endif %}{% endblock %}
 
 {% block content %}
+<style>
+    @media (max-width: 767px) {
+        body:has(#login-form) {
+            min-height: 100dvh;
+            justify-content: flex-start;
+        }
+        body:has(#login-form) > main {
+            min-height: 0;
+            align-items: flex-start;
+            justify-content: center;
+            overflow-y: auto;
+            overscroll-behavior-y: contain;
+            -webkit-overflow-scrolling: touch;
+            scroll-padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+            padding: max(6rem, calc(env(safe-area-inset-top) + 5rem)) 1rem max(2rem, env(safe-area-inset-bottom));
+        }
+        body:has(#login-form).login-keyboard-open > main {
+            padding-top: max(5rem, calc(env(safe-area-inset-top) + 4rem));
+        }
+    }
+</style>
 <div class="flex flex-col md:flex-row items-center md:items-stretch justify-center gap-6">
 {% if landing_campaign %}
 <div class="admission-card glass-panel w-full md:flex-1 flex flex-col justify-center rounded-3xl p-10 text-white transform transition-all animate-smooth"{% if landing_campaign.status == 'Active' %} data-deadline="{{ landing_campaign.deadline|date:'c' }}" id="admission-banner"{% endif %}>
@@ -152,6 +173,52 @@
     </script>
 </div>
 </div>
+<script>
+(function () {
+    var form = document.getElementById('login-form');
+    if (!form) return;
+
+    var body = document.body;
+    var viewport = window.visualViewport;
+    var largestViewportHeight = viewport ? viewport.height : window.innerHeight;
+    var scrollTimer;
+
+    function scrollFocusedFieldIntoView() {
+        var field = document.activeElement;
+        if (!field || !form.contains(field) || !viewport) return;
+        var visibleBottom = viewport.offsetTop + viewport.height;
+        var rect = field.getBoundingClientRect();
+        if (rect.bottom > visibleBottom - 20 || rect.top < viewport.offsetTop + 12) {
+            field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+
+    function syncKeyboardViewport() {
+        if (!viewport) return;
+        var fieldFocused = form.contains(document.activeElement);
+        if (!fieldFocused) largestViewportHeight = Math.max(largestViewportHeight, viewport.height);
+        var keyboardOpen = fieldFocused && viewport.height < largestViewportHeight - 120;
+        body.classList.toggle('login-keyboard-open', keyboardOpen);
+        if (keyboardOpen) {
+            window.clearTimeout(scrollTimer);
+            scrollTimer = window.setTimeout(scrollFocusedFieldIntoView, 120);
+        }
+    }
+
+    form.addEventListener('focusin', function () {
+        window.setTimeout(scrollFocusedFieldIntoView, 220);
+    });
+    form.addEventListener('focusout', function () {
+        window.setTimeout(syncKeyboardViewport, 180);
+    });
+    if (viewport) {
+        viewport.addEventListener('resize', syncKeyboardViewport);
+        viewport.addEventListener('scroll', syncKeyboardViewport);
+    }
+    window.addEventListener('resize', syncKeyboardViewport);
+    syncKeyboardViewport();
+})();
+</script>
 
 <!-- Admission status lookup stays on the landing page so applicants never leave this flow. -->
 <div id="status-modal" class="fixed inset-0 z-[9999] hidden items-center justify-center overflow-y-auto bg-slate-950/60 p-4 backdrop-blur-xl" role="dialog" aria-modal="true" aria-labelledby="status-modal-title">
