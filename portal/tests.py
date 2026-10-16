@@ -48,8 +48,20 @@ class LoginInteractionTests(TestCase):
         response = self.client.get(reverse('login'))
 
         self.assertContains(response, 'visualViewport')
+        self.assertContains(response, '--login-visible-height')
         self.assertContains(response, 'login-keyboard-open')
-        self.assertContains(response, 'scrollFocusedFieldIntoView')
+        self.assertContains(response, 'behavior: \'smooth\'')
+        self.assertContains(response, 'data-password-recovery-link')
+
+    def test_login_and_reset_templates_share_client_side_password_flow(self):
+        login_response = self.client.get(reverse('login'))
+        reset_response = self.client.get(reverse('forgot_password'))
+
+        self.assertContains(login_response, 'transitionToDocument')
+        self.assertContains(login_response, 'id="login-flow-root"')
+        self.assertContains(reset_response, 'transitionToDocument')
+        self.assertContains(reset_response, 'data-password-reset-stage')
+        self.assertNotContains(reset_response, 'window.location.assign(response.url)')
 
     def test_login_returns_to_safe_birthday_link_after_authentication(self):
         user = get_user_model().objects.create_user(username='birthday-link-user', password='pass123')

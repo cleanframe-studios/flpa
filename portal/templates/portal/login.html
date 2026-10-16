@@ -5,26 +5,32 @@
 {% block content %}
 <style>
     @media (max-width: 767px) {
-        body:has(#login-form) {
-            min-height: 100dvh;
-            justify-content: flex-start;
-        }
-        body:has(#login-form) > main {
+        body:has(#login-flow-root) {
+            height: var(--login-visible-height, 100dvh);
             min-height: 0;
-            align-items: flex-start;
+            justify-content: flex-start;
+            overflow: hidden;
+        }
+        body:has(#login-flow-root) > main {
+            flex: 1 1 auto;
+            min-height: 0;
+            max-height: var(--login-visible-height, 100dvh);
+            align-items: center;
             justify-content: center;
             overflow-y: auto;
             overscroll-behavior-y: contain;
             -webkit-overflow-scrolling: touch;
             scroll-padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
-            padding: max(6rem, calc(env(safe-area-inset-top) + 5rem)) 1rem max(2rem, env(safe-area-inset-bottom));
+            padding: max(5.5rem, calc(env(safe-area-inset-top) + 4.5rem)) 1rem max(1.5rem, env(safe-area-inset-bottom));
+            scroll-behavior: smooth;
         }
-        body:has(#login-form).login-keyboard-open > main {
-            padding-top: max(5rem, calc(env(safe-area-inset-top) + 4rem));
+        body.login-keyboard-open > main {
+            align-items: flex-start;
+            padding-top: max(4.5rem, calc(env(safe-area-inset-top) + 3.5rem));
         }
     }
 </style>
-<div class="flex flex-col md:flex-row items-center md:items-stretch justify-center gap-6">
+<div id="login-flow-root" class="flex flex-col md:flex-row items-center md:items-stretch justify-center gap-6">
 {% if landing_campaign %}
 <div class="admission-card glass-panel w-full md:flex-1 flex flex-col justify-center rounded-3xl p-10 text-white transform transition-all animate-smooth"{% if landing_campaign.status == 'Active' %} data-deadline="{{ landing_campaign.deadline|date:'c' }}" id="admission-banner"{% endif %}>
     <span class="inline-flex w-fit items-center rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] {% if landing_campaign.status == 'Active' %}border-emerald-300/30 bg-emerald-400/10 text-emerald-300{% else %}border-slate-300/20 bg-slate-400/10 text-slate-300{% endif %}">{% if landing_campaign.status == 'Active' %}Admissions Open{% else %}Admissions Closed{% endif %}</span>
@@ -98,7 +104,7 @@
             <div class="flex justify-between items-end mb-2 pl-1">
                 <label class="block text-gray-300 text-xs font-semibold uppercase tracking-wider" for="password">Password</label>
                 <!-- The sleek new forgot password link -->
-                <a href="{% url 'forgot_password' %}" class="text-xs text-white/60 hover:text-brand-brightRed transition-colors duration-300 font-medium">Forgot Password?</a>
+                <a href="{% url 'forgot_password' %}" data-password-recovery-link class="text-xs text-white/60 hover:text-brand-brightRed transition-colors duration-300 font-medium">Forgot Password?</a>
             </div>
             <div class="relative">
                 <input class="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-4 pr-14 text-white placeholder-white/40 focus:outline-none focus:bg-white/20 focus:border-white/50 transition duration-300"
@@ -132,93 +138,8 @@
             Sign In
         </button>
     </form>
-    <script>
-        (function () {
-            var form = document.getElementById('login-form');
-            var submit = document.getElementById('login-submit');
-            var password = document.getElementById('password');
-            var visibilityToggle = document.getElementById('password-visibility-toggle');
-            var capsLockWarning = document.getElementById('caps-lock-warning');
-            if (!form || !submit || !password || !visibilityToggle || !capsLockWarning) return;
-            function updateCapsLockWarning(event) {
-                var capsLockOn = event.getModifierState && event.getModifierState('CapsLock');
-                capsLockWarning.classList.toggle('hidden', !capsLockOn);
-            }
-            password.addEventListener('keydown', updateCapsLockWarning);
-            password.addEventListener('keyup', updateCapsLockWarning);
-            password.addEventListener('focus', updateCapsLockWarning);
-            password.addEventListener('blur', function () {
-                capsLockWarning.classList.add('hidden');
-            });
-            visibilityToggle.addEventListener('click', function () {
-                var isVisible = password.type === 'password';
-                password.type = isVisible ? 'text' : 'password';
-                visibilityToggle.setAttribute('aria-pressed', String(isVisible));
-                visibilityToggle.setAttribute('aria-label', isVisible ? 'Hide password' : 'Show password');
-                visibilityToggle.querySelector('[data-eye-icon]').classList.toggle('hidden', isVisible);
-                visibilityToggle.querySelector('[data-eye-off-icon]').classList.toggle('hidden', !isVisible);
-                password.focus();
-            });
-            form.addEventListener('submit', function (event) {
-                if (form.dataset.submitting === 'true') {
-                    event.preventDefault();
-                    return;
-                }
-                form.dataset.submitting = 'true';
-                submit.disabled = true;
-                submit.setAttribute('aria-busy', 'true');
-                submit.textContent = 'Signing in...';
-            });
-        })();
-    </script>
 </div>
 </div>
-<script>
-(function () {
-    var form = document.getElementById('login-form');
-    if (!form) return;
-
-    var body = document.body;
-    var viewport = window.visualViewport;
-    var largestViewportHeight = viewport ? viewport.height : window.innerHeight;
-    var scrollTimer;
-
-    function scrollFocusedFieldIntoView() {
-        var field = document.activeElement;
-        if (!field || !form.contains(field) || !viewport) return;
-        var visibleBottom = viewport.offsetTop + viewport.height;
-        var rect = field.getBoundingClientRect();
-        if (rect.bottom > visibleBottom - 20 || rect.top < viewport.offsetTop + 12) {
-            field.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-    }
-
-    function syncKeyboardViewport() {
-        if (!viewport) return;
-        var fieldFocused = form.contains(document.activeElement);
-        if (!fieldFocused) largestViewportHeight = Math.max(largestViewportHeight, viewport.height);
-        var keyboardOpen = fieldFocused && viewport.height < largestViewportHeight - 120;
-        body.classList.toggle('login-keyboard-open', keyboardOpen);
-        if (keyboardOpen) {
-            window.clearTimeout(scrollTimer);
-            scrollTimer = window.setTimeout(scrollFocusedFieldIntoView, 120);
-        }
-    }
-
-    form.addEventListener('focusin', function () {
-        window.setTimeout(scrollFocusedFieldIntoView, 220);
-    });
-    form.addEventListener('focusout', function () {
-        window.setTimeout(syncKeyboardViewport, 180);
-    });
-    if (viewport) {
-        viewport.addEventListener('resize', syncKeyboardViewport);
-        viewport.addEventListener('scroll', syncKeyboardViewport);
-    }
-    window.addEventListener('resize', syncKeyboardViewport);
-    syncKeyboardViewport();
-})();
-</script>
 
 <!-- Admission status lookup stays on the landing page so applicants never leave this flow. -->
 <div id="status-modal" class="fixed inset-0 z-[9999] hidden items-center justify-center overflow-y-auto bg-slate-950/60 p-4 backdrop-blur-xl" role="dialog" aria-modal="true" aria-labelledby="status-modal-title">

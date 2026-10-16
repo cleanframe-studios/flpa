@@ -1741,6 +1741,16 @@ document.addEventListener('DOMContentLoaded', function () {
     .portal-confirm-modal[data-open="true"] { opacity: 1; }
     .portal-confirm-panel { opacity: 0; transform: translateY(12px) scale(.96); transition: opacity 220ms ease, transform 220ms cubic-bezier(.2,.8,.2,1); }
     .portal-confirm-modal[data-open="true"] .portal-confirm-panel { opacity: 1; transform: translateY(0) scale(1); }
+    @keyframes password-flow-enter { from { opacity: 0; transform: translateY(12px) scale(.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    @keyframes password-flow-leave { to { opacity: 0; transform: translateY(-8px) scale(.99); } }
+    .password-flow-entering { animation: password-flow-enter 240ms cubic-bezier(.2,.8,.2,1) both; }
+    .password-flow-leaving { animation: password-flow-leave 160ms ease-in both; pointer-events: none; }
+    .password-reset-stage { animation: password-flow-enter 260ms cubic-bezier(.2,.8,.2,1) both; }
+    @media (max-width: 767px) {
+        body:has(#login-flow-root), body.password-flow-active { height: var(--login-visible-height, 100dvh); min-height: 0; justify-content: flex-start; overflow: hidden; }
+        body:has(#login-flow-root) > main, body.password-flow-active > main { flex: 1 1 auto; min-height: 0; max-height: var(--login-visible-height, 100dvh); overflow-y: auto; overscroll-behavior-y: contain; -webkit-overflow-scrolling: touch; scroll-behavior: smooth; }
+        body.login-keyboard-open > main { align-items: flex-start; padding-top: max(4.5rem, calc(env(safe-area-inset-top) + 3.5rem)); }
+    }
     @media (prefers-reduced-motion: reduce) { .portal-confirm-modal, .portal-confirm-panel { transition: none; } }
 </style>
 <div id="portal-confirm-modal" class="portal-confirm-modal fixed inset-0 z-[15000] hidden items-center justify-center bg-slate-950/65 p-4 backdrop-blur-md" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="portal-confirm-title" aria-describedby="portal-confirm-copy">
@@ -1826,6 +1836,273 @@ document.addEventListener('DOMContentLoaded', function () {
     document.addEventListener('keydown', event => {
         if (event.key === 'Escape' && modal.dataset.open === 'true') closeConfirmation(false);
     });
+})();
+</script>
+<script>
+(() => {
+    let navigating = false;
+    let viewportFrame = 0;
+    let scrollFrame = 0;
+    let lastFieldScroll = 0;
+    let lastKeyboardState = false;
+    let largestViewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    const viewport = window.visualViewport;
+    const main = document.querySelector('body > main');
+
+    function activeFlowRoot() {
+        return document.querySelector('[data-password-reset-stage]:not([hidden]), #login-flow-root:not([hidden])');
+    }
+
+    function showToastMessages(parsedDocument) {
+        parsedDocument.querySelectorAll('#toast-container .toast-message').forEach(toast => {
+            const type = toast.classList.contains('border-l-red-500') ? 'error'
+                : toast.classList.contains('border-l-amber-500') ? 'warning' : 'success';
+            if (window.showToast) window.showToast(toast.textContent.trim(), type);
+        });
+    }
+
+    function animateIn(element) {
+        element.classList.remove('password-flow-leaving');
+        element.classList.add('password-flow-entering');
+        window.setTimeout(() => element.classList.remove('password-flow-entering'), 280);
+    }
+
+    function transitionToDocument(parsedDocument, nextUrl) {
+        const nextLogin = parsedDocument.querySelector('#login-flow-root');
+        const nextStage = parsedDocument.querySelector('[data-password-reset-stage]');
+        if (!nextLogin && !nextStage) return false;
+
+        const currentStage = document.querySelector('[data-password-reset-stage]');
+        const loginRoot = document.getElementById('login-flow-root');
+        const outgoing = currentStage || (loginRoot && !loginRoot.hidden ? loginRoot : null);
+        const requestedStep = new URL(nextUrl, window.location.href).searchParams.get('step') || 'identify';
+        document.body.classList.toggle('password-flow-active', Boolean(nextStage));
+
+        const finishTransition = () => {
+            if (outgoing) {
+                if (outgoing === loginRoot && nextStage) {
+                    outgoing.hidden = true;
+                } else if (!(nextLogin && currentStage && !loginRoot)) {
+                    outgoing.remove();
+                } else {
+                    outgoing.classList.remove('password-flow-leaving');
+                }
+            }
+
+            if (nextStage) {
+                let stage = document.querySelector('[data-password-reset-stage]');
+                if (stage && stage !== nextStage) {
+                    stage.replaceWith(nextStage);
+                    stage = nextStage;
+                } else if (!stage) {
+                    const currentLogin = document.getElementById('login-flow-root');
+                    if (currentLogin) currentLogin.after(nextStage);
+                    else if (main) main.append(nextStage);
+                    stage = nextStage;
+                }
+                stage.hidden = false;
+                animateIn(stage);
+                const firstInput = stage.querySelector('input:not([type="hidden"])');
+                if (firstInput && requestedStep !== 'identify') {
+                    window.setTimeout(() => firstInput.focus({ preventScroll: true }), 250);
+                }
+            } else if (nextLogin) {
+                let currentLogin = document.getElementById('login-flow-root');
+                if (currentLogin && currentLogin !== nextLogin) {
+                    currentLogin.hidden = false;
+                } else if (!currentLogin) {
+                    if (currentStage) currentStage.replaceWith(nextLogin);
+                    else if (main) main.append(nextLogin);
+                    currentLogin = nextLogin;
+                }
+                if (currentStage) currentStage.remove();
+                currentLogin.hidden = false;
+                document.body.classList.remove('password-flow-active');
+                initializeLoginControls(currentLogin);
+                animateIn(currentLogin);
+            }
+            showToastMessages(parsedDocument);
+            if (main) main.scrollTo({ top: 0, behavior: 'smooth' });
+            isKeyboardOpen();
+        };
+
+        if (outgoing) {
+            outgoing.classList.add('password-flow-leaving');
+            window.setTimeout(finishTransition, 160);
+        } else {
+            finishTransition();
+        }
+        return true;
+    }
+
+    function initializeLoginControls(root) {
+        const form = root && root.querySelector('#login-form');
+        if (!form || form.dataset.controlsReady === 'true') return;
+        form.dataset.controlsReady = 'true';
+        const password = form.querySelector('#password');
+        const visibilityToggle = form.querySelector('#password-visibility-toggle');
+        const warning = form.querySelector('#caps-lock-warning');
+        const submit = form.querySelector('#login-submit');
+        if (password && warning) {
+            const updateWarning = event => warning.classList.toggle(
+                'hidden',
+                !(event.getModifierState && event.getModifierState('CapsLock')),
+            );
+            password.addEventListener('keydown', updateWarning);
+            password.addEventListener('keyup', updateWarning);
+            password.addEventListener('focus', updateWarning);
+            password.addEventListener('blur', () => warning.classList.add('hidden'));
+        }
+        if (password && visibilityToggle) {
+            visibilityToggle.addEventListener('click', () => {
+                const isVisible = password.type === 'password';
+                password.type = isVisible ? 'text' : 'password';
+                visibilityToggle.setAttribute('aria-pressed', String(isVisible));
+                visibilityToggle.setAttribute('aria-label', isVisible ? 'Hide password' : 'Show password');
+                visibilityToggle.querySelector('[data-eye-icon]').classList.toggle('hidden', isVisible);
+                visibilityToggle.querySelector('[data-eye-off-icon]').classList.toggle('hidden', !isVisible);
+                password.focus();
+            });
+        }
+        form.addEventListener('submit', event => {
+            if (form.dataset.submitting === 'true') {
+                event.preventDefault();
+                return;
+            }
+            form.dataset.submitting = 'true';
+            if (submit) {
+                submit.disabled = true;
+                submit.setAttribute('aria-busy', 'true');
+                submit.textContent = 'Signing in...';
+            }
+        });
+    }
+
+    async function requestPage(url, options) {
+        const response = await fetch(url, {
+            ...options,
+            headers: { ...(options && options.headers), 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin',
+        });
+        if (!response.ok) throw new Error('Could not complete password recovery. Please try again.');
+        const markup = await response.text();
+        const parsedDocument = new DOMParser().parseFromString(markup, 'text/html');
+        if (!transitionToDocument(parsedDocument, response.url)) throw new Error('The password recovery page could not be loaded.');
+        return response.url;
+    }
+
+    function isKeyboardOpen() {
+        if (!viewport || !main) return false;
+        const active = document.activeElement;
+        const flow = activeFlowRoot();
+        const fieldFocused = Boolean(flow && active && flow.contains(active) && /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName));
+        if (!fieldFocused) largestViewportHeight = Math.max(largestViewportHeight, viewport.height, window.innerHeight);
+
+        const keyboardOpen = fieldFocused && viewport.height < largestViewportHeight - 120;
+        document.body.classList.toggle('login-keyboard-open', keyboardOpen);
+        if (keyboardOpen && active instanceof HTMLElement) {
+            const rect = active.getBoundingClientRect();
+            const visibleTop = Math.max(viewport.offsetTop + 12, 56);
+            const visibleBottom = viewport.offsetTop + viewport.height - 20;
+            let scrollBy = 0;
+            if (rect.bottom > visibleBottom) scrollBy = rect.bottom - visibleBottom;
+            else if (rect.top < visibleTop) scrollBy = rect.top - visibleTop;
+            if (Math.abs(scrollBy) > 28 && Date.now() - lastFieldScroll > 220) {
+                lastFieldScroll = Date.now();
+                main.scrollBy({ top: scrollBy, behavior: 'smooth' });
+            }
+        } else if (lastKeyboardState && !keyboardOpen) {
+            main.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        lastKeyboardState = keyboardOpen;
+        return keyboardOpen;
+    }
+
+    function scheduleViewportSync() {
+        if (viewportFrame) return;
+        viewportFrame = window.requestAnimationFrame(() => {
+            viewportFrame = 0;
+            if (viewport) {
+                document.documentElement.style.setProperty('--login-visible-height', `${Math.round(viewport.height)}px`);
+            }
+            isKeyboardOpen();
+        });
+    }
+
+    initializeLoginControls(document.getElementById('login-flow-root'));
+    if (document.querySelector('[data-password-reset-stage]')) {
+        document.body.classList.add('password-flow-active');
+    }
+    scheduleViewportSync();
+
+    document.addEventListener('click', event => {
+        const link = event.target instanceof Element
+            ? event.target.closest('#login-flow-root a[data-password-recovery-link], [data-password-reset-stage] a')
+            : null;
+        if (!link || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || navigating || link.target) return;
+        const destination = new URL(link.href, window.location.href);
+        if (destination.origin !== window.location.origin) return;
+        event.preventDefault();
+        navigating = true;
+        requestPage(destination.href).then(url => {
+            window.history.pushState({}, '', url);
+        }).catch(error => {
+            if (window.showToast) window.showToast(error.message, 'error');
+        }).finally(() => {
+            navigating = false;
+        });
+    });
+
+    document.addEventListener('submit', event => {
+        const form = event.target;
+        if (!(form instanceof HTMLFormElement) || !form.closest('[data-password-reset-stage]') || navigating) return;
+        event.preventDefault();
+        navigating = true;
+        const submit = form.querySelector('[type="submit"]');
+        if (submit) {
+            submit.disabled = true;
+            submit.setAttribute('aria-busy', 'true');
+        }
+        requestPage(form.action || window.location.href, {
+            method: form.method || 'POST',
+            body: new FormData(form),
+        }).then(url => {
+            window.history.pushState({}, '', url);
+        }).catch(error => {
+            if (submit) {
+                submit.disabled = false;
+                submit.removeAttribute('aria-busy');
+            }
+            if (window.showToast) window.showToast(error.message, 'error');
+        }).finally(() => {
+            navigating = false;
+        });
+    });
+
+    window.addEventListener('popstate', () => {
+        if (navigating) return;
+        navigating = true;
+        requestPage(window.location.href).catch(error => {
+            if (window.showToast) window.showToast(error.message, 'error');
+        }).finally(() => {
+            navigating = false;
+        });
+    });
+
+    document.addEventListener('focusin', event => {
+        if (event.target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName)) {
+            window.requestAnimationFrame(() => {
+                if (scrollFrame) window.cancelAnimationFrame(scrollFrame);
+                scrollFrame = window.requestAnimationFrame(isKeyboardOpen);
+            });
+        }
+    });
+    document.addEventListener('focusout', () => window.setTimeout(scheduleViewportSync, 80));
+    if (viewport) {
+        viewport.addEventListener('resize', scheduleViewportSync);
+        viewport.addEventListener('scroll', scheduleViewportSync);
+    }
+    window.addEventListener('resize', scheduleViewportSync);
 })();
 </script>
 </body>
