@@ -1802,11 +1802,22 @@ class AcademicCalendarGuardTests(TestCase):
         self.assertContains(response, reverse('bursary_dashboard'))
         self.assertNotContains(response, '>Stats<')
 
-    def test_admin_mobile_nav_still_shows_stats(self):
+    def test_admin_mobile_nav_orders_dashboard_ledgers_messages_and_more(self):
         response = self.client.get(reverse('dashboard'))
 
-        self.assertContains(response, '>Stats<')
-        self.assertNotContains(response, 'Bursary Class Ledger')
+        self.assertContains(response, 'Student Ledgers')
+        self.assertContains(response, reverse('bursary_dashboard'))
+        self.assertContains(response, '>Messages<')
+        self.assertNotContains(response, '>Stats<')
+
+        nav = response.content.decode().split('<nav class="bottom-app-nav', 1)[1].split('</nav>', 1)[0]
+        labels = [
+            nav.index('>Dashboard</span>'),
+            nav.index('>Student Ledgers</span>'),
+            nav.index('>Messages</span>'),
+            nav.index('>More</span>'),
+        ]
+        self.assertEqual(labels, sorted(labels))
 
     def test_other_roles_mobile_nav_is_unchanged(self):
         teacher_user = get_user_model().objects.create_user(username='teacher-nav-user', password='pass')
