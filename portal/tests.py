@@ -43,6 +43,7 @@ class LoginInteractionTests(TestCase):
         self.assertContains(response, 'data-confirm-title="Sign out?"')
         self.assertContains(response, 'Are you sure you want to sign out?')
         self.assertContains(response, 'id="portal-confirm-modal"')
+        self.assertEqual(response.content.count(b'href="/logout/"'), 2)
 
     def test_login_has_mobile_keyboard_viewport_adjustments(self):
         response = self.client.get(reverse('login'))

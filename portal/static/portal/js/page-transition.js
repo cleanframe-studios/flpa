@@ -40,6 +40,7 @@
   document.addEventListener('click', function (event) {
     var link = event.target.closest('a');
     if (!link || event.defaultPrevented || event.button !== 0) return;
+    if (link.hasAttribute('data-portal-confirm-link')) return;
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     if (link.target === '_blank' || link.hasAttribute('download')) return;
 
