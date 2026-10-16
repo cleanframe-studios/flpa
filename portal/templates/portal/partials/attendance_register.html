@@ -8,7 +8,7 @@
         </div>
         <div class="inline-flex w-fit items-center gap-1 rounded-2xl border border-white/90 bg-white/65 p-1 shadow-lg shadow-blue-950/10 backdrop-blur-2xl" role="group" aria-label="Attendance session">
             {% for value,label in period_choices %}
-            <button type="button" data-attendance-period="{{ value }}" aria-pressed="{% if selected_period == value %}true{% else %}false{% endif %}" class="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-black transition {% if selected_period == value %}bg-gradient-to-r from-blue-700 to-indigo-600 text-white shadow-md shadow-blue-900/20{% else %}text-slate-600 hover:bg-white/80{% endif %}"><span>{{ label }}</span></button>
+            <button type="button" data-attendance-period="{{ value }}" aria-pressed="{% if selected_period == value %}true{% else %}false{% endif %}" class="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-black transition {% if selected_period == value %}bg-gradient-to-r from-blue-700 to-indigo-600 text-white shadow-md shadow-blue-900/20{% else %}text-slate-600 hover:bg-white/80{% endif %}"><span>{{ label }}</span><svg data-period-spinner class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" aria-hidden="true"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4z"></path></svg></button>
             {% endfor %}
         </div>
     </header>
