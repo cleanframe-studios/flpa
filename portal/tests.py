@@ -97,7 +97,10 @@ class InboxReadStateTests(TestCase):
         response = self.client.get(self.url)
 
         self.assertContains(response, 'href="/birthdays/12/2026/"')
+        self.assertContains(response, 'data-birthday-surprise')
         self.assertContains(response, 'Open birthday surprise')
+        self.assertContains(response, "X-Requested-With': 'XMLHttpRequest'")
+        self.assertContains(response, 'modal.classList.add(\'opacity-100\')')
 
     def test_opened_message_read_state_persists_after_fresh_login(self):
         response = self.client.post(
@@ -304,6 +307,17 @@ class StudentBirthdayAutomationTests(TestCase):
         self.assertContains(response, 'Keep shining brightly!')
         self.assertContains(response, 'With love from the management')
         self.assertContains(response, 'birthday-orbit')
+        self.assertContains(response, 'data-birthday-modal')
+
+        partial_response = self.client.get(
+            story_url,
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+        self.assertEqual(partial_response.status_code, 200)
+        self.assertTemplateUsed(partial_response, 'portal/partials/birthday_celebration_modal.html')
+        self.assertNotContains(partial_response, '<html')
+        self.assertContains(partial_response, 'data-birthday-modal')
+        self.assertContains(partial_response, 'data-next-birthday-scene')
 
     def test_student_outside_primary_four_and_six_cannot_open_story(self):
         self.classroom.level_number = 3

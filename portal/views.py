@@ -1742,13 +1742,16 @@ def birthday_celebration_view(request, student_id, year):
         'black': '#1e293b',
         'white': '#f8fafc',
     }.get(celebration.favourite_colour, '#818cf8')
-    return render(request, 'portal/birthday_celebration.html', {
+    context = {
         'student': student,
         'celebration': celebration,
         'birthday': birthday,
         'is_family_view': is_parent or is_student,
         'favourite_colour_hex': colour_hex,
-    })
+    }
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return render(request, 'portal/partials/birthday_celebration_modal.html', context)
+    return render(request, 'portal/birthday_celebration.html', context)
 
 
 MONTH_CHOICES = PayrollRun.MONTH_CHOICES
@@ -6625,6 +6628,28 @@ def staff_class_allocation_view(request):
 # Web Push Notification Endpoints
 # ============================================================================
 
+def _read_json_or_form_payload(request):
+    """Accept either JSON or standard form submissions from browsers and scripts."""
+    if request.content_type and 'application/json' in request.content_type.lower():
+        try:
+            if not request.body:
+                return {}
+            data = json.loads(request.body)
+            return data if isinstance(data, dict) else {}
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return {}
+
+    if request.POST:
+        return request.POST.dict()
+
+    if request.body:
+        try:
+            data = json.loads(request.body)
+            return data if isinstance(data, dict) else {}
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return {}
+
+    return {}
 
 
 @login_required(login_url='login')

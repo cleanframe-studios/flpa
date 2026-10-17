@@ -38,7 +38,7 @@
             </div>
             <p class="mt-0.5 truncate text-xs text-slate-500">{{ recipient.message.sender|user_display_name }}</p>
             <p class="msg-preview mt-1 truncate text-xs text-slate-600">{{ recipient.message.body|linebreaksbr }}</p>
-            {% if recipient.message.action_url %}<a href="{{ recipient.message.action_url }}" class="mt-2 inline-flex items-center gap-1 text-xs font-bold text-indigo-700 hover:text-indigo-900">Open birthday surprise <span aria-hidden="true">→</span></a>{% endif %}
+            {% if recipient.message.action_url %}<a href="{{ recipient.message.action_url }}" {% if 'birthdays/' in recipient.message.action_url %}data-birthday-surprise{% endif %} class="mt-2 inline-flex items-center gap-1 text-xs font-bold text-indigo-700 hover:text-indigo-900">{% if 'birthdays/' in recipient.message.action_url %}Open birthday surprise{% else %}Open message{% endif %} <span aria-hidden="true">→</span></a>{% endif %}
           </div>
           {% if not recipient.is_read %}
           <div class="flex flex-shrink-0 flex-col items-end gap-2">
@@ -57,6 +57,113 @@
 <script>
 (() => {
   const rows = document.querySelectorAll('.inbox-message-row');
+  const birthdayModalRoot = document.createElement('div');
+  birthdayModalRoot.id = 'birthday-surprise-modal-root';
+  document.body.appendChild(birthdayModalRoot);
+  let birthdayRequest;
+  let returnFocusTo;
+
+  function updateBirthdayScene(modal, activeScene) {
+    const scenes = Array.from(modal.querySelectorAll('[data-birthday-scene]'));
+    const dots = Array.from(modal.querySelectorAll('[data-scene-dot]'));
+    const nextButton = modal.querySelector('[data-next-birthday-scene]');
+    const counter = modal.querySelector('[data-scene-counter]');
+    if (!scenes.length || !nextButton) return activeScene;
+    scenes.forEach((scene, index) => {
+      scene.classList.toggle('hidden', index !== activeScene);
+      scene.classList.toggle('is-active', index === activeScene);
+    });
+    dots.forEach((dot, index) => {
+      dot.classList.toggle('w-6', index === activeScene);
+      dot.classList.toggle('w-3', index !== activeScene);
+      dot.classList.toggle('bg-white', index === activeScene);
+      dot.classList.toggle('bg-white/25', index !== activeScene);
+    });
+    counter.textContent = `0${activeScene + 1} / 0${scenes.length}`;
+    const finalScene = activeScene === scenes.length - 1;
+    nextButton.querySelector('span').textContent = finalScene ? 'Celebrate again' : 'Continue';
+    nextButton.querySelector('svg').classList.toggle('rotate-180', finalScene);
+    return activeScene;
+  }
+
+  function closeBirthdayModal() {
+    const modal = birthdayModalRoot.querySelector('[data-birthday-modal]');
+    if (!modal || modal.dataset.closing === 'true') return;
+    modal.dataset.closing = 'true';
+    modal.dataset.open = 'false';
+    modal.classList.remove('opacity-100');
+    modal.classList.add('opacity-0');
+    modal.setAttribute('aria-hidden', 'true');
+    window.setTimeout(() => {
+      birthdayModalRoot.replaceChildren();
+      document.body.classList.remove('overflow-hidden');
+      returnFocusTo?.focus();
+      returnFocusTo = null;
+    }, 220);
+  }
+
+  async function openBirthdayModal(link) {
+    birthdayRequest?.abort();
+    birthdayRequest = new AbortController();
+    returnFocusTo = link;
+    link.setAttribute('aria-busy', 'true');
+    try {
+      const response = await fetch(link.href, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin',
+        signal: birthdayRequest.signal,
+      });
+      if (!response.ok || response.redirected) throw new Error('The birthday surprise could not be opened.');
+      birthdayModalRoot.innerHTML = await response.text();
+      const modal = birthdayModalRoot.querySelector('[data-birthday-modal]');
+      if (!modal) throw new Error('The birthday surprise response was incomplete.');
+      document.body.classList.add('overflow-hidden');
+      updateBirthdayScene(modal, 0);
+      modal.setAttribute('aria-hidden', 'false');
+      requestAnimationFrame(() => {
+        modal.dataset.open = 'true';
+        modal.classList.remove('opacity-0');
+        modal.classList.add('opacity-100');
+        modal.querySelector('[data-birthday-panel]')?.focus();
+      });
+    } catch (error) {
+      if (error.name !== 'AbortError' && window.showToast) window.showToast(error.message, 'error');
+    } finally {
+      link.removeAttribute('aria-busy');
+    }
+  }
+
+  document.addEventListener('click', event => {
+    const birthdayLink = event.target.closest('[data-birthday-surprise]');
+    if (birthdayLink) {
+      event.preventDefault();
+      event.stopPropagation();
+      openBirthdayModal(birthdayLink);
+      return;
+    }
+    const modal = birthdayModalRoot.querySelector('[data-birthday-modal]');
+    if (!modal) return;
+    if (event.target.closest('[data-birthday-close]')) {
+      event.preventDefault();
+      closeBirthdayModal();
+      return;
+    }
+    if (event.target.closest('[data-birthday-backdrop-close]')) {
+      closeBirthdayModal();
+      return;
+    }
+    if (event.target.closest('[data-next-birthday-scene]')) {
+      const scenes = modal.querySelectorAll('[data-birthday-scene]');
+      const activeScene = Array.from(scenes).findIndex(scene => !scene.classList.contains('hidden'));
+      updateBirthdayScene(modal, (activeScene + 1) % scenes.length);
+    }
+  });
+
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && birthdayModalRoot.querySelector('[data-birthday-modal]')) {
+      closeBirthdayModal();
+    }
+  });
 
   async function markRead(row) {
     if (!row || row.dataset.unread !== 'true') return;
@@ -89,7 +196,8 @@
   rows.forEach(row => {
     const preview = row.querySelector('.inbox-message-preview');
     if (!preview) return;
-    const expand = async () => {
+    const expand = async event => {
+      if (event.target.closest('a')) return;
       const body = preview.querySelector('.msg-preview');
       const expanded = body.classList.toggle('truncate') === false;
       preview.setAttribute('aria-expanded', String(expanded));
@@ -105,7 +213,7 @@
     preview.addEventListener('keydown', event => {
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
-        expand();
+        expand(event);
       }
     });
     row.querySelector('.inbox-mark-read-form')?.addEventListener('submit', async event => {

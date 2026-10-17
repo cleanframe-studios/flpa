@@ -1,91 +1,21 @@
 {% extends 'portal/base.html' %}
-{% load static %}
 {% block page_title %}A birthday surprise for {{ student.first_name }}{% endblock %}
 {% block content %}
-<style>
-  @keyframes birthday-scene-in {
-    from { opacity: 0; transform: translateY(20px) scale(.975); filter: blur(5px); }
-    to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
-  }
-  @keyframes birthday-orbit {
-    0%, 100% { transform: translateY(0) rotate(-8deg); }
-    50% { transform: translateY(-12px) rotate(8deg); }
-  }
-  .birthday-scene.is-active { animation: birthday-scene-in 520ms cubic-bezier(.2,.8,.2,1) both; }
-  .birthday-orbit { animation: birthday-orbit 4s ease-in-out infinite; }
-  @media (prefers-reduced-motion: reduce) {
-    .birthday-scene.is-active, .birthday-orbit { animation: none; }
-  }
-</style>
-<main class="min-h-[70vh] overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-indigo-950 to-rose-950 px-4 py-10 text-white sm:px-8">
-  <div class="pointer-events-none relative mx-auto max-w-3xl">
-    <div class="birthday-orbit absolute -left-4 top-6 h-16 w-16 rounded-3xl border border-sky-200/30 bg-sky-300/10 blur-[1px] sm:-left-12" aria-hidden="true"></div>
-    <div class="birthday-orbit absolute -right-2 top-24 h-10 w-10 rounded-full border border-rose-200/30 bg-rose-300/15 sm:-right-10" aria-hidden="true" style="animation-delay:-1.5s"></div>
-    <div class="relative rounded-[2rem] border border-white/15 bg-white/[.08] p-6 shadow-2xl shadow-black/30 backdrop-blur-2xl sm:p-10">
-      <div class="mb-8 flex items-center justify-between gap-4">
-        <div class="flex items-center gap-3">
-          <img src="{% static 'portal/logo.png' %}" alt="Future Leaders Private Academy" class="h-10 w-10 rounded-xl bg-white p-1.5 object-contain">
-          <div><p class="text-[9px] font-black uppercase tracking-[.2em] text-sky-200">Future Leaders Private Academy</p><p class="mt-1 text-xs text-white/60">A celebration made just for you</p></div>
-        </div>
-        <span data-scene-counter class="shrink-0 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[10px] font-bold text-white/75">01 / 03</span>
-      </div>
-
-      <section class="birthday-scene is-active text-center" data-birthday-scene>
-        <div class="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-[1.75rem] border border-amber-200/25 bg-gradient-to-br from-amber-200/20 to-rose-300/10 text-amber-100 shadow-lg shadow-rose-950/30">
-          <svg class="h-10 w-10" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 3v2m7.07.93-1.42 1.42M22 12h-2m-.93 7.07-1.42-1.42M12 21v-2m-7.07.93 1.42-1.42M2 12h2m.93-7.07 1.42 1.42M7 14h10l1 6H6l1-6Zm2 0V9a3 3 0 0 1 6 0v5"/></svg>
-        </div>
-        <p class="text-xs font-black uppercase tracking-[.28em] text-amber-200">Today is all about you</p>
-        <h1 class="mt-4 text-4xl font-black leading-tight tracking-tight sm:text-6xl">Happy birthday,<br><span class="bg-gradient-to-r from-amber-200 via-rose-200 to-sky-200 bg-clip-text text-transparent">{{ student.first_name }}!</span></h1>
-        <p class="mx-auto mt-5 max-w-xl text-sm leading-7 text-indigo-100 sm:text-base">
-          {% if is_family_view %}Your family and school have a little birthday surprise to share with you.{% else %}The school community is celebrating {{ student.first_name }} today. Here is the birthday surprise we prepared.{% endif %}
-        </p>
-      </section>
-
-      <section class="birthday-scene hidden text-center" data-birthday-scene>
-        <p class="text-xs font-black uppercase tracking-[.28em] text-sky-200">A little something from your classroom</p>
-        <div class="mx-auto mt-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/15 bg-white/10">
-          <span class="h-8 w-8 rounded-full shadow-lg ring-4 ring-white/10" style="background-color:{{ favourite_colour_hex }}" aria-label="Favourite colour"></span>
-        </div>
-        <p class="mt-3 text-xs text-white/60">A little touch of {{ celebration.get_favourite_colour_display|default:'surprise' }}</p>
-        <p class="mt-7 text-[10px] font-black uppercase tracking-[.24em] text-rose-200">A birthday wish from your teacher</p>
-        <blockquote class="mx-auto mt-4 max-w-2xl rounded-2xl border border-white/10 bg-white/[.06] px-5 py-6 text-lg font-medium leading-8 text-white sm:px-8">
-          {% if celebration.teacher_wish %}“{{ celebration.teacher_wish }}”{% else %}“Keep being curious, kind, and wonderfully you. We are cheering you on today and all year long!”{% endif %}
-        </blockquote>
-      </section>
-
-      <section class="birthday-scene hidden text-center" data-birthday-scene>
-        <p class="text-xs font-black uppercase tracking-[.28em] text-amber-200">With love from the management</p>
-        <div class="mx-auto mt-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-100/20 bg-amber-100/10 text-amber-100">
-          <svg class="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M12 21s-8-4.5-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 6.5-8 11-8 11Z"/></svg>
-        </div>
-        <h2 class="mt-5 text-3xl font-black">Keep shining, {{ student.first_name }}.</h2>
-        <p class="mx-auto mt-4 max-w-2xl text-sm leading-7 text-indigo-100 sm:text-base">
-          From all of us at Future Leaders Private Academy: may this new year bring you courage to try, confidence to grow, friends who make you smile, and discoveries that make you say “I can do it.” You are valued, you are celebrated, and we are so glad you are part of our school family.
-        </p>
-        <p class="mt-6 text-sm font-bold text-amber-100">Happy birthday, {{ student.first_name }}. With warm wishes from the Proprietress and the whole school community.</p>
-      </section>
-
-      <div class="mt-9 flex items-center justify-between gap-3 border-t border-white/10 pt-6">
-        <a href="{% url 'inbox' %}" class="pointer-events-auto text-xs font-semibold text-white/60 transition hover:text-white">Back to inbox</a>
-        <div class="flex items-center gap-3">
-          <div class="flex gap-1.5" aria-label="Celebration progress"><span class="h-1.5 w-6 rounded-full bg-white" data-scene-dot></span><span class="h-1.5 w-3 rounded-full bg-white/25 transition-all" data-scene-dot></span><span class="h-1.5 w-3 rounded-full bg-white/25 transition-all" data-scene-dot></span></div>
-          <button type="button" data-next-birthday-scene class="pointer-events-auto inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-black text-slate-950 shadow-lg transition hover:-translate-y-0.5">
-            <span>Begin the surprise</span><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14m-6-6 6 6-6 6"/></svg>
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-</main>
+{% include 'portal/partials/birthday_celebration_modal.html' %}
 <script>
 (() => {
-  const scenes = Array.from(document.querySelectorAll('[data-birthday-scene]'));
-  const dots = Array.from(document.querySelectorAll('[data-scene-dot]'));
-  const nextButton = document.querySelector('[data-next-birthday-scene]');
-  const counter = document.querySelector('[data-scene-counter]');
-  if (!scenes.length || !nextButton) return;
+  const modal = document.querySelector('[data-birthday-modal]');
+  if (!modal) return;
+  modal.dataset.open = 'true';
+  modal.setAttribute('aria-hidden', 'false');
+  modal.classList.remove('opacity-0');
+  modal.classList.add('opacity-100');
+  const scenes = Array.from(modal.querySelectorAll('[data-birthday-scene]'));
+  const dots = Array.from(modal.querySelectorAll('[data-scene-dot]'));
+  const nextButton = modal.querySelector('[data-next-birthday-scene]');
+  const counter = modal.querySelector('[data-scene-counter]');
   let activeScene = 0;
-  nextButton.addEventListener('click', () => {
+  nextButton?.addEventListener('click', () => {
     scenes[activeScene].classList.add('hidden');
     scenes[activeScene].classList.remove('is-active');
     activeScene = (activeScene + 1) % scenes.length;
