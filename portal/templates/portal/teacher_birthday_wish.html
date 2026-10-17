@@ -1,14 +1,13 @@
 {% extends 'portal/base.html' %}
 {% block page_title %}Birthday wish for {{ student.first_name }}{% endblock %}
 {% block content %}
-<div class="fixed inset-0 z-[13000] flex items-start justify-center overflow-y-auto overscroll-contain bg-slate-950/65 px-3 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-[calc(env(safe-area-inset-top)+4.75rem)] backdrop-blur-lg sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="birthday-wish-title">
+<div class="fixed inset-0 z-[13000] flex items-start justify-center overflow-hidden bg-slate-950/65 px-3 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-[calc(env(safe-area-inset-top)+4.75rem)] backdrop-blur-lg sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="birthday-wish-title">
   <section class="max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-5.75rem)] w-full max-w-xl overflow-y-auto overscroll-contain rounded-3xl border border-white/70 bg-white shadow-2xl shadow-slate-950/40 sm:max-h-[calc(100dvh-3rem)]">
-    <div class="relative overflow-hidden bg-gradient-to-br from-blue-950 via-indigo-900 to-rose-900 px-5 py-5 text-white sm:px-8 sm:py-7">
+    <div class="relative overflow-hidden bg-gradient-to-br from-blue-950 via-blue-800 to-blue-700 px-5 py-5 text-white sm:px-8 sm:py-7">
       <div class="pointer-events-none absolute -right-8 -top-12 h-36 w-36 rounded-full border border-white/10 bg-white/5"></div>
       <div class="pointer-events-none absolute -right-2 -top-6 h-24 w-24 rounded-full border border-white/10"></div>
       <div class="relative flex items-start justify-between gap-3">
         <div class="flex min-w-0 items-start gap-3">
-          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-xl shadow-inner" aria-hidden="true">🎂</span>
           <div class="min-w-0">
             <p class="text-[10px] font-black uppercase tracking-[.18em] text-sky-200">A little moment that matters</p>
             <h1 id="birthday-wish-title" class="mt-1.5 text-xl font-black leading-tight sm:text-2xl">Help us celebrate {{ student.first_name }}</h1>
@@ -22,7 +21,7 @@
       {% if has_teacher_wish %}
       <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5" role="status">
         <div class="flex items-start gap-3">
-          <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700" aria-hidden="true">✓</span>
+          <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 px-1 text-center text-[9px] font-black uppercase tracking-wide text-emerald-700" aria-hidden="true">Done</span>
           <div>
             <h2 class="text-sm font-black text-emerald-900">Birthday wish already submitted</h2>
             <p class="mt-1 text-sm leading-6 text-emerald-800">Thank you for making this celebration special. A wish has already been shared with the family and can only be submitted once.</p>
@@ -49,7 +48,7 @@
         </div>
         <div class="flex flex-col-reverse gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end">
           <a href="{% url 'inbox' %}" class="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50">Back to inbox</a>
-          <button type="submit" class="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-700 to-blue-700 px-5 py-2 text-sm font-bold text-white shadow-lg shadow-indigo-950/20 transition hover:-translate-y-0.5 hover:shadow-indigo-900/30">
+          <button type="submit" class="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-800 to-blue-600 px-5 py-2 text-sm font-bold text-white shadow-lg shadow-blue-950/20 transition hover:-translate-y-0.5 hover:shadow-blue-900/30">
             <span>Save birthday wish</span><span aria-hidden="true">→</span>
           </button>
         </div>

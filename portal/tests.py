@@ -259,6 +259,11 @@ class StudentBirthdayAutomationTests(TestCase):
         self.assertEqual(wish_page.status_code, 200)
         self.assertContains(wish_page, 'pt-[calc(env(safe-area-inset-top)+4.75rem)]')
         self.assertContains(wish_page, 'max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-5.75rem)]')
+        self.assertContains(wish_page, 'overflow-hidden bg-slate-950/65')
+        self.assertContains(wish_page, 'overflow-y-auto overscroll-contain rounded-3xl')
+        self.assertContains(wish_page, 'bg-gradient-to-br from-blue-950 via-blue-800 to-blue-700')
+        self.assertContains(wish_page, 'bg-gradient-to-r from-blue-800 to-blue-600')
+        self.assertNotContains(wish_page, '🎂')
         self.assertContains(wish_page, 'aria-label="Close birthday wish and return to inbox"')
         self.assertContains(wish_page, 'Save birthday wish')
 
