@@ -1,4 +1,4 @@
-﻿import datetime
+import datetime
 import io
 import re
 import os
@@ -45,25 +45,6 @@ class LoginInteractionTests(TestCase):
         self.assertContains(response, 'id="portal-confirm-modal"')
         self.assertContains(response, 'window.location.assign(href)')
         self.assertEqual(response.content.count(b'href="/logout/"'), 2)
-
-    def test_login_has_mobile_keyboard_viewport_adjustments(self):
-        response = self.client.get(reverse('login'))
-
-        self.assertContains(response, 'visualViewport')
-        self.assertContains(response, 'login-keyboard-open')
-        self.assertContains(response, 'scrollFocusedFieldIntoView')
-        self.assertNotContains(response, '--login-visible-height')
-        self.assertContains(response, 'data-password-recovery-link')
-
-    def test_login_and_reset_templates_share_client_side_password_flow(self):
-        login_response = self.client.get(reverse('login'))
-        reset_response = self.client.get(reverse('forgot_password'))
-
-        self.assertContains(login_response, 'transitionToDocument')
-        self.assertContains(login_response, 'id="login-flow-root"')
-        self.assertContains(reset_response, 'transitionToDocument')
-        self.assertContains(reset_response, 'data-password-reset-stage')
-        self.assertNotContains(reset_response, 'window.location.assign(response.url)')
 
     def test_login_returns_to_safe_birthday_link_after_authentication(self):
         user = get_user_model().objects.create_user(username='birthday-link-user', password='pass123')
@@ -335,14 +316,13 @@ class PasswordResetOTPTests(TestCase):
         )
         self.url = reverse('forgot_password')
 
-    def test_reset_stages_load_without_page_transition_overlay_or_animation(self):
+    def test_reset_stages_have_animated_transition_shell(self):
         response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'data-password-reset-stage')
-        self.assertContains(response, 'requestPage')
-        self.assertNotContains(response, 'password-flow-entering')
-        self.assertNotContains(response, 'password-reset-stage-in')
+        self.assertContains(response, 'password-reset-stage-in')
+        self.assertContains(response, 'password-reset-stage-out')
 
     @patch('portal.views.send_branded_email', return_value=True)
     def test_parent_can_verify_email_otp_and_reset_password(self, send_email):

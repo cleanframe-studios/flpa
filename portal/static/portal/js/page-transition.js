@@ -36,12 +36,18 @@
     requestAnimationFrame(function () { loader.classList.add('is-visible'); });
   }
 
+  function shouldSkipPageTransition(link, destination) {
+    if (!destination) return false;
+    if (link && (link.closest('[data-skip-page-transition]') || link.closest('[data-password-reset-stage]'))) return true;
+    var pathname = destination.pathname.replace(/\/+$/, '');
+    var currentPath = window.location.pathname.replace(/\/+$/, '');
+    return pathname === '/login' || currentPath === '/login' || pathname.indexOf('/forgot-password') === 0 || currentPath.indexOf('/forgot-password') === 0;
+  }
+
   window.addEventListener('pageshow', hideLoader);
   document.addEventListener('click', function (event) {
     var link = event.target.closest('a');
     if (!link || event.defaultPrevented || event.button !== 0) return;
-    if (link.hasAttribute('data-portal-confirm-link')) return;
-    if (link.hasAttribute('data-password-recovery-link') || link.closest('[data-password-reset-stage]')) return;
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     if (link.target === '_blank' || link.hasAttribute('download')) return;
 
@@ -52,6 +58,7 @@
       return;
     }
     if (destination.origin !== window.location.origin) return;
+    if (shouldSkipPageTransition(link, destination)) return;
     if (destination.pathname === window.location.pathname && destination.search === window.location.search) return;
 
     event.preventDefault();
