@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>FUTURE LEADERS PRIVATE ACADEMY</title>
 
-    <link rel="stylesheet" href="{% static 'portal/css/global.css' %}?v=20261017-standalone-overlay-disabled">
+    <link rel="stylesheet" href="{% static 'portal/css/global.css' %}?v=20261017-dropdown-performance-fix">
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -383,14 +383,6 @@
         } catch (error) {}
     })();
     </script>
-
-    <div id="page-transition-loader" class="hidden" aria-live="polite" aria-label="Loading page">
-        <div class="page-transition-card">
-            <img src="{% static 'portal/logo.png' %}" alt="Future Leaders Private Academy" class="page-transition-logo">
-            <svg class="page-transition-spinner" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="12" stroke="white" stroke-opacity=".2" stroke-width="3"></circle><path d="M28 16a12 12 0 0 1-12 12" stroke="#38bdf8" stroke-width="3" stroke-linecap="round"></path><path d="M16 4a12 12 0 0 1 8.5 3.5" stroke="#f87171" stroke-width="3" stroke-linecap="round"></path></svg>
-            <span data-transition-label class="text-[10px] font-bold uppercase tracking-[0.25em] text-white/80">Loading</span>
-        </div>
-    </div>
 
     {% if user.is_authenticated and request.resolver_match and request.resolver_match.url_name != 'login' and 'password' not in request.resolver_match.url_name %}
         <!-- Global Top Branding Nav (Admin Mode) -->
@@ -1211,41 +1203,6 @@
                 });
             });
 
-            const standaloneDisplay = window.matchMedia('(display-mode: standalone), (display-mode: fullscreen)');
-            const positionStandaloneDropdowns = function() {
-                if (!standaloneDisplay.matches) return;
-                const bottomNav = document.querySelector('.bottom-app-nav');
-                const bottomLimit = bottomNav && bottomNav.getBoundingClientRect().height
-                    ? bottomNav.getBoundingClientRect().top - 8
-                    : window.innerHeight - 16;
-                document.querySelectorAll('.select-menu, .options-container, .parent-menu, .profile-menu, .combobox-menu').forEach(function(menu) {
-                    if (menu.classList.contains('hidden')) {
-                        menu.classList.remove('standalone-dropdown-open', 'standalone-dropdown-flip');
-                        menu.style.removeProperty('max-height');
-                        return;
-                    }
-                    menu.classList.add('standalone-dropdown-open');
-                    const anchor = menu.parentElement.getBoundingClientRect();
-                    const menuHeight = Math.min(menu.scrollHeight, 240);
-                    if (anchor.bottom + menuHeight > bottomLimit && anchor.top > menuHeight + 8) {
-                        menu.classList.add('standalone-dropdown-flip');
-                        if (menu.style.maxHeight) menu.style.removeProperty('max-height');
-                    } else {
-                        menu.classList.remove('standalone-dropdown-flip');
-                        const availableHeight = Math.max(96, bottomLimit - anchor.bottom - 8);
-                        const maxHeight = Math.min(240, availableHeight) + 'px';
-                        if (menu.style.maxHeight !== maxHeight) menu.style.setProperty('max-height', maxHeight, 'important');
-                    }
-                });
-            };
-            const dropdownObserver = new MutationObserver(positionStandaloneDropdowns);
-            document.querySelectorAll('.select-menu, .options-container, .parent-menu, .profile-menu, .combobox-menu').forEach(function(menu) {
-                dropdownObserver.observe(menu, { attributes: true, attributeFilter: ['class'] });
-            });
-            document.addEventListener('click', function() { requestAnimationFrame(positionStandaloneDropdowns); });
-            window.addEventListener('resize', positionStandaloneDropdowns);
-            window.addEventListener('scroll', positionStandaloneDropdowns, true);
-
             const currentPath = window.location.pathname;
             const sectionRules = [
                 ['student-section', ['/students/', '/student/', '/students/graduated-alumni/']],
@@ -1696,7 +1653,6 @@ document.addEventListener('DOMContentLoaded', function () {
     {% endif %}
 });
 </script>
-<script src="{% static 'portal/js/page-transition.js' %}?v=20261017-standalone-overlay-disabled"></script>
 <script>
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {

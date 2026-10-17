@@ -25,38 +25,6 @@ body {
     to { transform: rotate(360deg); }
 }
 
-#page-transition-loader {
-    align-items: center;
-    background: rgb(2 6 23 / 0.42);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    display: flex;
-    inset: 0;
-    justify-content: center;
-    opacity: 0;
-    pointer-events: none;
-    position: fixed;
-    transition: opacity 220ms ease, visibility 220ms ease;
-    visibility: hidden;
-    z-index: 12001;
-}
-
-#page-transition-loader.is-visible {
-    opacity: 1;
-    pointer-events: auto;
-    visibility: visible;
-}
-
-@media (display-mode: standalone), (display-mode: fullscreen) {
-    #page-transition-loader,
-    html.app-transition-pending #page-transition-loader {
-        display: none !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
-        visibility: hidden !important;
-    }
-}
-
 .page-transition-card {
     align-items: center;
     backdrop-filter: blur(24px);
@@ -84,7 +52,6 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-    #page-transition-loader,
     .page-transition-logo,
     .page-transition-spinner {
         animation: none;

@@ -2683,6 +2683,10 @@ class AcademicCalendarGuardTests(TestCase):
         self.assertEqual(response.context['accounts'], [matching_account])
         self.assertEqual(response.context['student_search'], 'lovelace augusta')
         self.assertContains(response, 'name="student"')
+        self.assertNotContains(response, 'id="page-transition-loader"')
+        self.assertNotContains(response, 'positionStandaloneDropdowns')
+        self.assertNotContains(response, 'dropdownObserver')
+        self.assertEqual(response.content.count(b'class="relative profile-select-wrap"'), 3)
 
     def test_bursary_dashboard_provisions_missing_account_for_historical_enrollment(self):
         historical_session = AcademicSession.objects.create(name='2025/2026')
