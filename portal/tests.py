@@ -483,6 +483,22 @@ class StudentDirectoryTests(TestCase):
         self.assertNotContains(response, 'student-directory-search-form')
         self.assertNotContains(response, 'app-global-branding')
 
+    def test_student_profile_hides_phone_and_email(self):
+        student = self.students[0]
+        student.phone_number = '555-0100'
+        student.email = 'student@example.com'
+        student.save(update_fields=['phone_number', 'email'])
+
+        response = self.client.get(reverse('student_profile', args=[student.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'Phone Number')
+        self.assertNotContains(response, 'Email Address')
+        self.assertNotContains(response, 'name="phone_number"')
+        self.assertNotContains(response, 'name="email"')
+        self.assertNotContains(response, student.phone_number)
+        self.assertNotContains(response, student.email)
+
     def test_search_matches_names_student_id_and_lin_case_insensitively(self):
         full_name = self.client.get(reverse('students'), {'q': 'FIRST 07 FAMILY 07'})
         student_id = self.client.get(reverse('students'), {'q': 'dir-007'})

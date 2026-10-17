@@ -196,17 +196,6 @@
                     <p class=\"text-xs text-slate-500\">{% if request.user.is_staff or request.user.is_superuser or request.user.account_profile.role == 'registrar' %}Modify profile records.{% else %}View-only profile.{% endif %}</p>
                 </div>
 
-                <div class="grid grid-cols-1 gap-3 border-b border-slate-100 pb-6 sm:grid-cols-2">
-                    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Phone Number</p>
-                        <p class="mt-1 break-words text-sm font-semibold text-slate-900">{{ student.phone_number|default:'Not provided' }}</p>
-                    </div>
-                    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Email Address</p>
-                        <p class="mt-1 break-words text-sm font-semibold text-slate-900">{{ student.email|default:'Not provided' }}</p>
-                    </div>
-                </div>
-
                 {% if not request.user.is_staff and not request.user.is_superuser and request.user.account_profile.role != 'registrar' %}
                 <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-xs text-blue-700">You are viewing in read-only mode. Contact an admin to edit.</div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -324,11 +313,7 @@
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div>
-                            <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5">Phone Number</label>
-                            <input type="text" name="phone_number" value="{{ student.phone_number|default:'' }}" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500">
-                        </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5">Religion</label>
                             <div class="relative custom-select" data-name="religion">
@@ -340,10 +325,6 @@
                                     <ul class="options-list py-1 text-sm text-slate-700"></ul>
                                 </div>
                             </div>
-                        </div>
-                        <div>
-                            <label class="block text-slate-700 text-xs font-semibold uppercase tracking-wider mb-1.5">Email Address</label>
-                            <input type="email" name="email" value="{{ student.email|default:'' }}" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500">
                         </div>
                     </div>
 
@@ -401,7 +382,7 @@
 
 <div id="printable-document-view" class="hidden bg-white p-8 text-black">
     <header class="mb-8 border-b-2 border-slate-900 pb-4 text-center"><h1 class="text-xl font-bold uppercase">Future Leaders Private Academy</h1><h2 class="mt-2 text-lg font-semibold">Student Details</h2><p class="mt-1 text-xs">Date Generated: {% now "F j, Y" %}</p></header>
-    <table class="w-full border-collapse border border-slate-300 text-sm"><tbody><tr><th class="w-1/3 border border-slate-300 p-3 text-left font-semibold">Student ID</th><td class="border border-slate-300 p-3">{{ student.student_id }}</td></tr><tr><th class="border border-slate-300 p-3 text-left font-semibold">Full Name</th><td class="border border-slate-300 p-3">{{ student.first_name }} {{ student.other_name|default:'' }} {{ student.last_name }}</td></tr><tr><th class="border border-slate-300 p-3 text-left font-semibold">Sex</th><td class="border border-slate-300 p-3">{{ student.sex }}</td></tr><tr><th class="border border-slate-300 p-3 text-left font-semibold">Date of Birth</th><td class="border border-slate-300 p-3">{{ student.date_of_birth }}</td></tr><tr><th class="border border-slate-300 p-3 text-left font-semibold">Program</th><td class="border border-slate-300 p-3">{{ student.program }}</td></tr><tr><th class="border border-slate-300 p-3 text-left font-semibold">Class</th><td class="border border-slate-300 p-3">{% if student.current_class %}{{ student.current_class.name }}{% else %}Unassigned{% endif %}</td></tr><tr><th class="border border-slate-300 p-3 text-left font-semibold">State / LGA</th><td class="border border-slate-300 p-3">{{ student.state_of_origin }}, {{ student.lga_of_origin }}</td></tr><tr><th class="border border-slate-300 p-3 text-left font-semibold">Phone</th><td class="border border-slate-300 p-3">{{ student.phone_number|default:'Not provided' }}</td></tr><tr><th class="border border-slate-300 p-3 text-left font-semibold">Email</th><td class="border border-slate-300 p-3">{{ student.email|default:'Not provided' }}</td></tr></tbody></table>
+    <table class="w-full border-collapse border border-slate-300 text-sm"><tbody><tr><th class="w-1/3 border border-slate-300 p-3 text-left font-semibold">Student ID</th><td class="border border-slate-300 p-3">{{ student.student_id }}</td></tr><tr><th class="border border-slate-300 p-3 text-left font-semibold">Full Name</th><td class="border border-slate-300 p-3">{{ student.first_name }} {{ student.other_name|default:'' }} {{ student.last_name }}</td></tr><tr><th class="border border-slate-300 p-3 text-left font-semibold">Sex</th><td class="border border-slate-300 p-3">{{ student.sex }}</td></tr><tr><th class="border border-slate-300 p-3 text-left font-semibold">Date of Birth</th><td class="border border-slate-300 p-3">{{ student.date_of_birth }}</td></tr><tr><th class="border border-slate-300 p-3 text-left font-semibold">Program</th><td class="border border-slate-300 p-3">{{ student.program }}</td></tr><tr><th class="border border-slate-300 p-3 text-left font-semibold">Class</th><td class="border border-slate-300 p-3">{% if student.current_class %}{{ student.current_class.name }}{% else %}Unassigned{% endif %}</td></tr><tr><th class="border border-slate-300 p-3 text-left font-semibold">State / LGA</th><td class="border border-slate-300 p-3">{{ student.state_of_origin }}, {{ student.lga_of_origin }}</td></tr></tbody></table>
 </div>
 
 <!-- CUSTOM DELETE CONFIRMATION MODAL CARD -->
