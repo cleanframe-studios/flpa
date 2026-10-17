@@ -2691,6 +2691,10 @@ class AcademicCalendarGuardTests(TestCase):
         self.assertContains(response, 'z-index: 12000 !important')
         self.assertContains(response, 'grid-template-columns: minmax(0, 1fr)')
         self.assertContains(response, 'overflow-wrap: anywhere')
+        self.assertContains(response, '#payment-modal.is-open > div')
+        self.assertContains(response, 'transform: translateY(12px) scale(.96)')
+        self.assertContains(response, 'paymentModalCloseTimer')
+        self.assertContains(response, "event.key === 'Escape'")
 
     def test_bursary_dashboard_provisions_missing_account_for_historical_enrollment(self):
         historical_session = AcademicSession.objects.create(name='2025/2026')

@@ -8,8 +8,15 @@
     justify-content: center !important;
     max-height: none !important;
     overflow-y: auto !important;
+    opacity: 0;
     padding: calc(env(safe-area-inset-top) + 1rem) 1rem calc(env(safe-area-inset-bottom) + 1rem) !important;
     z-index: 12000 !important;
+    transition: opacity 220ms ease, visibility 220ms ease;
+    visibility: hidden;
+  }
+  #payment-modal.is-open {
+    opacity: 1;
+    visibility: visible;
   }
   #payment-modal > div {
     box-sizing: border-box;
@@ -17,7 +24,14 @@
     min-width: 0;
     overflow-x: hidden;
     overflow-y: auto;
+    opacity: 0;
+    transform: translateY(12px) scale(.96);
+    transition: opacity 220ms ease, transform 220ms cubic-bezier(.2,.8,.2,1);
     width: 100%;
+  }
+  #payment-modal.is-open > div {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
   #payment-title,
   #payment-history,
@@ -49,6 +63,12 @@
     #payment-modal form.mt-6 > div:last-of-type > div {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #payment-modal,
+    #payment-modal > div {
+      transition: none;
     }
   }
 </style>
@@ -105,12 +125,15 @@
   </div>
 </div>
 
-<div id="payment-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm"><div class="w-full max-w-2xl rounded-3xl bg-white p-6 shadow-2xl"><div class="flex items-start justify-between"><div><p class="text-xs font-bold uppercase tracking-wider text-emerald-600">Student ledger</p><h2 id="payment-title" class="mt-1 text-xl font-black text-slate-900">View Ledger</h2></div><button type="button" onclick="closePaymentModal()" class="rounded-xl p-2 text-xl text-slate-400 hover:bg-slate-100">&times;</button></div><div class="mt-5 grid grid-cols-3 gap-3"><div class="rounded-2xl bg-slate-50 p-4"><p class="text-xs text-slate-500">Invoice</p><p id="ledger-billed" class="mt-1 font-black text-slate-900"></p></div><div class="rounded-2xl bg-emerald-50 p-4"><p class="text-xs text-emerald-700">Paid</p><p id="ledger-paid" class="mt-1 font-black text-emerald-900"></p></div><div class="rounded-2xl bg-amber-50 p-4"><p class="text-xs text-amber-700">Balance</p><p id="ledger-balance" class="mt-1 font-black text-amber-900"></p></div></div><div class="mt-5"><h3 class="text-sm font-bold text-slate-800">Payment history</h3><div id="payment-history" class="mt-2 max-h-32 space-y-2 overflow-y-auto text-sm text-slate-600"></div></div><form method="post" class="mt-6 space-y-4">{% csrf_token %}<input type="hidden" name="action" value="record_payment"><input type="hidden" id="payment-account-id" name="account_id"><label class="block text-xs font-bold uppercase tracking-wider text-slate-500">Record New Payment<input id="payment-amount" type="number" name="amount_paid" min="0.01" step="0.01" required class="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600" placeholder="0.00"></label><div class="flex items-center justify-between gap-3"><button type="button" id="clearance-button" onclick="submitClearance()" class="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50">Toggle Clearance</button><div class="flex gap-3"><button type="button" onclick="closePaymentModal()" class="rounded-xl bg-slate-100 px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-200">Close</button><button type="submit" class="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-emerald-700">Save Payment</button></div></div></form><form id="clearance-form" method="post" class="hidden">{% csrf_token %}<input type="hidden" name="action" value="toggle_clearance"><input type="hidden" id="clearance-account-id" name="account_id"><input type="hidden" id="clearance-value" name="is_cleared"></form></div></div>
+<div id="payment-modal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="payment-title"><div class="ledger-modal-panel w-full max-w-2xl rounded-3xl bg-white p-6 shadow-2xl"><div class="flex items-start justify-between"><div><p class="text-xs font-bold uppercase tracking-wider text-emerald-600">Student ledger</p><h2 id="payment-title" class="mt-1 text-xl font-black text-slate-900">View Ledger</h2></div><button type="button" onclick="closePaymentModal()" class="rounded-xl p-2 text-xl text-slate-400 hover:bg-slate-100">&times;</button></div><div class="mt-5 grid grid-cols-3 gap-3"><div class="rounded-2xl bg-slate-50 p-4"><p class="text-xs text-slate-500">Invoice</p><p id="ledger-billed" class="mt-1 font-black text-slate-900"></p></div><div class="rounded-2xl bg-emerald-50 p-4"><p class="text-xs text-emerald-700">Paid</p><p id="ledger-paid" class="mt-1 font-black text-emerald-900"></p></div><div class="rounded-2xl bg-amber-50 p-4"><p class="text-xs text-amber-700">Balance</p><p id="ledger-balance" class="mt-1 font-black text-amber-900"></p></div></div><div class="mt-5"><h3 class="text-sm font-bold text-slate-800">Payment history</h3><div id="payment-history" class="mt-2 max-h-32 space-y-2 overflow-y-auto text-sm text-slate-600"></div></div><form method="post" class="mt-6 space-y-4">{% csrf_token %}<input type="hidden" name="action" value="record_payment"><input type="hidden" id="payment-account-id" name="account_id"><label class="block text-xs font-bold uppercase tracking-wider text-slate-500">Record New Payment<input id="payment-amount" type="number" name="amount_paid" min="0.01" step="0.01" required class="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600" placeholder="0.00"></label><div class="flex items-center justify-between gap-3"><button type="button" id="clearance-button" onclick="submitClearance()" class="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50">Toggle Clearance</button><div class="flex gap-3"><button type="button" onclick="closePaymentModal()" class="rounded-xl bg-slate-100 px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-200">Close</button><button type="submit" class="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-emerald-700">Save Payment</button></div></div></form><form id="clearance-form" method="post" class="hidden">{% csrf_token %}<input type="hidden" name="action" value="toggle_clearance"><input type="hidden" id="clearance-account-id" name="account_id"><input type="hidden" id="clearance-value" name="is_cleared"></form></div></div>
 <script>
 function ensureFeeItemSelect() { const form = document.querySelector('#payment-modal form'); if (!form || document.getElementById('payment-fee-item')) return; const label = document.createElement('label'); label.id = 'payment-fee-item-label'; label.className = 'block text-xs font-bold uppercase tracking-wider text-slate-500'; label.textContent = 'What is this payment for?'; const select = document.createElement('select'); select.id = 'payment-fee-item'; select.name = 'fee_item_id'; select.required = true; select.className = 'mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600'; label.appendChild(select); form.insertBefore(label, form.querySelector('label')); }
-function openLedgerModal(id, name, billed, paid, balance, cleared, payments, items) { ensureFeeItemSelect(); document.getElementById('payment-account-id').value = id; document.getElementById('clearance-account-id').value = id; document.getElementById('clearance-value').value = cleared === '1' ? '0' : '1'; document.getElementById('payment-title').textContent = 'Ledger · ' + name; document.getElementById('ledger-billed').textContent = '₦' + billed; document.getElementById('ledger-paid').textContent = '₦' + paid; document.getElementById('ledger-balance').textContent = '₦' + balance; document.getElementById('payment-amount').value = ''; const itemSelect = document.getElementById('payment-fee-item'); itemSelect.innerHTML = '<option value="">Select a fee item</option>' + items.filter(item => Number(item.balance) > 0).map(item => '<option value="' + item.id + '">' + item.description + ' · ' + (item.compulsory ? 'Compulsory' : 'Optional') + ' · Remaining ₦' + item.balance + '</option>').join(''); itemSelect.value = ''; itemSelect.dispatchEvent(new Event('change', { bubbles: true })); window.customizePortalSelect(itemSelect); document.getElementById('payment-history').innerHTML = payments.length ? payments.map(payment => '<div class="flex justify-between rounded-xl bg-slate-50 px-3 py-2"><span>₦' + payment.amount + ' · ' + payment.item + '</span><span class="text-xs text-slate-400">' + payment.date + '</span></div>').join('') : '<p class="rounded-xl border border-dashed border-slate-200 p-3">No payments recorded.</p>'; const modal = document.getElementById('payment-modal'); modal.classList.remove('hidden'); modal.classList.add('flex'); }
+let paymentModalCloseTimer;
+function openLedgerModal(id, name, billed, paid, balance, cleared, payments, items) { const modal = document.getElementById('payment-modal'); window.clearTimeout(paymentModalCloseTimer); ensureFeeItemSelect(); document.getElementById('payment-account-id').value = id; document.getElementById('clearance-account-id').value = id; document.getElementById('clearance-value').value = cleared === '1' ? '0' : '1'; document.getElementById('payment-title').textContent = 'Ledger · ' + name; document.getElementById('ledger-billed').textContent = '₦' + billed; document.getElementById('ledger-paid').textContent = '₦' + paid; document.getElementById('ledger-balance').textContent = '₦' + balance; document.getElementById('payment-amount').value = ''; const itemSelect = document.getElementById('payment-fee-item'); itemSelect.innerHTML = '<option value="">Select a fee item</option>' + items.filter(item => Number(item.balance) > 0).map(item => '<option value="' + item.id + '">' + item.description + ' · ' + (item.compulsory ? 'Compulsory' : 'Optional') + ' · Remaining ₦' + item.balance + '</option>').join(''); itemSelect.value = ''; itemSelect.dispatchEvent(new Event('change', { bubbles: true })); window.customizePortalSelect(itemSelect); document.getElementById('payment-history').innerHTML = payments.length ? payments.map(payment => '<div class="flex justify-between rounded-xl bg-slate-50 px-3 py-2"><span>₦' + payment.amount + ' · ' + payment.item + '</span><span class="text-xs text-slate-400">' + payment.date + '</span></div>').join('') : '<p class="rounded-xl border border-dashed border-slate-200 p-3">No payments recorded.</p>'; modal.classList.remove('hidden'); modal.classList.add('flex'); modal.setAttribute('aria-hidden', 'false'); requestAnimationFrame(() => modal.classList.add('is-open')); }
 function submitClearance() { document.getElementById('clearance-form').submit(); }
-function closePaymentModal() { const modal = document.getElementById('payment-modal'); modal.classList.add('hidden'); modal.classList.remove('flex'); }
+function closePaymentModal() { const modal = document.getElementById('payment-modal'); if (modal.classList.contains('hidden')) return; modal.classList.remove('is-open'); modal.setAttribute('aria-hidden', 'true'); window.clearTimeout(paymentModalCloseTimer); paymentModalCloseTimer = window.setTimeout(() => { if (modal.getAttribute('aria-hidden') === 'true') { modal.classList.add('hidden'); modal.classList.remove('flex'); } }, 230); }
+document.getElementById('payment-modal').addEventListener('click', event => { if (event.target === event.currentTarget) closePaymentModal(); });
+document.addEventListener('keydown', event => { if (event.key === 'Escape' && document.getElementById('payment-modal').getAttribute('aria-hidden') === 'false') closePaymentModal(); });
 
 (function () {
   const btn = document.getElementById('generate-all-invoices-btn');
