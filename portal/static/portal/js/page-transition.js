@@ -4,30 +4,14 @@
   var standalone = window.matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches;
   if (!standalone) return;
   var label = loader.querySelector('[data-transition-label]');
-  var recoveryTimer;
 
   function setLabel(text) {
     if (label) label.textContent = text;
     loader.setAttribute('aria-label', text);
   }
 
-  try {
-    if (sessionStorage.getItem('appTransitionPending') === '1') {
-      setLabel(sessionStorage.getItem('appTransitionLabel') || 'Loading');
-      loader.classList.remove('hidden');
-      loader.classList.add('is-visible');
-      recoveryTimer = window.setTimeout(hideLoader, 8000);
-    }
-  } catch (error) {}
-
   function hideLoader() {
-    window.clearTimeout(recoveryTimer);
     loader.classList.remove('is-visible');
-    document.documentElement.classList.remove('app-transition-pending');
-    try {
-      sessionStorage.removeItem('appTransitionPending');
-      sessionStorage.removeItem('appTransitionLabel');
-    } catch (error) {}
     setLabel('Loading');
     window.setTimeout(function () {
       if (!loader.classList.contains('is-visible')) loader.classList.add('hidden');
@@ -48,11 +32,6 @@
   }
 
   window.addEventListener('pageshow', hideLoader);
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', hideLoader, { once: true });
-  } else if (document.documentElement.classList.contains('app-transition-pending')) {
-    hideLoader();
-  }
   document.addEventListener('click', function (event) {
     var link = event.target.closest('a');
     if (!link || event.defaultPrevented || event.button !== 0) return;
@@ -72,10 +51,6 @@
     event.preventDefault();
     var isLogout = destination.pathname.indexOf('/logout') !== -1;
     setLabel(isLogout ? 'Signing out...' : 'Loading');
-    try {
-      sessionStorage.setItem('appTransitionPending', '1');
-      sessionStorage.setItem('appTransitionLabel', isLogout ? 'Signing out...' : 'Loading');
-    } catch (error) {}
     showLoader();
     window.setTimeout(function () {
       window.location.href = destination.href;

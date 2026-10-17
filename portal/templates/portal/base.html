@@ -11,18 +11,9 @@
     <meta name="theme-color" content="#0f172a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <script>
-        (function () {
-            try {
-                if (window.matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches && sessionStorage.getItem('appTransitionPending') === '1') {
-                    document.documentElement.classList.add('app-transition-pending');
-                }
-            } catch (error) {}
-        })();
-    </script>
     <title>FUTURE LEADERS PRIVATE ACADEMY</title>
 
-    <link rel="stylesheet" href="{% static 'portal/css/global.css' %}?v=20261016-transition-loader">
+    <link rel="stylesheet" href="{% static 'portal/css/global.css' %}?v=20261017-transition-before-navigation">
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -1708,7 +1699,7 @@ document.addEventListener('DOMContentLoaded', function () {
     {% endif %}
 });
 </script>
-<script src="{% static 'portal/js/page-transition.js' %}?v=20261017-interaction-recovery"></script>
+<script src="{% static 'portal/js/page-transition.js' %}?v=20261017-transition-before-navigation"></script>
 <script>
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {

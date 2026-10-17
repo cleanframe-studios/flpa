@@ -47,15 +47,6 @@ body {
     visibility: visible;
 }
 
-@media (display-mode: standalone), (display-mode: fullscreen) {
-    html.app-transition-pending #page-transition-loader {
-        display: flex !important;
-        opacity: 1;
-        pointer-events: auto;
-        visibility: visible;
-    }
-}
-
 .page-transition-card {
     align-items: center;
     backdrop-filter: blur(24px);
