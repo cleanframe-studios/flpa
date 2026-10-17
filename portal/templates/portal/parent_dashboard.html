@@ -41,6 +41,40 @@
     </article>
     {% empty %}<p class="text-sm text-slate-500">No linked children.</p>{% endfor %}
   </div></section>
-  <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><div class="flex items-center justify-between gap-3"><div><h2 class="text-lg font-bold text-slate-900">Attendance History</h2><p class="mt-1 text-sm text-slate-500">Attendance records for your linked children.</p></div><span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">Latest 100 records</span></div><div class="mt-5 overflow-x-auto"><table class="w-full text-left text-sm"><thead><tr class="border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500"><th class="px-3 py-3">Student</th><th class="px-3 py-3">Date</th><th class="px-3 py-3">Class</th><th class="px-3 py-3">Status</th></tr></thead><tbody>{% for record in attendance_data %}<tr class="border-b border-slate-100"><td class="px-3 py-3 font-semibold text-slate-800">{{ record.student.first_name }} {{ record.student.last_name }}</td><td class="px-3 py-3 text-slate-600">{{ record.date|date:'d M Y' }}</td><td class="px-3 py-3 text-slate-600">{{ record.classroom.name }}</td><td class="px-3 py-3"><span class="rounded-full px-2.5 py-1 text-xs font-bold {% if record.status == 'Present' %}bg-emerald-100 text-emerald-800{% elif record.status == 'Late' %}bg-amber-100 text-amber-800{% elif record.status == 'Absent' %}bg-rose-100 text-rose-800{% else %}bg-slate-100 text-slate-700{% endif %}">{{ record.status }}</span></td></tr>{% empty %}<tr><td colspan="4" class="px-3 py-8 text-center text-sm text-slate-500">No attendance records found yet.</td></tr>{% endfor %}</tbody></table></div></section>
+  <section id="attendance-history" class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div><h2 class="text-lg font-bold text-slate-900">Attendance History</h2><p class="mt-1 text-sm text-slate-500">One daily summary for each linked child.</p></div>
+      <span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">{{ attendance_page.paginator.count }} daily records</span>
+    </div>
+    <div class="mt-5 h-[min(55vh,32rem)] min-h-[16rem] overflow-auto rounded-2xl border border-slate-200">
+      <table class="w-full min-w-[620px] text-left text-sm">
+        <thead class="sticky top-0 z-10 bg-slate-50"><tr class="border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500"><th class="px-3 py-3">Student</th><th class="px-3 py-3">Date</th><th class="px-3 py-3">Class</th><th class="px-3 py-3">Daily status</th></tr></thead>
+        <tbody>
+          {% for record in attendance_data %}
+          <tr class="border-b border-slate-100">
+            <td class="px-3 py-3 font-semibold text-slate-800">{{ record.student__first_name }} {{ record.student__last_name }}</td>
+            <td class="px-3 py-3 text-slate-600">{{ record.date|date:'d M Y' }}</td>
+            <td class="px-3 py-3 text-slate-600">{{ record.classroom__name }}</td>
+            <td class="px-3 py-3"><span class="inline-flex max-w-64 rounded-full px-2.5 py-1 text-xs font-bold {% if record.status_tone == 'emerald' %}bg-emerald-100 text-emerald-800{% elif record.status_tone == 'amber' %}bg-amber-100 text-amber-800{% elif record.status_tone == 'rose' %}bg-rose-100 text-rose-800{% else %}bg-slate-100 text-slate-700{% endif %}">{{ record.status }}</span></td>
+          </tr>
+          {% empty %}<tr><td colspan="4" class="px-3 py-8 text-center text-sm text-slate-500">No attendance records found yet.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if attendance_page.paginator.num_pages > 1 %}
+    <nav class="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row" aria-label="Attendance history pagination">
+      <p class="text-xs text-slate-500">Page {{ attendance_page.number }} of {{ attendance_page.paginator.num_pages }} · Showing {{ attendance_page.start_index }}–{{ attendance_page.end_index }} of {{ attendance_page.paginator.count }} daily records</p>
+      <div class="flex flex-wrap items-center justify-center gap-1">
+        {% if attendance_page.has_previous %}<a href="?attendance_page={{ attendance_page.previous_page_number }}#attendance-history" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Previous</a>{% else %}<span class="rounded-lg border border-slate-100 px-3 py-2 text-xs font-semibold text-slate-400" aria-disabled="true">Previous</span>{% endif %}
+        {% for page_number in attendance_page_range %}
+          {% if page_number == attendance_page.paginator.ELLIPSIS %}<span class="px-2 py-2 text-xs text-slate-400" aria-hidden="true">…</span>
+          {% elif page_number == attendance_page.number %}<span class="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white" aria-current="page">{{ page_number }}</span>
+          {% else %}<a href="?attendance_page={{ page_number }}#attendance-history" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">{{ page_number }}</a>{% endif %}
+        {% endfor %}
+        {% if attendance_page.has_next %}<a href="?attendance_page={{ attendance_page.next_page_number }}#attendance-history" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Next</a>{% else %}<span class="rounded-lg border border-slate-100 px-3 py-2 text-xs font-semibold text-slate-400" aria-disabled="true">Next</span>{% endif %}
+      </div>
+    </nav>
+    {% endif %}
+  </section>
 </div></div>
 {% endblock %}

@@ -87,7 +87,7 @@ from .models import (
     normalize_phone_number,
     find_cross_role_account,
 )
-from django.db.models import Case, When, Value, IntegerField, Q, Max, Min, Exists, OuterRef, Sum, Avg, F
+from django.db.models import Case, When, Value, IntegerField, CharField, Q, Max, Min, Exists, OuterRef, Sum, Avg, F
 from .decorators import bursar_required, registrar_required, role_required, teacher_required, principal_required
 from .utils import log_security_action, send_branded_email
 from .forms import BatchApplicantFormSet, BatchParentForm, ParentChildApplicationForm, ParentStudentLinkForm, StudentParentForm
@@ -2127,7 +2127,47 @@ def parent_dashboard_view(request):
     children = list(parent.children.select_related('current_class'))
     attendance_data = Attendance.objects.filter(
         student__in=children,
-    ).select_related('student', 'classroom', 'session').order_by('-date', 'student__last_name')[:100]
+    ).values(
+        'student_id',
+        'classroom_id',
+        'date',
+        'student__first_name',
+        'student__last_name',
+        'classroom__name',
+    ).annotate(
+        morning_status=Max(Case(
+            When(period='morning', then='status'),
+            default=Value(''),
+            output_field=CharField(),
+        )),
+        afternoon_status=Max(Case(
+            When(period='afternoon', then='status'),
+            default=Value(''),
+            output_field=CharField(),
+        )),
+    ).order_by('-date', 'student__last_name', 'student__first_name')
+    attendance_page = Paginator(attendance_data, 10).get_page(request.GET.get('attendance_page'))
+    for record in attendance_page.object_list:
+        morning = record['morning_status']
+        afternoon = record['afternoon_status']
+        if morning and afternoon:
+            record['status'] = (
+                f'{morning} · Morning & Afternoon'
+                if morning == afternoon
+                else f'Morning: {morning} · Afternoon: {afternoon}'
+            )
+        elif morning:
+            record['status'] = f'{morning} · Morning'
+        elif afternoon:
+            record['status'] = f'{afternoon} · Afternoon'
+        else:
+            record['status'] = 'Not recorded'
+        record['status_tone'] = (
+            'rose' if 'Absent' in record['status']
+            else 'amber' if 'Late' in record['status']
+            else 'emerald' if 'Present' in record['status']
+            else 'slate'
+        )
     for child in children:
         child.fee_account = child.current_fee_account
         child.recent_attendance = child.attendance.filter(date__gte=timezone.localdate() - datetime.timedelta(days=6)).order_by('-date')[:5]
@@ -2137,7 +2177,9 @@ def parent_dashboard_view(request):
     return render(request, 'portal/parent_dashboard.html', {
         'parent': parent,
         'children': children,
-        'attendance_data': attendance_data,
+        'attendance_data': attendance_page.object_list,
+        'attendance_page': attendance_page,
+        'attendance_page_range': attendance_page.paginator.get_elided_page_range(attendance_page.number),
         'active_term': active_term,
         'payment_channels': [
             ('School Fees', 'Zenith Bank', '1223688239', 'Future Leaders Private Academy'),

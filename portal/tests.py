@@ -123,6 +123,92 @@ class InboxReadStateTests(TestCase):
         self.assertTrue(self.recipient.is_read)
 
 
+class ParentAttendanceHistoryTests(TestCase):
+    def setUp(self):
+        self.session = AcademicSession.objects.create(name='2026/2027', is_active=True)
+        self.classroom = ClassRoom.objects.create(
+            name='Primary 4',
+            section='Primary',
+            level_number=4,
+        )
+        self.parent = Parent.objects.create(
+            first_name='Grace',
+            last_name='Lovelace',
+            phone_number='08000000000',
+            sex='Female',
+            marital_status='Married',
+            address='Address',
+            state='Lagos',
+            lga='Ikeja',
+        )
+        self.user = get_user_model().objects.create_user(
+            username='parent-attendance-history',
+            password='pass123',
+        )
+        self.parent.user = self.user
+        self.parent.save(update_fields=['user'])
+        AccountProfile.objects.create(user=self.user, role='parent')
+        self.student = Student.objects.create(
+            first_name='Ada',
+            last_name='Lovelace',
+            sex='Female',
+            date_of_birth='2015-01-01',
+            state_of_origin='Lagos',
+            lga_of_origin='Ikeja',
+            program='Primary (PRY)',
+            current_class=self.classroom,
+            parent=self.parent,
+        )
+        self.client.force_login(self.user)
+
+    def test_history_groups_attendance_periods_into_one_daily_row_and_paginates(self):
+        today = timezone.localdate()
+        for day_offset in range(11):
+            attendance_date = today - datetime.timedelta(days=day_offset)
+            register = AttendanceRegister.objects.create(
+                classroom=self.classroom,
+                session=self.session,
+                date=attendance_date,
+            )
+            morning_status = 'Present'
+            afternoon_status = 'Absent' if day_offset == 0 else 'Present'
+            Attendance.objects.create(
+                register=register,
+                student=self.student,
+                classroom=self.classroom,
+                session=self.session,
+                date=attendance_date,
+                period='morning',
+                status=morning_status,
+            )
+            Attendance.objects.create(
+                register=register,
+                student=self.student,
+                classroom=self.classroom,
+                session=self.session,
+                date=attendance_date,
+                period='afternoon',
+                status=afternoon_status,
+            )
+
+        first_page = self.client.get(reverse('parent_dashboard'))
+
+        self.assertEqual(first_page.status_code, 200)
+        self.assertEqual(first_page.context['attendance_page'].paginator.count, 11)
+        self.assertEqual(len(first_page.context['attendance_data']), 10)
+        self.assertContains(first_page, '11 daily records')
+        self.assertContains(first_page, 'Morning: Present · Afternoon: Absent')
+        self.assertContains(first_page, 'h-[min(55vh,32rem)]')
+        self.assertContains(first_page, 'aria-label="Attendance history pagination"')
+        self.assertContains(first_page, 'Page 1 of 2')
+        self.assertNotContains(first_page, 'Latest 100 records')
+
+        second_page = self.client.get(reverse('parent_dashboard'), {'attendance_page': 2})
+        self.assertEqual(second_page.context['attendance_page'].number, 2)
+        self.assertEqual(len(second_page.context['attendance_data']), 1)
+        self.assertContains(second_page, 'Page 2 of 2')
+
+
 class StudentBirthdayAutomationTests(TestCase):
     def setUp(self):
         self.today = timezone.localdate()
