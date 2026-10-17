@@ -1,60 +1,15 @@
 (function () {
-  var loader = document.getElementById('page-transition-loader');
-  if (!loader) return;
-  var standalone = window.matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches;
-  if (!standalone) return;
-  var label = loader.querySelector('[data-transition-label]');
-
-  function setLabel(text) {
-    if (label) label.textContent = text;
-    loader.setAttribute('aria-label', text);
-  }
-
-  function hideLoader() {
-    loader.classList.remove('is-visible');
-    setLabel('Loading');
-    window.setTimeout(function () {
-      if (!loader.classList.contains('is-visible')) loader.classList.add('hidden');
-    }, 220);
-  }
-
-  function showLoader() {
-    loader.classList.remove('hidden');
-    requestAnimationFrame(function () { loader.classList.add('is-visible'); });
-  }
-
-  function shouldSkipPageTransition(link, destination) {
-    if (!destination) return false;
-    if (link && (link.closest('[data-skip-page-transition]') || link.closest('[data-password-reset-stage]'))) return true;
-    var pathname = destination.pathname.replace(/\/+$/, '');
-    var currentPath = window.location.pathname.replace(/\/+$/, '');
-    return pathname === '/login' || currentPath === '/login' || pathname.indexOf('/forgot-password') === 0 || currentPath.indexOf('/forgot-password') === 0;
-  }
-
-  window.addEventListener('pageshow', hideLoader);
-  window.addEventListener('pagehide', hideLoader);
-  document.addEventListener('click', function (event) {
-    var link = event.target.closest('a');
-    if (!link || event.defaultPrevented || event.button !== 0) return;
-    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    if (link.target === '_blank' || link.hasAttribute('download')) return;
-
-    var destination;
+  function disableTransitionOverlay() {
+    document.documentElement.classList.remove('app-transition-pending');
     try {
-      destination = new URL(link.href, window.location.href);
-    } catch (error) {
-      return;
-    }
-    if (destination.origin !== window.location.origin) return;
-    if (shouldSkipPageTransition(link, destination)) return;
-    if (destination.pathname === window.location.pathname && destination.search === window.location.search) return;
+      sessionStorage.removeItem('appTransitionPending');
+      sessionStorage.removeItem('appTransitionLabel');
+    } catch (error) {}
 
-    event.preventDefault();
-    var isLogout = destination.pathname.indexOf('/logout') !== -1;
-    setLabel(isLogout ? 'Signing out...' : 'Loading');
-    showLoader();
-    window.setTimeout(function () {
-      window.location.href = destination.href;
-    }, 500);
-  });
+    var loader = document.getElementById('page-transition-loader');
+    if (loader) loader.remove();
+  }
+
+  disableTransitionOverlay();
+  window.addEventListener('pageshow', disableTransitionOverlay);
 })();
