@@ -255,11 +255,19 @@ class StudentBirthdayAutomationTests(TestCase):
             'teacher_birthday_wish',
             kwargs={'student_id': self.student.pk, 'year': self.today.year},
         )
+        wish_page = self.client.get(wish_url)
+        self.assertEqual(wish_page.status_code, 200)
+        self.assertContains(wish_page, 'pt-[calc(env(safe-area-inset-top)+4.75rem)]')
+        self.assertContains(wish_page, 'max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-5.75rem)]')
+        self.assertContains(wish_page, 'aria-label="Close birthday wish and return to inbox"')
+
         response = self.client.post(wish_url, {
             'favourite_colour': 'blue',
             'teacher_wish': 'Keep shining brightly!',
-        })
-        self.assertRedirects(response, wish_url)
+        }, follow=True)
+        self.assertRedirects(response, reverse('inbox'))
+        self.assertContains(response, 'Your birthday wish has been saved for the celebration.')
+        self.assertContains(response, 'My Inbox')
         celebration.refresh_from_db()
         self.assertEqual(celebration.favourite_colour, 'blue')
         self.assertEqual(celebration.teacher_wish, 'Keep shining brightly!')

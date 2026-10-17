@@ -1,32 +1,44 @@
 {% extends 'portal/base.html' %}
 {% block page_title %}Birthday wish for {{ student.first_name }}{% endblock %}
 {% block content %}
-<div class="fixed inset-0 z-[13000] flex items-center justify-center overflow-y-auto bg-slate-950/65 p-4 pb-28 backdrop-blur-lg" role="dialog" aria-modal="true" aria-labelledby="birthday-wish-title">
-  <section class="w-full max-w-xl overflow-hidden rounded-3xl border border-white/60 bg-white/90 shadow-2xl shadow-slate-950/40">
-    <div class="bg-gradient-to-br from-blue-950 via-indigo-900 to-rose-900 px-6 py-7 text-white sm:px-8">
-      <p class="text-[10px] font-black uppercase tracking-[.22em] text-sky-200">A little moment that matters</p>
-      <h1 id="birthday-wish-title" class="mt-2 text-2xl font-black">Help us celebrate {{ student.first_name }}</h1>
-      <p class="mt-2 text-sm leading-6 text-blue-100">{{ birthday|date:'l, j F' }} · {{ student.current_class.name }}</p>
+<div class="fixed inset-0 z-[13000] flex items-start justify-center overflow-y-auto overscroll-contain bg-slate-950/65 px-3 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-[calc(env(safe-area-inset-top)+4.75rem)] backdrop-blur-lg sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="birthday-wish-title">
+  <section class="max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-5.75rem)] w-full max-w-xl overflow-y-auto overscroll-contain rounded-3xl border border-white/70 bg-white shadow-2xl shadow-slate-950/40 sm:max-h-[calc(100dvh-3rem)]">
+    <div class="relative overflow-hidden bg-gradient-to-br from-blue-950 via-indigo-900 to-rose-900 px-5 py-5 text-white sm:px-8 sm:py-7">
+      <div class="pointer-events-none absolute -right-8 -top-12 h-36 w-36 rounded-full border border-white/10 bg-white/5"></div>
+      <div class="pointer-events-none absolute -right-2 -top-6 h-24 w-24 rounded-full border border-white/10"></div>
+      <div class="relative flex items-start justify-between gap-3">
+        <div class="flex min-w-0 items-start gap-3">
+          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-xl shadow-inner" aria-hidden="true">🎂</span>
+          <div class="min-w-0">
+            <p class="text-[10px] font-black uppercase tracking-[.18em] text-sky-200">A little moment that matters</p>
+            <h1 id="birthday-wish-title" class="mt-1.5 text-xl font-black leading-tight sm:text-2xl">Help us celebrate {{ student.first_name }}</h1>
+            <p class="mt-2 text-xs leading-5 text-blue-100 sm:text-sm">{{ birthday|date:'l, j F' }} · {{ student.current_class.name }}</p>
+          </div>
+        </div>
+        <a href="{% url 'inbox' %}" class="relative inline-flex min-h-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 px-3 text-xs font-bold text-white transition hover:bg-white/20" aria-label="Close birthday wish and return to inbox">Close</a>
+      </div>
     </div>
-    <div class="p-6 sm:p-8">
+    <div class="p-5 sm:p-8">
       <p class="mb-5 text-sm leading-6 text-slate-600">Your words can make a child feel seen. Add a birthday wish to share with the family, and tell us their favourite colour if you know it.</p>
-      <form method="post" class="space-y-5">
+      <form method="post" class="space-y-4 sm:space-y-5">
         {% csrf_token %}
         <div>
-          <label for="birthday-favourite-colour" class="mb-2 block text-sm font-bold text-slate-800">Favourite colour <span class="font-normal text-slate-500">(optional)</span></label>
-          <select id="birthday-favourite-colour" name="favourite_colour" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200">
+          <label for="birthday-favourite-colour" class="mb-2 block text-xs font-bold uppercase tracking-wide text-slate-700 sm:text-sm sm:normal-case sm:tracking-normal">Favourite colour <span class="font-normal normal-case tracking-normal text-slate-500">(optional)</span></label>
+          <select id="birthday-favourite-colour" name="favourite_colour" class="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 shadow-sm transition focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200">
             <option value="">Not sure / leave as a surprise</option>
             {% for value,label in colour_choices %}<option value="{{ value }}" {% if celebration.favourite_colour == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
           </select>
         </div>
         <div>
-          <label for="birthday-teacher-wish" class="mb-2 block text-sm font-bold text-slate-800">Your birthday wish <span class="text-rose-600">*</span></label>
-          <textarea id="birthday-teacher-wish" name="teacher_wish" rows="5" maxlength="1500" required class="w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-800 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" placeholder="Share a warm wish, a kind memory, or something you admire about {{ student.first_name }}...">{{ celebration.teacher_wish }}</textarea>
+          <label for="birthday-teacher-wish" class="mb-2 block text-xs font-bold uppercase tracking-wide text-slate-700 sm:text-sm sm:normal-case sm:tracking-normal">Your birthday wish <span class="text-rose-600">*</span></label>
+          <textarea id="birthday-teacher-wish" name="teacher_wish" rows="4" maxlength="1500" required class="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-800 shadow-sm transition focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200" placeholder="Share a warm wish, a kind memory, or something you admire about {{ student.first_name }}...">{{ celebration.teacher_wish }}</textarea>
           <p class="mt-1 text-xs text-slate-500">A few sincere words are perfect.</p>
         </div>
-        <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
+        <div class="flex flex-col-reverse gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end">
           <a href="{% url 'inbox' %}" class="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50">Back to inbox</a>
-          <button type="submit" class="inline-flex min-h-11 items-center justify-center rounded-xl bg-gradient-to-r from-indigo-700 to-blue-700 px-5 py-2 text-sm font-bold text-white shadow-lg shadow-indigo-950/20 transition hover:-translate-y-0.5">Save birthday wish</button>
+          <button type="submit" class="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-700 to-blue-700 px-5 py-2 text-sm font-bold text-white shadow-lg shadow-indigo-950/20 transition hover:-translate-y-0.5 hover:shadow-indigo-900/30">
+            <span>Save birthday wish</span><span aria-hidden="true">→</span>
+          </button>
         </div>
       </form>
     </div>

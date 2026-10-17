@@ -1673,7 +1673,7 @@ def teacher_birthday_wish_view(request, student_id, year):
                 'teacher_submitted_at',
             ])
             messages.success(request, 'Your birthday wish has been saved for the celebration.')
-            return redirect('teacher_birthday_wish', student_id=student.pk, year=year)
+            return redirect('inbox')
 
     return render(request, 'portal/teacher_birthday_wish.html', {
         'student': student,
