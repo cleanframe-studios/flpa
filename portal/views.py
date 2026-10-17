@@ -1662,22 +1662,28 @@ def teacher_birthday_wish_view(request, student_id, year):
         elif len(teacher_wish) > 1500:
             messages.error(request, 'Please keep the birthday wish under 1,500 characters.')
         else:
-            celebration.favourite_colour = favourite_colour
-            celebration.teacher_wish = teacher_wish
-            celebration.teacher_submitted_by = request.user
-            celebration.teacher_submitted_at = timezone.now()
-            celebration.save(update_fields=[
-                'favourite_colour',
-                'teacher_wish',
-                'teacher_submitted_by',
-                'teacher_submitted_at',
-            ])
-            messages.success(request, 'Your birthday wish has been saved for the celebration.')
+            with transaction.atomic():
+                celebration = StudentBirthdayCelebration.objects.select_for_update().get(pk=celebration.pk)
+                if celebration.teacher_wish.strip() or celebration.teacher_submitted_at:
+                    messages.info(request, 'A birthday wish has already been submitted for this student.')
+                else:
+                    celebration.favourite_colour = favourite_colour
+                    celebration.teacher_wish = teacher_wish
+                    celebration.teacher_submitted_by = request.user
+                    celebration.teacher_submitted_at = timezone.now()
+                    celebration.save(update_fields=[
+                        'favourite_colour',
+                        'teacher_wish',
+                        'teacher_submitted_by',
+                        'teacher_submitted_at',
+                    ])
+                    messages.success(request, 'Your birthday wish has been saved for the celebration.')
             return redirect('inbox')
 
     return render(request, 'portal/teacher_birthday_wish.html', {
         'student': student,
         'celebration': celebration,
+        'has_teacher_wish': bool(celebration.teacher_wish.strip() or celebration.teacher_submitted_at),
         'birthday': birthday,
         'colour_choices': StudentBirthdayCelebration.COLOR_CHOICES,
     })

@@ -274,16 +274,19 @@ class StudentBirthdayAutomationTests(TestCase):
         self.assertEqual(celebration.teacher_wish, 'Keep shining brightly!')
         self.assertEqual(celebration.teacher_submitted_by, self.teacher_user)
 
-        edit_page = self.client.get(wish_url)
-        self.assertContains(edit_page, 'Update birthday wish')
-        self.assertContains(edit_page, 'Keep shining brightly!')
-        self.client.post(wish_url, {
+        submitted_page = self.client.get(wish_url)
+        self.assertContains(submitted_page, 'Birthday wish already submitted')
+        self.assertContains(submitted_page, 'Keep shining brightly!')
+        self.assertNotContains(submitted_page, 'name="teacher_wish"')
+        duplicate_response = self.client.post(wish_url, {
             'favourite_colour': 'purple',
             'teacher_wish': 'Keep shining brightly and wonderfully!',
-        })
+        }, follow=True)
+        self.assertRedirects(duplicate_response, reverse('inbox'))
+        self.assertContains(duplicate_response, 'A birthday wish has already been submitted for this student.')
         celebration.refresh_from_db()
-        self.assertEqual(celebration.favourite_colour, 'purple')
-        self.assertEqual(celebration.teacher_wish, 'Keep shining brightly and wonderfully!')
+        self.assertEqual(celebration.favourite_colour, 'blue')
+        self.assertEqual(celebration.teacher_wish, 'Keep shining brightly!')
         self.assertEqual(celebration.teacher_submitted_by, self.teacher_user)
 
         self.client.force_login(self.parent_user)
@@ -293,7 +296,7 @@ class StudentBirthdayAutomationTests(TestCase):
         )
         response = self.client.get(story_url)
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Keep shining brightly and wonderfully!')
+        self.assertContains(response, 'Keep shining brightly!')
         self.assertContains(response, 'With love from the management')
         self.assertContains(response, 'birthday-orbit')
 
