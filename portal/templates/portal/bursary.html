@@ -1,5 +1,58 @@
 {% extends 'portal/base.html' %}
 {% block page_title %}Bursary &amp; Fees{% endblock %}
+{% block extra_css %}
+<style>
+  #payment-modal {
+    align-items: center !important;
+    background: rgb(2 6 23 / .82);
+    justify-content: center !important;
+    max-height: none !important;
+    overflow-y: auto !important;
+    padding: calc(env(safe-area-inset-top) + 1rem) 1rem calc(env(safe-area-inset-bottom) + 1rem) !important;
+    z-index: 12000 !important;
+  }
+  #payment-modal > div {
+    box-sizing: border-box;
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 2rem) !important;
+    min-width: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    width: 100%;
+  }
+  #payment-title,
+  #payment-history,
+  #payment-history span,
+  #payment-modal label {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  #payment-history > div {
+    flex-wrap: wrap;
+    gap: .25rem .75rem;
+  }
+  @media (max-width: 639px) {
+    #payment-modal > div {
+      padding: 1.25rem !important;
+    }
+    #payment-modal .grid.grid-cols-3 {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    #payment-modal form.mt-6 > div:last-of-type {
+      align-items: stretch;
+      flex-direction: column;
+    }
+    #payment-modal form.mt-6 > div:last-of-type > button,
+    #payment-modal form.mt-6 > div:last-of-type > div,
+    #payment-modal form.mt-6 > div:last-of-type > div > button {
+      width: 100%;
+    }
+    #payment-modal form.mt-6 > div:last-of-type > div {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+</style>
+{% endblock %}
 {% block content %}
 <div class="min-h-full bg-slate-100 p-6 lg:p-8">
   <div class="mx-auto max-w-7xl space-y-6">
