@@ -32,6 +32,7 @@
   }
 
   window.addEventListener('pageshow', hideLoader);
+  window.addEventListener('pagehide', hideLoader);
   document.addEventListener('click', function (event) {
     var link = event.target.closest('a');
     if (!link || event.defaultPrevented || event.button !== 0) return;

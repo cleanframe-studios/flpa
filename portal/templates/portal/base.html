@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>FUTURE LEADERS PRIVATE ACADEMY</title>
 
-    <link rel="stylesheet" href="{% static 'portal/css/global.css' %}?v=20261017-transition-before-navigation">
+    <link rel="stylesheet" href="{% static 'portal/css/global.css' %}?v=20261017-transition-snapshot-fix">
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -79,9 +79,6 @@
     .animate-smooth {
         animation: smoothFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
-
-    /* Native browser crossfade for full page navigations (back/forward included), where supported. */
-    @view-transition { navigation: auto; }
 
         body {
             position: relative;
@@ -1699,7 +1696,7 @@ document.addEventListener('DOMContentLoaded', function () {
     {% endif %}
 });
 </script>
-<script src="{% static 'portal/js/page-transition.js' %}?v=20261017-transition-before-navigation"></script>
+<script src="{% static 'portal/js/page-transition.js' %}?v=20261017-transition-snapshot-fix"></script>
 <script>
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
