@@ -3986,6 +3986,7 @@ def bursary_dashboard(request):
     selected_term = selected_term or terms.first()
     classroom_id = request.GET.get('classroom')
     selected_class = ClassRoom.objects.filter(pk=classroom_id).first() if classroom_id else None
+    student_search = request.GET.get('student', '').strip()
     if selected_term and selected_class:
         students = generate_invoices_for_classroom(selected_term, selected_session, selected_class)['students']
     accounts = StudentFeeAccount.objects.select_related('student', 'student__current_class', 'term', 'session').prefetch_related('payments')
@@ -3995,6 +3996,11 @@ def bursary_dashboard(request):
             accounts = accounts.filter(student__in=students)
     else:
         accounts = accounts.none()
+    for search_term in student_search.split():
+        accounts = accounts.filter(
+            Q(student__first_name__icontains=search_term)
+            | Q(student__last_name__icontains=search_term)
+        )
     accounts = list(accounts.order_by('student__last_name', 'student__first_name'))
     for account in accounts:
         account.rollover_balance = student_outstanding_balance(account.student, selected_term) - max(account.balance, Decimal('0'))
@@ -4033,6 +4039,7 @@ def bursary_dashboard(request):
         'classrooms': ClassRoom.objects.order_by('section', 'sequence', 'name'),
         'selected_classroom': classroom_id,
         'selected_class': selected_class,
+        'student_search': student_search,
         'invoice_generation_status': class_invoice_generation_status(selected_term, selected_session),
     })
 

@@ -10,10 +10,14 @@
     </header>
 
     <script>window.resultTermsMap = {{ terms_json|default:'{}'|safe }};</script>
-    <form method="get" class="grid gap-3 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:grid-cols-4">
+    <form method="get" class="grid gap-3 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:grid-cols-2 lg:grid-cols-5">
       {% include 'portal/result_filter_combobox.html' with field_name='session' label='Session' selected_value=selected_session selected_label=selected_session_obj.name options=sessions %}
       {% include 'portal/result_filter_combobox.html' with field_name='term' label='Term' label_field='term_name' selected_value=selected_term selected_label=selected_term_obj.term_name options=terms %}
       {% include 'portal/result_filter_combobox.html' with field_name='classroom' label='Class' selected_value=selected_classroom selected_label=selected_class.name options=classrooms %}
+      <label class="block">
+        <span class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-600">Student name</span>
+        <input type="search" name="student" value="{{ student_search }}" placeholder="Search student name" autocomplete="off" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none">
+      </label>
       <button type="submit" class="self-end rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700">Filter Records</button>
     </form>
 

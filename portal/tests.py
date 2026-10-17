@@ -2648,6 +2648,42 @@ class AcademicCalendarGuardTests(TestCase):
         self.assertEqual(response.context['selected_term_obj'], historical_term)
         self.assertEqual(response.context['accounts'], [historical_account])
 
+    def test_bursary_dashboard_searches_student_names_with_existing_filters(self):
+        admin = get_user_model().objects.create_superuser(
+            username='bursary-search-admin',
+            email='bursary-search@example.com',
+            password='pass',
+        )
+        session = AcademicSession.objects.create(name='2026/2027', is_active=True)
+        term = AcademicTerm.objects.create(session=session, term_name='First Term', is_active=True)
+        classroom = ClassRoom.objects.create(name='Primary 4', section='Primary', level_number=4)
+        matching_student = Student.objects.create(
+            first_name='Augusta', last_name='Lovelace', sex='Female', date_of_birth='2016-01-01',
+            state_of_origin='Lagos', lga_of_origin='Ikeja', program='Primary (PRY)', current_class=classroom,
+        )
+        nonmatching_student = Student.objects.create(
+            first_name='Ada', last_name='Byron', sex='Female', date_of_birth='2015-01-01',
+            state_of_origin='Lagos', lga_of_origin='Ikeja', program='Primary (PRY)', current_class=classroom,
+        )
+        matching_account = StudentFeeAccount.objects.create(
+            student=matching_student, term=term, session=session, total_billed=5000,
+        )
+        StudentFeeAccount.objects.create(
+            student=nonmatching_student, term=term, session=session, total_billed=5000,
+        )
+        self.client.force_login(admin)
+
+        response = self.client.get(reverse('bursary_dashboard'), {
+            'session': session.pk,
+            'term': term.pk,
+            'classroom': classroom.pk,
+            'student': 'lovelace augusta',
+        })
+
+        self.assertEqual(response.context['accounts'], [matching_account])
+        self.assertEqual(response.context['student_search'], 'lovelace augusta')
+        self.assertContains(response, 'name="student"')
+
     def test_bursary_dashboard_provisions_missing_account_for_historical_enrollment(self):
         historical_session = AcademicSession.objects.create(name='2025/2026')
         historical_term = AcademicTerm.objects.create(session=historical_session, term_name='Third Term')
