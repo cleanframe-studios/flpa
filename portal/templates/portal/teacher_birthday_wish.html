@@ -11,7 +11,7 @@
           <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-xl shadow-inner" aria-hidden="true">🎂</span>
           <div class="min-w-0">
             <p class="text-[10px] font-black uppercase tracking-[.18em] text-sky-200">A little moment that matters</p>
-            <h1 id="birthday-wish-title" class="mt-1.5 text-xl font-black leading-tight sm:text-2xl">Help us celebrate {{ student.first_name }}</h1>
+            <h1 id="birthday-wish-title" class="mt-1.5 text-xl font-black leading-tight sm:text-2xl">{% if celebration.teacher_wish %}Update birthday wish for {{ student.first_name }}{% else %}Help us celebrate {{ student.first_name }}{% endif %}</h1>
             <p class="mt-2 text-xs leading-5 text-blue-100 sm:text-sm">{{ birthday|date:'l, j F' }} · {{ student.current_class.name }}</p>
           </div>
         </div>
@@ -19,7 +19,7 @@
       </div>
     </div>
     <div class="p-5 sm:p-8">
-      <p class="mb-5 text-sm leading-6 text-slate-600">Your words can make a child feel seen. Add a birthday wish to share with the family, and tell us their favourite colour if you know it.</p>
+      <p class="mb-5 text-sm leading-6 text-slate-600">{% if celebration.teacher_wish %}You can edit the wish and favourite colour any time before the birthday celebration.{% else %}Your words can make a child feel seen. Add a birthday wish to share with the family, and tell us their favourite colour if you know it.{% endif %}</p>
       <form method="post" class="space-y-4 sm:space-y-5">
         {% csrf_token %}
         <div>
@@ -37,7 +37,7 @@
         <div class="flex flex-col-reverse gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end">
           <a href="{% url 'inbox' %}" class="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50">Back to inbox</a>
           <button type="submit" class="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-700 to-blue-700 px-5 py-2 text-sm font-bold text-white shadow-lg shadow-indigo-950/20 transition hover:-translate-y-0.5 hover:shadow-indigo-900/30">
-            <span>Save birthday wish</span><span aria-hidden="true">→</span>
+            <span>{% if celebration.teacher_wish %}Update birthday wish{% else %}Save birthday wish{% endif %}</span><span aria-hidden="true">→</span>
           </button>
         </div>
       </form>

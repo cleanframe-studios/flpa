@@ -260,6 +260,7 @@ class StudentBirthdayAutomationTests(TestCase):
         self.assertContains(wish_page, 'pt-[calc(env(safe-area-inset-top)+4.75rem)]')
         self.assertContains(wish_page, 'max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-5.75rem)]')
         self.assertContains(wish_page, 'aria-label="Close birthday wish and return to inbox"')
+        self.assertContains(wish_page, 'Save birthday wish')
 
         response = self.client.post(wish_url, {
             'favourite_colour': 'blue',
@@ -273,6 +274,18 @@ class StudentBirthdayAutomationTests(TestCase):
         self.assertEqual(celebration.teacher_wish, 'Keep shining brightly!')
         self.assertEqual(celebration.teacher_submitted_by, self.teacher_user)
 
+        edit_page = self.client.get(wish_url)
+        self.assertContains(edit_page, 'Update birthday wish')
+        self.assertContains(edit_page, 'Keep shining brightly!')
+        self.client.post(wish_url, {
+            'favourite_colour': 'purple',
+            'teacher_wish': 'Keep shining brightly and wonderfully!',
+        })
+        celebration.refresh_from_db()
+        self.assertEqual(celebration.favourite_colour, 'purple')
+        self.assertEqual(celebration.teacher_wish, 'Keep shining brightly and wonderfully!')
+        self.assertEqual(celebration.teacher_submitted_by, self.teacher_user)
+
         self.client.force_login(self.parent_user)
         story_url = reverse(
             'birthday_celebration',
@@ -280,7 +293,7 @@ class StudentBirthdayAutomationTests(TestCase):
         )
         response = self.client.get(story_url)
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Keep shining brightly!')
+        self.assertContains(response, 'Keep shining brightly and wonderfully!')
         self.assertContains(response, 'With love from the management')
         self.assertContains(response, 'birthday-orbit')
 
