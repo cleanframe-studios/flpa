@@ -3594,19 +3594,19 @@ class AttendanceSessionWorkflowTests(TestCase):
 
         partial = self.client.get(
             reverse('attendance'),
-            {'classroom': self.classroom.pk, 'week': self.week.pk, 'day': min(timezone.localdate().weekday(), 4)},
+            {'classroom': self.classroom.pk, 'week': self.week.pk, 'day': timezone.localdate().weekday()},
             HTTP_X_REQUESTED_WITH='XMLHttpRequest',
         )
         self.assertTemplateUsed(partial, 'portal/partials/attendance_register.html')
         self.assertNotContains(partial, '<html')
-        self.assertContains(partial, 'Daily attendance')
+        self.assertContains(partial, 'Weekly attendance')
         self.assertContains(partial, 'Monday')
         self.assertContains(partial, 'Friday')
         self.assertContains(partial, 'data-attendance-period="morning"')
         self.assertContains(partial, 'value="Present" checked')
         self.assertNotContains(partial, 'data-mark-all=')
-        self.assertContains(partial, 'aria-label="Attendance student pagination"')
-        self.assertContains(partial, 'h-[min(60vh,36rem)]')
+        self.assertContains(partial, 'attendance-student-sticky sticky left-0 z-20')
+        self.assertContains(partial, 'w-[116px] min-w-[116px] max-w-[116px]')
         self.assertContains(partial, 'whitespace-normal break-words')
         self.assertNotContains(partial, self.student.student_id)
         self.assertContains(response, 'id="attendance-filter-modal"')
@@ -3630,98 +3630,8 @@ class AttendanceSessionWorkflowTests(TestCase):
         self.assertContains(response, 'Loading register…')
         self.assertContains(response, '#globalToastContainer { z-index: 12001; }')
 
-    def test_attendance_register_shows_one_day_and_paginates_ten_students(self):
-        for index in range(10):
-            Student.objects.create(
-                first_name=f'Student {index}',
-                last_name='Example',
-                sex='Female',
-                date_of_birth='2015-01-01',
-                state_of_origin='Lagos',
-                lga_of_origin='Ikeja',
-                program='Primary (PRY)',
-                current_class=self.classroom,
-            )
-
-        response = self.client.get(
-            reverse('attendance'),
-            {
-                'classroom': self.classroom.pk,
-                'week': self.week.pk,
-                'day': min(timezone.localdate().weekday(), 4),
-                'page': 2,
-            },
-            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['page_obj'].number, 2)
-        self.assertEqual(response.context['page_obj'].paginator.count, 11)
-        self.assertEqual(len(response.context['students']), 1)
-        self.assertContains(response, 'Showing 11–11 of 11 students')
-        self.assertContains(response, 'aria-label="Attendance student pagination"')
-        self.assertEqual(response.content.count(b'<th scope="col"'), 2)
-        student_on_page = response.context['students'][0]
-        selected_day = response.context['selected_day']
-        self.assertEqual(
-            response.content.count(f'name="status_{student_on_page.pk}_{selected_day}"'.encode()),
-            2,
-        )
-
-    def test_attendance_can_be_saved_page_by_page(self):
-        for index in range(10):
-            Student.objects.create(
-                first_name=f'Student {index}',
-                last_name='Example',
-                sex='Female',
-                date_of_birth='2015-01-01',
-                state_of_origin='Lagos',
-                lga_of_origin='Ikeja',
-                program='Primary (PRY)',
-                current_class=self.classroom,
-            )
-        students = list(
-            Student.objects.filter(current_class=self.classroom).order_by('last_name', 'first_name')
-        )
-        attendance_day = min(timezone.localdate().weekday(), 4)
-        payload = {
-            'action': 'save_attendance',
-            'session': self.session.pk,
-            'term': self.term.pk,
-            'classroom': self.classroom.pk,
-            'week': self.week.pk,
-            'day': attendance_day,
-            'period': 'morning',
-            'page': 1,
-        }
-        payload.update({
-            f'status_{student.pk}_{attendance_day}': 'Present'
-            for student in students[:10]
-        })
-        first_page = self.client.post(
-            reverse('attendance'), payload,
-            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
-        )
-
-        self.assertContains(first_page, 'attendance saved for 1 school day(s)')
-        self.assertEqual(Attendance.objects.filter(date=self.week_start + datetime.timedelta(days=attendance_day)).count(), 10)
-
-        second_page_payload = {
-            **{key: value for key, value in payload.items() if not key.startswith('status_')},
-            'page': 2,
-            f'status_{students[10].pk}_{attendance_day}': 'Absent',
-        }
-        second_page = self.client.post(
-            reverse('attendance'), second_page_payload,
-            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
-        )
-
-        self.assertContains(second_page, '11/11 marked')
-        self.assertEqual(Attendance.objects.filter(date=self.week_start + datetime.timedelta(days=attendance_day)).count(), 11)
-
     def test_attendance_morning_and_afternoon_are_separate_and_binary(self):
-        attendance_day = min(timezone.localdate().weekday(), 4)
-        attendance_date = self.week_start + datetime.timedelta(days=attendance_day)
+        attendance_day = timezone.localdate().weekday()
         base_payload = {
             'action': 'save_attendance',
             'session': self.session.pk,
@@ -3741,11 +3651,11 @@ class AttendanceSessionWorkflowTests(TestCase):
             self.assertEqual(response.status_code, 200)
 
         self.assertEqual(
-            Attendance.objects.filter(student=self.student, date=attendance_date).count(),
+            Attendance.objects.filter(student=self.student, date=timezone.localdate()).count(),
             2,
         )
         self.assertEqual(
-            Attendance.objects.get(student=self.student, date=attendance_date, period='afternoon').status,
+            Attendance.objects.get(student=self.student, period='afternoon').status,
             'Absent',
         )
 
@@ -3838,11 +3748,8 @@ class AttendanceSessionWorkflowTests(TestCase):
             {'classroom': self.classroom.pk, 'week': self.week.pk, 'day': 0},
             HTTP_X_REQUESTED_WITH='XMLHttpRequest',
         )
-        self.assertContains(teacher_register, 'Present · Saved')
-        self.assertNotContains(
-            teacher_register,
-            f'<input type="radio" name="status_{self.student.pk}_0"',
-        )
+        self.assertContains(teacher_register, 'title="Present"')
+        self.assertNotContains(teacher_register, f'name="status_{self.student.pk}_0"')
 
         self.client.force_login(self.user)
         response = self.client.post(

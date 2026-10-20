@@ -6376,10 +6376,7 @@ def attendance_view(request):
             selected_day = 0
         selected_date = selected_week.start_date + datetime.timedelta(days=selected_day)
         selected_period = request.POST.get('period', 'morning')
-        all_students = list(students_in_term_classroom(selected_term, selected_class))
-        page_obj = Paginator(all_students, 10).get_page(request.POST.get('page'))
-        students = list(page_obj.object_list)
-        student_count = len(all_students)
+        students = list(students_in_term_classroom(selected_term, selected_class))
         allowed_statuses = {'Present', 'Absent'}
         holiday_dates = set(Holiday.objects.filter(
             term=selected_term,
@@ -6415,14 +6412,7 @@ def attendance_view(request):
             if any(status not in allowed_statuses for status in day_statuses):
                 invalid_submission = True
                 continue
-            existing_statuses = existing_by_day[attendance_day]
-            changed_existing_status = any(
-                student.pk in existing_statuses
-                and status != existing_statuses[student.pk]
-                and not (existing_statuses[student.pk] == 'Late' and status == 'Present')
-                for student, status in zip(students, day_statuses)
-            )
-            if changed_existing_status and not can_edit_saved_attendance:
+            if existing_by_day[attendance_day] and not can_edit_saved_attendance:
                 locked_submission = True
                 continue
             submitted_by_day[attendance_day] = day_statuses
@@ -6460,13 +6450,13 @@ def attendance_view(request):
             messages.error(request, register_error)
             return redirect(
                 f'{request.path}?classroom={selected_class.pk}&week={selected_week.pk}'
-                f'&day={selected_day}&period={selected_period}&page={page_obj.number}'
+                f'&day={selected_day}&period={selected_period}'
             )
         if register_feedback and not is_ajax:
             messages.success(request, register_feedback)
             return redirect(
                 f'{request.path}?classroom={selected_class.pk}&week={selected_week.pk}'
-                f'&day={selected_day}&period={selected_period}&page={page_obj.number}'
+                f'&day={selected_day}&period={selected_period}'
             )
     elif selected_term:
         if selected_class_id in ('', 'None'):
@@ -6484,11 +6474,7 @@ def attendance_view(request):
             else:
                 selected_week = AcademicWeek.objects.filter(pk=int(selected_week_id), term=selected_term).first()
         elif selected_week_id is None:
-            selected_week = (
-                term_weeks.filter(start_date__lte=today, end_date__gte=today).first()
-                or term_weeks.filter(start_date__lte=today).order_by('-start_date', '-week_number').first()
-                or term_weeks.first()
-            )
+            selected_week = term_weeks.filter(start_date__lte=today, end_date__gte=today).first()
         if selected_day_value in ('', 'None'):
             messages.error(request, 'Please select a valid school day.')
         elif selected_day_value is not None:
@@ -6497,17 +6483,14 @@ def attendance_view(request):
             else:
                 selected_day = int(selected_day_value)
         elif selected_week:
-            if selected_week.start_date <= today:
-                selected_day = min(max((today - selected_week.start_date).days, 0), 4)
+            if selected_week.start_date <= today <= selected_week.end_date:
+                selected_day = min(today.weekday(), 4)
             else:
                 selected_day = 0
         if selected_week and selected_day is not None:
             selected_date = selected_week.start_date + datetime.timedelta(days=selected_day)
 
-    all_students = list(students_in_term_classroom(selected_term, selected_class)) if selected_class else []
-    student_count = len(all_students)
-    page_obj = Paginator(all_students, 10).get_page(filter_data.get('page'))
-    students = list(page_obj.object_list)
+    students = list(students_in_term_classroom(selected_term, selected_class)) if selected_class else []
     term_holiday_dates = set(
         Holiday.objects.filter(term=selected_term).values_list('date', flat=True)
     ) if selected_term else set()
@@ -6516,7 +6499,6 @@ def attendance_view(request):
     attendance_marked_count = 0
     attendance_statuses = {}
     statuses_by_day = {}
-    selected_day_label = dict(day_choices).get(selected_day, '')
     if selected_class and selected_week:
         for day, label in day_choices:
             attendance_date = selected_week.start_date + datetime.timedelta(days=day)
@@ -6527,9 +6509,9 @@ def attendance_view(request):
                 period=selected_period,
             ).values_list('student_id', 'status'))
             statuses = statuses_by_day[day]
-            is_complete = len(statuses) == student_count and bool(student_count)
+            is_complete = len(statuses) == len(students) and bool(students)
             attendance_complete_days += int(is_complete)
-            is_locked = is_complete and not can_edit_saved_attendance
+            is_locked = bool(statuses) and not can_edit_saved_attendance
             attendance_days.append({
                 'index': day,
                 'label': label,
@@ -6550,13 +6532,17 @@ def attendance_view(request):
                 attendance_statuses = statuses
                 attendance_marked_count = len(statuses)
         for student in students:
-            raw_status = attendance_statuses.get(student.pk)
-            student.day_status = (
-                'Present' if raw_status in {'Present', 'Late'}
-                else 'Absent' if raw_status == 'Absent'
-                else None
-            )
-            student.has_saved_status = raw_status is not None
+            student.week_attendance = [
+                {
+                    'day': day['index'],
+                    'status': (
+                        'Present' if (statuses_by_day[day['index']].get(student.pk) in {'Present', 'Late'})
+                        else 'Absent' if statuses_by_day[day['index']].get(student.pk) == 'Absent'
+                        else None
+                    ),
+                }
+                for day in attendance_days
+            ]
     term_holidays_by_id = {}
     for term_id, holiday_date in Holiday.objects.filter(term__in=all_terms).values_list('term_id', 'date'):
         term_holidays_by_id.setdefault(term_id, set()).add(holiday_date)
@@ -6590,15 +6576,10 @@ def attendance_view(request):
         'selected_week': selected_week,
         'selected_week_id': selected_week_id,
         'selected_day': selected_day,
-        'selected_day_label': selected_day_label,
         'selected_date': selected_date,
         'attendance_days': attendance_days,
-        'term_holiday_dates': term_holiday_dates,
         'attendance_complete_days': attendance_complete_days,
         'students': students,
-        'student_count': student_count,
-        'page_obj': page_obj,
-        'page_range': page_obj.paginator.get_elided_page_range(page_obj.number),
         'attendance_statuses': attendance_statuses,
         'attendance_marked_count': attendance_marked_count,
         'can_edit_saved_attendance': can_edit_saved_attendance,

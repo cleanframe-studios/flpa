@@ -59,8 +59,6 @@
                             {% for week in weeks %}<option value="{{ week.pk }}" {% if selected_week.pk == week.pk %}selected{% endif %}>Week {{ week.week_number }} · {{ week.start_date|date:'d M' }}–{{ week.end_date|date:'d M Y' }}</option>{% endfor %}
                         </select>
                     </div>
-                    <input type="hidden" name="day" value="{{ selected_day|default:0 }}">
-                    <input type="hidden" name="page" value="1">
                     <input type="hidden" name="period" value="{{ selected_period }}">
                     <button type="submit" class="mt-2 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-blue-900/20 transition hover:bg-blue-800 disabled:cursor-wait disabled:opacity-75 sm:col-span-2">
                         <svg data-register-load-spinner class="hidden h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
@@ -301,19 +299,13 @@ document.getElementById('unsavedAttendanceModal')?.addEventListener('click', eve
         });
 
         const currentWeek = termWeeks.find(week => week.start_date <= today && week.end_date >= today);
-        const chosenWeek = currentWeek
-            || termWeeks.filter(week => week.start_date <= today).sort((left, right) => right.start_date.localeCompare(left.start_date))[0]
-            || termWeeks[0];
+        const chosenWeek = currentWeek || termWeeks[0];
         weekSelect.value = chosenWeek ? String(chosenWeek.pk) : '';
-        const daysFromWeekStart = chosenWeek
-            ? Math.floor((new Date(today + 'T12:00:00') - new Date(chosenWeek.start_date + 'T12:00:00')) / 86400000)
-            : 0;
-        filterForm.elements.day.value = String(Math.min(Math.max(daysFromWeekStart, 0), 4));
-        filterForm.elements.page.value = '1';
     }
 
     function updateAttendanceUrl() {
         const url = new URL(window.location.href);
+        url.searchParams.delete('day');
         for (const [key, value] of new FormData(filterForm)) {
             if (value) url.searchParams.set(key, value);
             else url.searchParams.delete(key);
@@ -393,7 +385,6 @@ document.getElementById('unsavedAttendanceModal')?.addEventListener('click', eve
             return;
         }
         if (!await confirmDiscardAttendanceChanges()) return;
-        filterForm.elements.page.value = '1';
         const url = updateAttendanceUrl();
         const submitButton = event.submitter || filterForm.querySelector('[type="submit"]');
         closeAttendanceFilters();
@@ -424,21 +415,6 @@ document.getElementById('unsavedAttendanceModal')?.addEventListener('click', eve
             periodButton.setAttribute('aria-busy', 'true');
             filterForm.elements.period.value = periodButton.dataset.attendancePeriod;
             loadRegister(updateAttendanceUrl(), { periodSwitch: true });
-            return;
-        }
-        const dayButton = event.target.closest('[data-attendance-day]');
-        if (dayButton && !dayButton.disabled) {
-            if (!await confirmDiscardAttendanceChanges()) return;
-            filterForm.elements.day.value = dayButton.dataset.attendanceDay;
-            filterForm.elements.page.value = '1';
-            loadRegister(updateAttendanceUrl());
-            return;
-        }
-        const pageButton = event.target.closest('[data-attendance-page]');
-        if (pageButton) {
-            if (!await confirmDiscardAttendanceChanges()) return;
-            filterForm.elements.page.value = pageButton.dataset.attendancePage;
-            loadRegister(updateAttendanceUrl());
         }
     });
 
