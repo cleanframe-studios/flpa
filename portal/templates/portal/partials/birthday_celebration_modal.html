@@ -12,6 +12,34 @@
     from { opacity: 0; transform: translateY(12px) scale(.99); }
     to { opacity: 1; transform: translateY(0) scale(1); }
   }
+  @keyframes birthday-slide-left {
+    from { opacity: 0; transform: translateX(72px) scale(.97); filter: blur(5px); }
+    to { opacity: 1; transform: translateX(0) scale(1); filter: blur(0); }
+  }
+  @keyframes birthday-slide-rise {
+    from { opacity: 0; transform: translateY(56px) scale(.96); filter: blur(4px); }
+    to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+  }
+  @keyframes birthday-slide-soft-zoom {
+    from { opacity: 0; transform: scale(.86); filter: blur(7px); }
+    to { opacity: 1; transform: scale(1); filter: blur(0); }
+  }
+  @keyframes birthday-slide-turn {
+    from { opacity: 0; transform: translateY(24px) rotate(-2deg) scale(.96); filter: blur(4px); }
+    to { opacity: 1; transform: translateY(0) rotate(0) scale(1); filter: blur(0); }
+  }
+  @keyframes birthday-slide-drift {
+    from { opacity: 0; transform: translateY(-36px) scale(.97); filter: blur(5px); }
+    to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+  }
+  @keyframes birthday-theme-glow {
+    0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: .28; }
+    50% { transform: translate3d(18px, -16px, 0) scale(1.12); opacity: .52; }
+  }
+  @keyframes birthday-progress {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+  }
   @keyframes birthday-confetti {
     0% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0); }
     100% { opacity: 0; transform: translate3d(var(--confetti-x), var(--confetti-y), 0) rotate(var(--confetti-rotation)); }
@@ -25,8 +53,15 @@
   }
   [data-birthday-modal][data-open="true"] [data-birthday-panel] { animation: birthday-modal-in 300ms cubic-bezier(.2,.8,.2,1) both; }
   [data-birthday-modal][data-closing="true"] [data-birthday-panel] { opacity: 0; transform: translateY(10px) scale(.99); }
-  .birthday-scene.is-active { animation: birthday-scene-in 460ms cubic-bezier(.2,.8,.2,1) both; }
+  .birthday-scene.is-active[data-scene-motion="0"] { animation: birthday-scene-in 950ms cubic-bezier(.2,.8,.2,1) both; }
+  .birthday-scene.is-active[data-scene-motion="1"] { animation: birthday-slide-left 1050ms cubic-bezier(.16,1,.3,1) both; }
+  .birthday-scene.is-active[data-scene-motion="2"] { animation: birthday-slide-soft-zoom 1150ms cubic-bezier(.16,1,.3,1) both; }
+  .birthday-scene.is-active[data-scene-motion="3"] { animation: birthday-slide-rise 1050ms cubic-bezier(.16,1,.3,1) both; }
+  .birthday-scene.is-active[data-scene-motion="4"] { animation: birthday-slide-turn 1100ms cubic-bezier(.16,1,.3,1) both; }
   .birthday-orbit { animation: birthday-orbit 4s ease-in-out infinite; }
+  .birthday-theme-glow { animation: birthday-theme-glow 7s ease-in-out infinite; }
+  .birthday-slide-progress { transform: scaleX(0); transform-origin: left; }
+  .birthday-slide-progress.is-running { animation: birthday-progress 8.5s linear forwards; }
   .birthday-confetti-piece {
     position: absolute;
     left: 50%;
@@ -38,7 +73,7 @@
     animation: birthday-confetti 1050ms cubic-bezier(.12,.68,.32,1) forwards;
   }
   @media (prefers-reduced-motion: reduce) {
-    [data-birthday-modal] *, .birthday-scene.is-active, .birthday-orbit, .birthday-confetti-piece { animation: none !important; transition-duration: 0.01ms !important; }
+    [data-birthday-modal] *, .birthday-scene.is-active, .birthday-orbit, .birthday-theme-glow, .birthday-confetti-piece, .birthday-slide-progress { animation: none !important; transition-duration: 0.01ms !important; }
   }
 </style>
 <div data-birthday-modal data-open="false" style="--birthday-gradient-start:{{ birthday_gradient_start }};--birthday-gradient-end:{{ birthday_gradient_end }};--birthday-text-colour:{{ birthday_text_colour }};" class="fixed inset-0 z-[13000] overflow-y-auto opacity-0 transition-opacity duration-300" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="birthday-surprise-title">
@@ -57,11 +92,13 @@
     </header>
 
     <div class="relative flex flex-1 items-center justify-center py-8 sm:py-12">
+      <div class="birthday-theme-glow pointer-events-none absolute left-[4%] top-[12%] h-32 w-32 rounded-full bg-white/15 blur-3xl" aria-hidden="true"></div>
+      <div class="birthday-theme-glow pointer-events-none absolute bottom-[12%] right-[4%] h-40 w-40 rounded-full bg-current/10 blur-3xl" aria-hidden="true" style="animation-delay:-3.5s"></div>
       <div class="birthday-orbit pointer-events-none absolute left-[8%] top-[18%] h-14 w-14 rounded-2xl border border-current/25 bg-white/10" aria-hidden="true"></div>
       <div class="birthday-orbit pointer-events-none absolute bottom-[18%] right-[8%] h-9 w-9 rounded-full border border-current/25 bg-white/10" aria-hidden="true" style="animation-delay:-1.5s"></div>
 
       <div class="relative w-full max-w-3xl px-2 sm:px-8">
-        <section class="birthday-scene is-active text-center" data-birthday-scene>
+        <section class="birthday-scene is-active text-center" data-birthday-scene data-scene-motion="0">
           <div class="mx-auto mb-7 flex h-20 w-20 items-center justify-center rounded-[1.75rem] border border-current/20 bg-white/10 shadow-xl shadow-black/10">
             <svg class="h-10 w-10" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 3v2m7.07.93-1.42 1.42M22 12h-2m-.93 7.07-1.42-1.42M12 21v-2m-7.07.93 1.42-1.42M2 12h2m.93-7.07 1.42 1.42M7 14h10l1 6H6l1-6Zm2 0V9a3 3 0 0 1 6 0v5"/></svg>
           </div>
@@ -70,7 +107,7 @@
           <p class="mx-auto mt-5 max-w-xl text-base leading-7 opacity-90 sm:text-lg">Your family and school are celebrating you today.</p>
         </section>
 
-        <section class="birthday-scene hidden text-center" data-birthday-scene>
+        <section class="birthday-scene hidden text-center" data-birthday-scene data-scene-motion="1">
           <p class="text-xs font-black uppercase tracking-[.24em] opacity-80">A wish from your teacher</p>
           <div class="mx-auto mt-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-current/20 bg-white/10">
             <svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M12 21s-8-4.5-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 6.5-8 11-8 11Z"/></svg>
@@ -80,7 +117,7 @@
           </blockquote>
         </section>
 
-        <section class="birthday-scene hidden text-center" data-birthday-scene>
+        <section class="birthday-scene hidden text-center" data-birthday-scene data-scene-motion="2">
           <p class="text-xs font-black uppercase tracking-[.24em] opacity-80">Your favourite colour</p>
           <div class="mx-auto mt-7 flex h-28 w-28 items-center justify-center rounded-full border-4 border-white/70 shadow-2xl" style="background:linear-gradient(135deg,{{ birthday_gradient_start }},{{ birthday_gradient_end }});">
             <span class="h-9 w-9 rounded-full border-2 border-white/80 bg-white/30" aria-hidden="true"></span>
@@ -89,13 +126,13 @@
           <p class="mx-auto mt-3 max-w-lg text-base leading-7 opacity-85">A little colour, a lot of joy, and a day that is all yours.</p>
         </section>
 
-        <section class="birthday-scene hidden text-center" data-birthday-scene>
+        <section class="birthday-scene hidden text-center" data-birthday-scene data-scene-motion="3">
           <p class="text-xs font-black uppercase tracking-[.24em] opacity-80">From your school family</p>
           <h2 class="mt-6 text-3xl font-black sm:text-5xl">Keep shining, {{ student.first_name }}.</h2>
           <p class="mx-auto mt-5 max-w-xl text-base leading-7 opacity-90 sm:text-lg">May the year ahead bring new discoveries, kind friends, and many reasons to smile. You are valued and we are glad you are part of our school.</p>
         </section>
 
-        <section class="birthday-scene hidden text-center" data-birthday-scene>
+        <section class="birthday-scene hidden text-center" data-birthday-scene data-scene-motion="4">
           <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-current/20 bg-white/10">
             <svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="m5 13 4 4L19 7"/></svg>
           </div>
@@ -106,11 +143,17 @@
       </div>
     </div>
 
-    <footer class="flex items-center justify-end border-t border-current/15 py-4">
+    <footer class="border-t border-current/15 py-4">
+      <div class="mb-4 h-1 overflow-hidden rounded-full bg-current/15" aria-hidden="true">
+        <div data-birthday-slide-progress class="birthday-slide-progress h-full rounded-full bg-current/80"></div>
+      </div>
+      <div class="flex items-center justify-between gap-4">
+      <p class="text-xs font-semibold opacity-70">Your celebration will continue automatically</p>
       <button type="button" data-next-birthday-scene class="inline-flex min-h-12 items-center gap-3 rounded-full bg-white px-6 py-3 text-sm font-black text-slate-950 shadow-xl transition hover:-translate-y-0.5 hover:shadow-2xl">
         <span data-next-label>Next</span>
         <svg data-next-icon class="h-4 w-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14m-6-6 6 6-6 6"/></svg>
       </button>
+      </div>
     </footer>
   </main>
 </div>

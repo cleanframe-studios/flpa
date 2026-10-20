@@ -5423,8 +5423,31 @@ def sync_parent_status(parent):
 @login_required(login_url='login')
 @registrar_required
 def parents_view(request):
+    search_query = request.GET.get('q', '').strip()
+    parents = Parent.objects.prefetch_related('children').all()
+    search_fields = (
+        'first_name', 'last_name', 'middle_name', 'parent_id', 'phone_number',
+        'email', 'sex', 'state', 'lga', 'occupation', 'status',
+        'children__first_name', 'children__last_name', 'children__student_id',
+    )
+    for search_term in search_query.split():
+        term_filter = Q()
+        for field in search_fields:
+            term_filter |= Q(**{f'{field}__icontains': search_term})
+        parents = parents.filter(term_filter)
+    parents = parents.order_by(Lower('last_name'), Lower('first_name'), Lower('parent_id'), 'pk').distinct()
+    parent_count = parents.count()
+    page_obj = Paginator(parents, 10).get_page(request.GET.get('page'))
+    parents_for_print = Parent.objects.prefetch_related('children').order_by(
+        Lower('last_name'), Lower('first_name'), Lower('parent_id'), 'pk',
+    )
     parent_context = {
-        'parents': Parent.objects.prefetch_related('children').all(),
+        'parents': page_obj.object_list,
+        'parents_for_print': parents_for_print,
+        'page_obj': page_obj,
+        'page_range': page_obj.paginator.get_elided_page_range(page_obj.number),
+        'search_query': search_query,
+        'parent_count': parent_count,
         'active_parent_count': Parent.objects.filter(children__isnull=False).distinct().count(),
         'students': Student.objects.filter(status='Student').select_related('parent').order_by('last_name', 'first_name'),
         'available_students': Student.objects.filter(status='Student', parent__isnull=True).order_by('last_name', 'first_name'),
@@ -5526,6 +5549,8 @@ def parents_view(request):
             messages.success(request, f'{student} was unlinked from their parent.')
             return redirect('parents')
 
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return render(request, 'portal/partials/parent_directory_results.html', parent_context)
     return render(request, 'portal/parents.html', parent_context)
 
 

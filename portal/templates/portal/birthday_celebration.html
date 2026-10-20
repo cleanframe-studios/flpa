@@ -14,15 +14,24 @@
   });
   const scenes = Array.from(modal.querySelectorAll('[data-birthday-scene]'));
   const nextButton = modal.querySelector('[data-next-birthday-scene]');
+  const slideDuration = 8500;
+  let slideTimer;
   let activeScene = 0;
-  scenes.forEach((scene, index) => scene.setAttribute('aria-hidden', String(index !== activeScene)));
+  const progress = modal.querySelector('[data-birthday-slide-progress]');
+  if (!scenes.length || !nextButton) return;
 
   function launchBirthdayConfetti() {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const layer = modal.querySelector('[data-birthday-confetti]');
     if (!layer) return;
-    const colours = ['#ffffff', '#bfdbfe', '#fef08a', '#c4b5fd', '#fbcfe8'];
-    for (let index = 0; index < 32; index += 1) {
+    const colours = [
+      'var(--birthday-gradient-start)',
+      'var(--birthday-gradient-end)',
+      'color-mix(in srgb, var(--birthday-gradient-start), white 38%)',
+      'color-mix(in srgb, var(--birthday-gradient-end), #facc15 28%)',
+      '#facc15',
+    ];
+    for (let index = 0; index < 28; index += 1) {
       const piece = document.createElement('span');
       piece.className = 'birthday-confetti-piece';
       piece.style.setProperty('--confetti-colour', colours[index % colours.length]);
@@ -37,6 +46,7 @@
 
   function closeCelebration() {
     if (modal.dataset.closing === 'true') return;
+    window.clearTimeout(slideTimer);
     modal.dataset.closing = 'true';
     modal.setAttribute('aria-hidden', 'true');
     modal.classList.remove('opacity-100');
@@ -44,23 +54,39 @@
     window.setTimeout(() => window.location.assign("{% url 'inbox' %}"), 300);
   }
 
+  function showBirthdayScene(index) {
+    scenes.forEach((scene, sceneIndex) => {
+      scene.classList.toggle('hidden', sceneIndex !== index);
+      scene.classList.toggle('is-active', sceneIndex === index);
+      scene.setAttribute('aria-hidden', String(sceneIndex !== index));
+    });
+    activeScene = index;
+    const finalScene = activeScene === scenes.length - 1;
+    nextButton.querySelector('[data-next-label]').textContent = finalScene ? 'Finish' : 'Next';
+    nextButton.querySelector('[data-next-icon]').classList.toggle('hidden', finalScene);
+    if (progress) {
+      progress.classList.remove('is-running');
+      if (!finalScene) {
+        progress.style.animationDuration = `${slideDuration}ms`;
+        void progress.offsetWidth;
+        progress.classList.add('is-running');
+      }
+    }
+    if (activeScene === 0 || finalScene) launchBirthdayConfetti();
+    window.clearTimeout(slideTimer);
+    if (!finalScene) {
+      slideTimer = window.setTimeout(() => showBirthdayScene(activeScene + 1), slideDuration);
+    }
+  }
+
+  showBirthdayScene(activeScene);
+
   nextButton?.addEventListener('click', () => {
     if (activeScene === scenes.length - 1) {
       closeCelebration();
       return;
     }
-    scenes[activeScene].classList.add('hidden');
-    scenes[activeScene].classList.remove('is-active');
-    scenes[activeScene].setAttribute('aria-hidden', 'true');
-    activeScene += 1;
-    scenes[activeScene].classList.remove('hidden');
-    void scenes[activeScene].offsetWidth;
-    scenes[activeScene].classList.add('is-active');
-    scenes[activeScene].setAttribute('aria-hidden', 'false');
-    const finalScene = activeScene === scenes.length - 1;
-    nextButton.querySelector('[data-next-label]').textContent = finalScene ? 'Finish' : 'Next';
-    nextButton.querySelector('[data-next-icon]').classList.toggle('hidden', finalScene);
-    launchBirthdayConfetti();
+    showBirthdayScene(activeScene + 1);
   });
 
   modal.addEventListener('click', event => {

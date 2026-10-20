@@ -99,8 +99,12 @@ class InboxReadStateTests(TestCase):
         self.assertContains(response, 'href="/birthdays/12/2026/"')
         self.assertContains(response, 'data-birthday-surprise')
         self.assertContains(response, 'Open birthday surprise')
+        self.assertContains(response, 'A celebration made for you')
+        self.assertContains(response, 'aria-label="Open your birthday surprise"')
         self.assertContains(response, "X-Requested-With': 'XMLHttpRequest'")
         self.assertContains(response, 'modal.classList.add(\'opacity-100\')')
+        self.assertContains(response, 'birthdaySlideDuration = 8500')
+        self.assertContains(response, 'showBirthdayScene(modal, activeScene + 1)')
 
     def test_opened_message_read_state_persists_after_fresh_login(self):
         response = self.client.post(
@@ -400,11 +404,16 @@ class StudentBirthdayAutomationTests(TestCase):
         self.assertContains(response, 'data-next-label>Next')
         self.assertContains(response, 'Thank you for being you.')
         self.assertContains(response, 'data-birthday-confetti')
+        self.assertContains(response, 'data-birthday-slide-progress')
+        self.assertContains(response, 'birthday-slide-left 1050ms')
+        self.assertContains(response, 'birthday-slide-soft-zoom 1150ms')
+        self.assertContains(response, 'slideDuration = 8500')
+        self.assertContains(response, 'showBirthdayScene(activeScene + 1), slideDuration')
         self.assertNotContains(response, 'data-scene-counter')
         self.assertNotContains(response, 'data-scene-dot')
         self.assertNotContains(response, 'Back to inbox')
         self.assertNotContains(response, 'Celebrate again')
-        self.assertEqual(response.content.count(b'data-birthday-scene>'), 5)
+        self.assertEqual(response.content.count(b'data-birthday-scene data-scene-motion='), 5)
 
         partial_response = self.client.get(
             story_url,
@@ -741,6 +750,72 @@ class StudentDirectoryTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.json()['students']), 12)
+
+
+class ParentDirectoryTests(TestCase):
+    def setUp(self):
+        user = get_user_model().objects.create_superuser(
+            username='parent-directory-admin',
+            email='admin@example.com',
+            password='pass123',
+        )
+        self.client.force_login(user)
+        self.parents = []
+        for index in range(12):
+            self.parents.append(Parent.objects.create(
+                first_name=f'Parent {index:02d}',
+                last_name=f'Family {index:02d}',
+                phone_number=f'0809000{index:04d}',
+                sex='Female',
+                marital_status='Married',
+                address=f'{index} Main Street',
+                state='Lagos',
+                lga=f'LGA {index:02d}',
+            ))
+
+    def test_directory_shows_ten_parents_per_page(self):
+        response = self.client.get(reverse('parents'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context['parents']), 10)
+        self.assertEqual(response.context['page_obj'].paginator.count, 12)
+        self.assertContains(response, 'Page 1 of 2')
+        self.assertContains(response, 'data-parent-directory-page')
+
+        second_page = self.client.get(reverse('parents'), {'page': 2})
+        self.assertEqual(len(second_page.context['parents']), 2)
+        self.assertEqual(second_page.context['page_obj'].number, 2)
+
+    def test_search_matches_parent_name_phone_and_linked_student(self):
+        classroom = ClassRoom.objects.create(name='Primary 1', section='Primary', level_number=1)
+        self.parents[7].first_name = 'SpecialGuardian'
+        self.parents[7].save(update_fields=['first_name', 'name'])
+        student = Student.objects.create(
+            first_name='Ada', last_name='Lovelace', sex='Female', date_of_birth='2015-01-01',
+            state_of_origin='Lagos', lga_of_origin='Ikeja', program='Primary (PRY)',
+            current_class=classroom, parent=self.parents[7],
+        )
+
+        name_response = self.client.get(reverse('parents'), {'q': 'SpecialGuardian Family'})
+        phone_response = self.client.get(reverse('parents'), {'q': self.parents[7].phone_number})
+        child_response = self.client.get(reverse('parents'), {'q': 'Ada Lovelace'})
+
+        for response in (name_response, phone_response, child_response):
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(list(response.context['parents']), [self.parents[7]])
+        self.assertEqual(student.parent, self.parents[7])
+
+    def test_ajax_request_returns_only_parent_results_partial(self):
+        response = self.client.get(
+            reverse('parents'), {'q': 'family', 'page': 2},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-parent-directory-page')
+        self.assertContains(response, 'aria-current="page">2</span>')
+        self.assertNotContains(response, 'parent-directory-search-form')
+        self.assertNotContains(response, 'app-global-branding')
 
 
 class ResendEmailTests(TestCase):

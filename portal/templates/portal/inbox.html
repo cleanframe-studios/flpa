@@ -38,7 +38,22 @@
             </div>
             <p class="mt-0.5 truncate text-xs text-slate-500">{{ recipient.message.sender|user_display_name }}</p>
             <p class="msg-preview mt-1 truncate text-xs text-slate-600">{{ recipient.message.body|linebreaksbr }}</p>
-            {% if recipient.message.action_url %}<a href="{{ recipient.message.action_url }}" {% if 'birthdays/' in recipient.message.action_url %}data-birthday-surprise{% endif %} class="mt-2 inline-flex items-center gap-1 text-xs font-bold text-indigo-700 hover:text-indigo-900">{% if 'birthdays/' in recipient.message.action_url %}Open birthday surprise{% else %}Open message{% endif %} <span aria-hidden="true">→</span></a>{% endif %}
+            {% if recipient.message.action_url %}
+              {% if 'birthdays/' in recipient.message.action_url %}
+              <a href="{{ recipient.message.action_url }}" data-birthday-surprise aria-label="Open your birthday surprise" class="group mt-4 flex w-full max-w-md items-center gap-3 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 via-blue-50 to-violet-50 p-3 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md sm:w-fit sm:min-w-[19rem]">
+                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-blue-600 text-white shadow-md shadow-indigo-900/20">
+                  <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3v2m7.07.93-1.42 1.42M22 12h-2m-.93 7.07-1.42-1.42M12 21v-2m-7.07.93 1.42-1.42M2 12h2m.93-7.07 1.42 1.42M7 14h10l1 6H6l1-6Zm2 0V9a3 3 0 0 1 6 0v5"/></svg>
+                </span>
+                <span class="min-w-0 flex-1">
+                  <span class="block text-[10px] font-black uppercase tracking-[.16em] text-indigo-600">A celebration made for you</span>
+                  <span class="mt-0.5 block text-sm font-black text-slate-900">Open birthday surprise</span>
+                </span>
+                <svg class="h-4 w-4 shrink-0 text-indigo-600 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14m-6-6 6 6-6 6"/></svg>
+              </a>
+              {% else %}
+              <a href="{{ recipient.message.action_url }}" class="mt-2 inline-flex items-center gap-1 text-xs font-bold text-indigo-700 hover:text-indigo-900">Open message <span aria-hidden="true">→</span></a>
+              {% endif %}
+            {% endif %}
           </div>
           {% if not recipient.is_read %}
           <div class="flex flex-shrink-0 flex-col items-end gap-2">
@@ -60,8 +75,10 @@
   const birthdayModalRoot = document.createElement('div');
   birthdayModalRoot.id = 'birthday-surprise-modal-root';
   document.body.appendChild(birthdayModalRoot);
+  const birthdaySlideDuration = 8500;
   let birthdayRequest;
   let returnFocusTo;
+  let birthdaySlideTimer;
 
   function updateBirthdayScene(modal, activeScene) {
     const scenes = Array.from(modal.querySelectorAll('[data-birthday-scene]'));
@@ -75,6 +92,15 @@
     const finalScene = activeScene === scenes.length - 1;
     nextButton.querySelector('[data-next-label]').textContent = finalScene ? 'Finish' : 'Next';
     nextButton.querySelector('[data-next-icon]').classList.toggle('hidden', finalScene);
+    const progress = modal.querySelector('[data-birthday-slide-progress]');
+    if (progress) {
+      progress.classList.remove('is-running');
+      if (!finalScene) {
+        progress.style.animationDuration = `${birthdaySlideDuration}ms`;
+        void progress.offsetWidth;
+        progress.classList.add('is-running');
+      }
+    }
     return activeScene;
   }
 
@@ -82,8 +108,14 @@
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const layer = modal.querySelector('[data-birthday-confetti]');
     if (!layer) return;
-    const colours = ['#ffffff', '#bfdbfe', '#fef08a', '#c4b5fd', '#fbcfe8'];
-    for (let index = 0; index < 32; index += 1) {
+    const colours = [
+      'var(--birthday-gradient-start)',
+      'var(--birthday-gradient-end)',
+      'color-mix(in srgb, var(--birthday-gradient-start), white 38%)',
+      'color-mix(in srgb, var(--birthday-gradient-end), #facc15 28%)',
+      '#facc15',
+    ];
+    for (let index = 0; index < 28; index += 1) {
       const piece = document.createElement('span');
       piece.className = 'birthday-confetti-piece';
       piece.style.setProperty('--confetti-colour', colours[index % colours.length]);
@@ -99,6 +131,7 @@
   function closeBirthdayModal() {
     const modal = birthdayModalRoot.querySelector('[data-birthday-modal]');
     if (!modal || modal.dataset.closing === 'true') return;
+    window.clearTimeout(birthdaySlideTimer);
     modal.dataset.closing = 'true';
     modal.dataset.open = 'false';
     modal.classList.remove('opacity-100');
@@ -110,6 +143,20 @@
       returnFocusTo?.focus();
       returnFocusTo = null;
     }, 320);
+  }
+
+  function showBirthdayScene(modal, activeScene) {
+    const scenes = modal.querySelectorAll('[data-birthday-scene]');
+    if (activeScene >= scenes.length) return;
+    updateBirthdayScene(modal, activeScene);
+    if (activeScene === 0 || activeScene === scenes.length - 1) launchBirthdayConfetti(modal);
+    window.clearTimeout(birthdaySlideTimer);
+    if (activeScene < scenes.length - 1) {
+      birthdaySlideTimer = window.setTimeout(
+        () => showBirthdayScene(modal, activeScene + 1),
+        birthdaySlideDuration,
+      );
+    }
   }
 
   async function openBirthdayModal(link) {
@@ -128,7 +175,7 @@
       const modal = birthdayModalRoot.querySelector('[data-birthday-modal]');
       if (!modal) throw new Error('The birthday surprise response was incomplete.');
       document.body.classList.add('overflow-hidden');
-      updateBirthdayScene(modal, 0);
+      showBirthdayScene(modal, 0);
       modal.setAttribute('aria-hidden', 'false');
       requestAnimationFrame(() => {
         modal.dataset.open = 'true';
@@ -169,8 +216,7 @@
         closeBirthdayModal();
         return;
       }
-      updateBirthdayScene(modal, activeScene + 1);
-      launchBirthdayConfetti(modal);
+      showBirthdayScene(modal, activeScene + 1);
     }
   });
 
