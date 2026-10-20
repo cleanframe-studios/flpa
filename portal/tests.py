@@ -70,6 +70,32 @@ class LoginInteractionTests(TestCase):
 
         self.assertRedirects(response, reverse('dashboard'), fetch_redirect_response=False)
 
+    def test_login_trims_whitespace_around_parent_id(self):
+        parent_id = 'FLA/PAR/2026/024'
+        user = get_user_model().objects.create_user(username=parent_id, password='hopper')
+        Parent.objects.create(
+            parent_id=parent_id,
+            first_name='Grace',
+            last_name='Hopper',
+            phone_number='08034561234',
+            sex='Female',
+            marital_status='Married',
+            address='Address',
+            state='Lagos',
+            lga='Ikeja',
+            status='Active',
+            user=user,
+        )
+        AccountProfile.objects.create(user=user, role='parent')
+
+        response = self.client.post(reverse('login'), {
+            'username': f' {parent_id} ',
+            'password': 'hopper',
+        })
+
+        self.assertRedirects(response, reverse('parent_dashboard'), fetch_redirect_response=False)
+        self.assertEqual(int(self.client.session['_auth_user_id']), user.pk)
+
 
 class InboxReadStateTests(TestCase):
     def setUp(self):

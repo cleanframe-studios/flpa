@@ -390,7 +390,7 @@ def login_view(request):
         return redirect(_login_redirect_target(request, request.user))
 
     if request.method == 'POST':
-        user_name = request.POST.get('username')
+        user_name = request.POST.get('username', '').strip()
         pass_word = request.POST.get('password')
         remember_me = request.POST.get('remember_me') == 'on'
         
@@ -6728,13 +6728,9 @@ def _read_json_or_form_payload(request):
 def register_push_subscription_view(request):
     """
     Register a new push subscription for the current user.
-    Expects JSON POST with: endpoint, p256dh, auth
+    Accepts JSON or form-encoded payloads with: endpoint, p256dh, auth
     """
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({'success': False, 'error': 'Invalid JSON'}, status=400)
-
+    data = _read_json_or_form_payload(request)
     endpoint = data.get('endpoint')
     p256dh = data.get('p256dh')
     auth = data.get('auth')
@@ -6769,13 +6765,9 @@ def register_push_subscription_view(request):
 def unregister_push_subscription_view(request):
     """
     Unregister a push subscription for the current user.
-    Expects JSON POST with: endpoint
+    Accepts JSON or form-encoded payloads with: endpoint
     """
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({'success': False, 'error': 'Invalid JSON'}, status=400)
-
+    data = _read_json_or_form_payload(request)
     endpoint = data.get('endpoint')
     if not endpoint:
         return JsonResponse({'success': False, 'error': 'Missing endpoint'}, status=400)
