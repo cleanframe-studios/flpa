@@ -65,25 +65,35 @@
 
   function updateBirthdayScene(modal, activeScene) {
     const scenes = Array.from(modal.querySelectorAll('[data-birthday-scene]'));
-    const dots = Array.from(modal.querySelectorAll('[data-scene-dot]'));
     const nextButton = modal.querySelector('[data-next-birthday-scene]');
-    const counter = modal.querySelector('[data-scene-counter]');
     if (!scenes.length || !nextButton) return activeScene;
     scenes.forEach((scene, index) => {
       scene.classList.toggle('hidden', index !== activeScene);
       scene.classList.toggle('is-active', index === activeScene);
+      scene.setAttribute('aria-hidden', String(index !== activeScene));
     });
-    dots.forEach((dot, index) => {
-      dot.classList.toggle('w-6', index === activeScene);
-      dot.classList.toggle('w-3', index !== activeScene);
-      dot.classList.toggle('bg-white', index === activeScene);
-      dot.classList.toggle('bg-white/25', index !== activeScene);
-    });
-    counter.textContent = `0${activeScene + 1} / 0${scenes.length}`;
     const finalScene = activeScene === scenes.length - 1;
-    nextButton.querySelector('span').textContent = finalScene ? 'Celebrate again' : 'Continue';
-    nextButton.querySelector('svg').classList.toggle('rotate-180', finalScene);
+    nextButton.querySelector('[data-next-label]').textContent = finalScene ? 'Finish' : 'Next';
+    nextButton.querySelector('[data-next-icon]').classList.toggle('hidden', finalScene);
     return activeScene;
+  }
+
+  function launchBirthdayConfetti(modal) {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const layer = modal.querySelector('[data-birthday-confetti]');
+    if (!layer) return;
+    const colours = ['#ffffff', '#bfdbfe', '#fef08a', '#c4b5fd', '#fbcfe8'];
+    for (let index = 0; index < 32; index += 1) {
+      const piece = document.createElement('span');
+      piece.className = 'birthday-confetti-piece';
+      piece.style.setProperty('--confetti-colour', colours[index % colours.length]);
+      piece.style.setProperty('--confetti-x', `${Math.round(Math.random() * 420 - 210)}px`);
+      piece.style.setProperty('--confetti-y', `${Math.round(Math.random() * 460 - 230)}px`);
+      piece.style.setProperty('--confetti-rotation', `${Math.round(Math.random() * 720 - 360)}deg`);
+      piece.style.animationDelay = `${Math.random() * 100}ms`;
+      layer.appendChild(piece);
+      window.setTimeout(() => piece.remove(), 1300);
+    }
   }
 
   function closeBirthdayModal() {
@@ -99,7 +109,7 @@
       document.body.classList.remove('overflow-hidden');
       returnFocusTo?.focus();
       returnFocusTo = null;
-    }, 220);
+    }, 320);
   }
 
   async function openBirthdayModal(link) {
@@ -155,7 +165,12 @@
     if (event.target.closest('[data-next-birthday-scene]')) {
       const scenes = modal.querySelectorAll('[data-birthday-scene]');
       const activeScene = Array.from(scenes).findIndex(scene => !scene.classList.contains('hidden'));
-      updateBirthdayScene(modal, (activeScene + 1) % scenes.length);
+      if (activeScene === scenes.length - 1) {
+        closeBirthdayModal();
+        return;
+      }
+      updateBirthdayScene(modal, activeScene + 1);
+      launchBirthdayConfetti(modal);
     }
   });
 

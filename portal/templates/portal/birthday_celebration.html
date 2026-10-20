@@ -7,31 +7,70 @@
   const modal = document.querySelector('[data-birthday-modal]');
   if (!modal) return;
   modal.dataset.open = 'true';
-  modal.setAttribute('aria-hidden', 'false');
-  modal.classList.remove('opacity-0');
-  modal.classList.add('opacity-100');
+  requestAnimationFrame(() => {
+    modal.setAttribute('aria-hidden', 'false');
+    modal.classList.remove('opacity-0');
+    modal.classList.add('opacity-100');
+  });
   const scenes = Array.from(modal.querySelectorAll('[data-birthday-scene]'));
-  const dots = Array.from(modal.querySelectorAll('[data-scene-dot]'));
   const nextButton = modal.querySelector('[data-next-birthday-scene]');
-  const counter = modal.querySelector('[data-scene-counter]');
   let activeScene = 0;
+  scenes.forEach((scene, index) => scene.setAttribute('aria-hidden', String(index !== activeScene)));
+
+  function launchBirthdayConfetti() {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const layer = modal.querySelector('[data-birthday-confetti]');
+    if (!layer) return;
+    const colours = ['#ffffff', '#bfdbfe', '#fef08a', '#c4b5fd', '#fbcfe8'];
+    for (let index = 0; index < 32; index += 1) {
+      const piece = document.createElement('span');
+      piece.className = 'birthday-confetti-piece';
+      piece.style.setProperty('--confetti-colour', colours[index % colours.length]);
+      piece.style.setProperty('--confetti-x', `${Math.round(Math.random() * 420 - 210)}px`);
+      piece.style.setProperty('--confetti-y', `${Math.round(Math.random() * 460 - 230)}px`);
+      piece.style.setProperty('--confetti-rotation', `${Math.round(Math.random() * 720 - 360)}deg`);
+      piece.style.animationDelay = `${Math.random() * 100}ms`;
+      layer.appendChild(piece);
+      window.setTimeout(() => piece.remove(), 1300);
+    }
+  }
+
+  function closeCelebration() {
+    if (modal.dataset.closing === 'true') return;
+    modal.dataset.closing = 'true';
+    modal.setAttribute('aria-hidden', 'true');
+    modal.classList.remove('opacity-100');
+    modal.classList.add('opacity-0');
+    window.setTimeout(() => window.location.assign("{% url 'inbox' %}"), 300);
+  }
+
   nextButton?.addEventListener('click', () => {
+    if (activeScene === scenes.length - 1) {
+      closeCelebration();
+      return;
+    }
     scenes[activeScene].classList.add('hidden');
     scenes[activeScene].classList.remove('is-active');
-    activeScene = (activeScene + 1) % scenes.length;
+    scenes[activeScene].setAttribute('aria-hidden', 'true');
+    activeScene += 1;
     scenes[activeScene].classList.remove('hidden');
     void scenes[activeScene].offsetWidth;
     scenes[activeScene].classList.add('is-active');
-    dots.forEach((dot, index) => {
-      dot.classList.toggle('w-6', index === activeScene);
-      dot.classList.toggle('w-3', index !== activeScene);
-      dot.classList.toggle('bg-white', index === activeScene);
-      dot.classList.toggle('bg-white/25', index !== activeScene);
-    });
-    counter.textContent = `0${activeScene + 1} / 0${scenes.length}`;
+    scenes[activeScene].setAttribute('aria-hidden', 'false');
     const finalScene = activeScene === scenes.length - 1;
-    nextButton.querySelector('span').textContent = finalScene ? 'Celebrate again' : 'Continue';
-    nextButton.querySelector('svg').classList.toggle('rotate-180', finalScene);
+    nextButton.querySelector('[data-next-label]').textContent = finalScene ? 'Finish' : 'Next';
+    nextButton.querySelector('[data-next-icon]').classList.toggle('hidden', finalScene);
+    launchBirthdayConfetti();
+  });
+
+  modal.addEventListener('click', event => {
+    if (event.target.closest('[data-birthday-close]') || event.target.closest('[data-birthday-backdrop-close]')) {
+      event.preventDefault();
+      closeCelebration();
+    }
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') closeCelebration();
   });
 })();
 </script>

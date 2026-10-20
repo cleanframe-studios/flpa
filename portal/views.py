@@ -1362,17 +1362,25 @@ def _send_message(sender, subject, body, priority, recipient_users, action_url='
     for user in recipient_users:
         print(f'Message saved. Checking subscriptions for {user.username}...', flush=True)
         try:
-            send_push_notification_to_user(
+            successful, failed = send_push_notification_to_user(
                 user=user,
                 title=subject,
                 body=body,
-                link=reverse('inbox'),
+                link=action_url or reverse('inbox'),
                 tag=f'message-{message.id}',
             )
-            print('Push successful!', flush=True)
+            if successful:
+                logger.info('Push delivered for message %s to %s (%s device(s)).', message.id, user.username, successful)
+            else:
+                logger.warning(
+                    'No push delivered for message %s to %s (%s failure(s)); check VAPID configuration and active device subscriptions.',
+                    message.id,
+                    user.username,
+                    failed,
+                )
         except Exception as e:
             logger.error(f'Failed to send push for message {message.id} to {user.username}: {str(e)}')
-            print(f'Push failed: {e}', flush=True)
+            print(f'Push failed for message {message.id} to {user.username}: {e}', flush=True)
         recipient_email = _user_notification_email(user)
         if send_email and recipient_email:
             parent = getattr(user, 'parent_record', None)
@@ -1408,14 +1416,21 @@ def _notify_users(recipient_users, title, message, link=''):
     for user in recipient_users:
         print(f'Message saved. Checking subscriptions for {user.username}...', flush=True)
         try:
-            send_push_notification_to_user(
+            successful, failed = send_push_notification_to_user(
                 user=user,
                 title=title,
                 body=message,
                 link=link,
                 tag=f'notification-{title}-{user.id}',
             )
-            print('Push successful!', flush=True)
+            if successful:
+                logger.info('Push delivered to %s (%s device(s)).', user.username, successful)
+            else:
+                logger.warning(
+                    'No push delivered to %s (%s failure(s)); check VAPID configuration and active device subscriptions.',
+                    user.username,
+                    failed,
+                )
         except Exception as e:
             logger.error(f'Failed to send push notification to {user.username}: {str(e)}')
             print(f'Push failed: {e}', flush=True)
@@ -1731,23 +1746,31 @@ def birthday_celebration_view(request, student_id, year):
         year=year,
         birthday_notified_at__isnull=False,
     )
-    colour_hex = {
-        'red': '#f87171',
-        'orange': '#fb923c',
-        'yellow': '#facc15',
-        'green': '#4ade80',
-        'blue': '#60a5fa',
-        'purple': '#c084fc',
-        'pink': '#f472b6',
-        'black': '#1e293b',
-        'white': '#f8fafc',
-    }.get(celebration.favourite_colour, '#818cf8')
+    colour_themes = {
+        'red': ('#7f1d1d', '#b91c1c', '#ffffff'),
+        'orange': ('#7c2d12', '#c2410c', '#ffffff'),
+        'yellow': ('#713f12', '#a16207', '#ffffff'),
+        'green': ('#14532d', '#15803d', '#ffffff'),
+        'blue': ('#1e3a8a', '#2563eb', '#ffffff'),
+        'purple': ('#4c1d95', '#6d28d9', '#ffffff'),
+        'pink': ('#831843', '#be185d', '#ffffff'),
+        'black': ('#020617', '#334155', '#ffffff'),
+        'white': ('#f8fafc', '#cbd5e1', '#0f172a'),
+        'other': ('#1e3a8a', '#2563eb', '#ffffff'),
+    }
+    colour_start, colour_end, colour_text = colour_themes.get(
+        celebration.favourite_colour,
+        colour_themes['blue'],
+    )
     context = {
         'student': student,
         'celebration': celebration,
         'birthday': birthday,
         'is_family_view': is_parent or is_student,
-        'favourite_colour_hex': colour_hex,
+        'favourite_colour_hex': colour_start,
+        'birthday_gradient_start': colour_start,
+        'birthday_gradient_end': colour_end,
+        'birthday_text_colour': colour_text,
     }
     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
         return render(request, 'portal/partials/birthday_celebration_modal.html', context)

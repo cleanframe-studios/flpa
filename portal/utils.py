@@ -123,16 +123,21 @@ def send_push_notification_to_user(user, title, body, link='/inbox/', tag=None):
     Returns:
         tuple: (successful_count, failed_count)
     """
-    from pywebpush import webpush
     from .models import PushSubscription
     
     if not settings.VAPID_PUBLIC_KEY or not settings.VAPID_PRIVATE_KEY:
-        logger.warning('VAPID keys not configured, cannot send push notifications')
+        logger.error('VAPID keys are not configured; push notification to %s was not sent.', user.username)
+        return (0, 1)
+
+    subscriptions = list(PushSubscription.objects.filter(user=user, is_active=True))
+    if not subscriptions:
+        logger.warning('No active push subscriptions for %s; push notification was not sent.', user.username)
         return (0, 0)
-    
-    subscriptions = PushSubscription.objects.filter(user=user, is_active=True)
+
+    from pywebpush import webpush
+
     print(f'Message saved. Checking subscriptions for {user.username}...', flush=True)
-    print(f'Found {subscriptions.count()} subscriptions.', flush=True)
+    print(f'Found {len(subscriptions)} subscriptions.', flush=True)
     
     payload = {
         'title': title,

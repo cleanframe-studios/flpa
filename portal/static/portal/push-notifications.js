@@ -68,10 +68,11 @@ class PushNotificationManager {
 
       // Get VAPID public key from server
       const vapidResponse = await fetch(this.vapidPublicKeyUrl);
+      const vapidResult = await vapidResponse.json();
       if (!vapidResponse.ok) {
-        throw new Error('Failed to fetch VAPID public key');
+        throw new Error(vapidResult.error || 'Failed to fetch VAPID public key');
       }
-      const { vapid_public_key } = await vapidResponse.json();
+      const { vapid_public_key } = vapidResult;
       if (!vapid_public_key) {
         throw new Error('VAPID public key is empty or not configured');
       }

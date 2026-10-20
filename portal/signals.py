@@ -1,7 +1,11 @@
+import logging
+
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 
 from .models import AcademicTerm, FeeStructure, FeeStructureItem, Student, StudentFeeAccount, TermEnrollment, Notification, MessageRecipient
+
+logger = logging.getLogger(__name__)
 
 
 @receiver(post_save, sender=AcademicTerm)
@@ -69,17 +73,19 @@ def send_push_notification_on_notification_created(sender, instance, created, **
     
     # Send push notification to avoid blocking the database save
     try:
-        send_push_notification_to_user(
+        successful, failed = send_push_notification_to_user(
             user=instance.recipient,
             title=instance.title,
             body=instance.message,
             link=instance.link or '/inbox/',
             tag=f'notification-{instance.id}',
         )
+        if successful:
+            logger.info('Push delivered for notification %s (%s device(s)).', instance.id, successful)
+        else:
+            logger.warning('No push delivered for notification %s (%s failure(s)).', instance.id, failed)
     except Exception as e:
         # Log the error but don't fail the notification creation
-        import logging
-        logger = logging.getLogger(__name__)
         logger.error(f'Failed to send push notification for notification {instance.id}: {str(e)}')
 
 
@@ -92,25 +98,21 @@ def send_push_notification_on_message_received(sender, instance, created, **kwar
     if not created:
         return  # Only send push on creation
 
-    from .models import PushSubscription
     from .utils import send_push_notification_to_user
 
     recipient = instance.recipient_user
-    print(f"Message saved. Checking subscriptions for {recipient.username}...")
-    subscriptions = PushSubscription.objects.filter(user=recipient, is_active=True)
-    print(f"Found {subscriptions.count()} subscriptions.")
 
     try:
-        send_push_notification_to_user(
+        successful, failed = send_push_notification_to_user(
             user=recipient,
             title=instance.message.subject,
             body=instance.message.body[:100],  # First 100 chars
-            link='/inbox/',
+            link=instance.message.action_url or '/inbox/',
             tag=f'message-{instance.message.id}',
         )
-        print("Push successful!")
+        if successful:
+            logger.info('Push delivered for message %s to %s (%s device(s)).', instance.message.id, recipient.username, successful)
+        else:
+            logger.warning('No push delivered for message %s to %s (%s failure(s)).', instance.message.id, recipient.username, failed)
     except Exception as e:
-        print(f"Push failed: {e}")
-        import logging
-        logger = logging.getLogger(__name__)
         logger.error(f'Failed to send push for message {instance.message.id}: {str(e)}')

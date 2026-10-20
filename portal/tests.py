@@ -391,9 +391,20 @@ class StudentBirthdayAutomationTests(TestCase):
         response = self.client.get(story_url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Keep shining brightly!')
-        self.assertContains(response, 'With love from the management')
+        self.assertContains(response, 'From your school family')
+        self.assertContains(response, 'A celebration made for you')
         self.assertContains(response, 'birthday-orbit')
         self.assertContains(response, 'data-birthday-modal')
+        self.assertContains(response, '--birthday-gradient-start:#1e3a8a')
+        self.assertContains(response, '--birthday-gradient-end:#2563eb')
+        self.assertContains(response, 'data-next-label>Next')
+        self.assertContains(response, 'Thank you for being you.')
+        self.assertContains(response, 'data-birthday-confetti')
+        self.assertNotContains(response, 'data-scene-counter')
+        self.assertNotContains(response, 'data-scene-dot')
+        self.assertNotContains(response, 'Back to inbox')
+        self.assertNotContains(response, 'Celebrate again')
+        self.assertEqual(response.content.count(b'data-birthday-scene>'), 5)
 
         partial_response = self.client.get(
             story_url,
@@ -404,6 +415,63 @@ class StudentBirthdayAutomationTests(TestCase):
         self.assertNotContains(partial_response, '<html')
         self.assertContains(partial_response, 'data-birthday-modal')
         self.assertContains(partial_response, 'data-next-birthday-scene')
+
+    @patch('portal.utils.send_push_notification_to_user', return_value=(1, 0))
+    def test_birthday_message_push_opens_the_celebration(self, send_push):
+        from portal.views import _send_message
+
+        celebration_url = reverse(
+            'birthday_celebration',
+            kwargs={'student_id': self.student.pk, 'year': self.today.year},
+        )
+        _send_message(
+            None,
+            'Happy birthday, Ada!',
+            'Your school is celebrating you.',
+            'Important',
+            [self.parent_user],
+            action_url=celebration_url,
+            send_email=False,
+        )
+
+        send_push.assert_called_once()
+        self.assertEqual(send_push.call_args.kwargs['link'], celebration_url)
+
+    @override_settings(VAPID_PUBLIC_KEY='', VAPID_PRIVATE_KEY='')
+    def test_push_without_vapid_configuration_reports_failure(self):
+        from .utils import send_push_notification_to_user
+
+        result = send_push_notification_to_user(
+            self.parent_user,
+            'Happy birthday!',
+            'A birthday surprise is waiting.',
+        )
+
+        self.assertEqual(result, (0, 1))
+
+    def test_unselected_and_light_favourite_colours_have_readable_themes(self):
+        celebration = StudentBirthdayCelebration.objects.create(
+            student=self.student,
+            year=self.today.year,
+            birthday_notified_at=timezone.now(),
+        )
+        self.client.force_login(self.parent_user)
+        url = reverse(
+            'birthday_celebration',
+            kwargs={'student_id': self.student.pk, 'year': self.today.year},
+        )
+
+        blue_response = self.client.get(url)
+        self.assertContains(blue_response, '--birthday-gradient-start:#1e3a8a')
+        self.assertContains(blue_response, '--birthday-gradient-end:#2563eb')
+        self.assertContains(blue_response, '--birthday-text-colour:#ffffff')
+
+        celebration.favourite_colour = 'white'
+        celebration.save(update_fields=['favourite_colour'])
+        white_response = self.client.get(url)
+        self.assertContains(white_response, '--birthday-gradient-start:#f8fafc')
+        self.assertContains(white_response, '--birthday-gradient-end:#cbd5e1')
+        self.assertContains(white_response, '--birthday-text-colour:#0f172a')
 
     def test_student_outside_primary_four_and_six_cannot_open_story(self):
         self.classroom.level_number = 3
@@ -827,6 +895,7 @@ class ResendEmailTests(TestCase):
     @patch('portal.utils.send_push_notification_to_user')
     @patch('portal.views.send_branded_email')
     def test_internal_message_sends_push_and_email_and_skips_no_email_users(self, send_email, send_push):
+        send_push.return_value = (1, 0)
         sender = get_user_model().objects.create_user(username='message-sender')
         recipient = get_user_model().objects.create_user(username='message-recipient', email='parent@example.com')
         no_email = get_user_model().objects.create_user(username='message-no-email')
@@ -843,6 +912,7 @@ class ResendEmailTests(TestCase):
     @patch('portal.utils.send_push_notification_to_user')
     @patch('portal.views.send_branded_email')
     def test_internal_message_uses_teacher_profile_email_when_user_email_is_blank(self, send_email, send_push):
+        send_push.return_value = (1, 0)
         sender = get_user_model().objects.create_user(username='message-sender-2')
         staff_user = get_user_model().objects.create_user(username='staff-user-no-login-email', email='')
         Teacher.objects.create(
@@ -916,6 +986,7 @@ class ResendEmailTests(TestCase):
     @patch('portal.utils.send_push_notification_to_user')
     @patch('portal.views.send_branded_email')
     def test_weekly_fee_reminder_creates_inbox_message_email_and_skips_duplicates(self, send_email, send_push):
+        send_push.return_value = (1, 0)
         self._make_bursary_setup()
         from django.core.management import call_command
         from portal.models import StudentFeeAccount
@@ -1598,6 +1669,7 @@ class SchoolPaymentBalanceTests(TestCase):
     @patch('portal.views.send_branded_email')
     @patch('portal.utils.send_push_notification_to_user')
     def test_invoice_alert_does_not_appear_as_an_unread_inbox_message(self, send_push, send_email):
+        send_push.return_value = (1, 0)
         from portal.views import generate_invoices_for_classroom
 
         classroom = ClassRoom.objects.create(name='Primary 5', section='Primary', level_number=5)
