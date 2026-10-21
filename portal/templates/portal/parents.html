@@ -111,6 +111,7 @@ function setupParentCombobox(select){
 }
 function setupParentDirectoryControls(){document.querySelectorAll('#parent-directory-results .custom-parent-select').forEach(setupParentCombobox)}
 setupParentDirectoryControls();
+document.querySelectorAll('#parentModal .custom-parent-select').forEach(setupParentCombobox);
 function refreshParentLgas(){const stateInput=document.querySelector('#parentModal input[name="state"]');const lgaInput=document.querySelector('#parentModal input[name="lga"]');const lgaSelect=lgaInput?.closest('.custom-parent-select');const lgaMenu=lgaSelect?.querySelector('.parent-menu');const visibleInput=lgaSelect?.querySelector('input[type="text"]');if(!stateInput||!lgaInput||!lgaMenu)return;lgaInput.value='';if(visibleInput)visibleInput.value='';lgaMenu.innerHTML='';(locationData[stateInput.value]||[]).forEach(option=>{const item=document.createElement('button');item.type='button';item.dataset.value=option;item.className='parent-option block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-blue-50';item.textContent=option;item.addEventListener('click',event=>{event.stopPropagation();lgaInput.value=option;if(visibleInput)visibleInput.value=option;lgaMenu.classList.add('hidden');lgaSelect.querySelector('.parent-chevron')?.classList.remove('rotate-180')});lgaMenu.appendChild(item)})}
 document.addEventListener('click',closeParentMenus)
 function showParentToast(message){

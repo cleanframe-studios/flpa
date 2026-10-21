@@ -799,6 +799,18 @@ class ParentDirectoryTests(TestCase):
                 lga=f'LGA {index:02d}',
             ))
 
+    def test_add_parent_state_options_initialize_after_search_input(self):
+        response = self.client.get(reverse('parents'))
+        content = response.content.decode()
+
+        self.assertEqual(response.status_code, 200)
+        setup_position = content.index(
+            "document.querySelectorAll('#parentModal .custom-parent-select').forEach(setupParentCombobox);"
+        )
+        populate_position = content.index('populateAddParentStateOptions();')
+        self.assertLess(setup_position, populate_position)
+        self.assertIn('"Lagos":["Agege"', content)
+
     def test_directory_shows_ten_parents_per_page(self):
         response = self.client.get(reverse('parents'))
 
