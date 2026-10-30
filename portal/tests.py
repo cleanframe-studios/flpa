@@ -3369,6 +3369,8 @@ class AcademicCalendarGuardTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Parent Details')
         self.assertContains(response, 'Linked Children')
+        self.assertContains(response, 'Search unlinked students')
+        self.assertContains(response, f'data-value="{student.pk}"')
 
         self.client.post(reverse('parent_profile', args=[parent.pk]), {'action': 'link_student', 'student': student.pk})
         student.refresh_from_db()
