@@ -1581,6 +1581,14 @@ class StudentRegistrationParentToggleTests(TestCase):
         self.client.force_login(self.user)
         self.classroom = ClassRoom.objects.create(name='Primary 1', section='Primary', level_number=1)
 
+    def test_new_parent_state_and_lga_menus_open_above_fields_in_scrollable_modal(self):
+        response = self.client.get(reverse('students'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '#new-parent-fields .custom-select[data-name="parent_state"] .options-container,')
+        self.assertContains(response, '#new-parent-fields .custom-select[data-name="parent_lga"] .options-container')
+        self.assertContains(response, 'top: auto; bottom: 100%; margin-top: 0;')
+
     def student_data(self, **overrides):
         data = {
             'first_name': 'Ada',
