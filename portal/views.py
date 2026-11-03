@@ -89,6 +89,7 @@ from .models import (
 )
 from django.db.models import Case, When, Value, IntegerField, CharField, Q, Max, Min, Exists, OuterRef, Sum, Avg, F
 from .decorators import bursar_required, registrar_required, role_required, teacher_required, principal_required
+from .middleware import is_inactive_staff
 from .utils import log_security_action, send_branded_email
 from .forms import BatchApplicantFormSet, BatchParentForm, ParentChildApplicationForm, ParentStudentLinkForm, StudentParentForm
 
@@ -397,6 +398,8 @@ def login_view(request):
         user = authenticate(request, username=user_name, password=pass_word)
         
         if user is not None:
+            if is_inactive_staff(user):
+                return render(request, 'portal/staff_inactive.html', status=403)
             student = getattr(user, 'student_record', None)
             if student and not student.has_portal_access:
                 messages.warning(request, 'Login access is restricted to Primary 4 and above.')
